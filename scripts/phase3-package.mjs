@@ -364,7 +364,7 @@ const createZip = async (source, destination) => {
     await runCommand("powershell", [
       "-NoProfile",
       "-Command",
-      "Compress-Archive -Path $args[0] -DestinationPath $args[1] -Force",
+      "& { param([string]$Source, [string]$Destination) Compress-Archive -LiteralPath $Source -DestinationPath $Destination -Force }",
       source,
       destination,
     ]);
