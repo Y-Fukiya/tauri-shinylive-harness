@@ -35,7 +35,8 @@ This procedure is generated from `harness.toml` and covers Phase 2 verification 
 
 ## Apps
 
-| App | Kind | Smoke Text |
-| --- | --- | --- |
-| subject-safety-mini | shinylive-r | Subject Safety Mini Dashboard<br>R smoke result<br>SUBJ-001 |
+| App | Kind | Data Pack | Smoke Text |
+| --- | --- | --- | --- |
+| subject-safety-mini | shinylive-r | n/a | Subject Safety Mini Dashboard<br>R smoke result<br>SUBJ-001 |
+| subject-profile-reference | shinylive-r | clinical-demo-subject-profile-v1 | Subject Profile Reference App<br>SUBJ-001 AE count: 3 |
 

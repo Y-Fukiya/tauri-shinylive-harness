@@ -33,6 +33,7 @@
 - Every configured app smoke text is visible
 - External request audit has zero entries
 - Static asset hashes match `dist/harness-bundle-manifest.json`
+- Data pack hashes are present in app manifests for apps that declare `data_pack`
 - Release checksums match `release/SHA256SUMS`
 
 ## Phase 3 Signing Checklist

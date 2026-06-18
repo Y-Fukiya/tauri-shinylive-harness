@@ -21,6 +21,17 @@ type HarnessApp = {
   output?: string;
   smokeText?: string[];
   headerProbes?: string[];
+  domProbes?: string[];
+  dataPack?: {
+    id: string;
+    sha256: string;
+    fileCount: number;
+    files: Array<{
+      path: string;
+      size: number;
+      sha256: string;
+    }>;
+  };
 };
 
 type HarnessManifest = {
@@ -161,6 +172,7 @@ export const App = () => {
   const selectedApp = apps.find((app) => app.id === selectedAppId) ?? apps[0] ?? null;
   const frameDiagnostics = selectedApp ? frameDiagnosticsByApp[selectedApp.id] ?? null : null;
   const selectedUrl = selectedApp ? new URL(selectedApp.path, window.location.origin).toString() : "";
+  const selectedDataPack = selectedApp?.dataPack ?? null;
 
   const filteredApps = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -377,6 +389,11 @@ export const App = () => {
           <Field label="Kind" value={selectedApp?.kind} />
           <Field label="Offline required" value={selectedApp?.offlineRequired} />
           <Field label="App URL" value={selectedApp?.path} />
+          <Field label="Data pack" value={selectedDataPack?.id} />
+          <Field
+            label="Data hash"
+            value={selectedDataPack?.sha256 ? selectedDataPack.sha256.slice(0, 16) : null}
+          />
         </section>
 
         <section className="panel">
@@ -491,6 +508,13 @@ export const App = () => {
           <Field label="Sample data" value={frameDiagnostics?.sampleDataLoaded} />
           <Field label="R smoke" value={frameDiagnostics?.rSmokeResult} />
           <Field label="Shinylive export" value={frameDiagnostics?.shinyliveExportPresent} />
+        </section>
+
+        <section className="panel">
+          <h3>Data Pack</h3>
+          <Field label="ID" value={selectedDataPack?.id} />
+          <Field label="Files" value={selectedDataPack?.fileCount} />
+          <Field label="SHA-256" value={selectedDataPack?.sha256} />
         </section>
       </aside>
     </main>

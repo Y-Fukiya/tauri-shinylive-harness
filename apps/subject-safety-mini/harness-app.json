@@ -16,5 +16,6 @@
     "/apps/subject-safety-mini/index.html",
     "/apps/subject-safety-mini/harness-boot.js",
     "/apps/subject-safety-mini/shinylive/webr/R.wasm"
-  ]
+  ],
+  "domProbes": []
 }

@@ -42,6 +42,8 @@ Expected:
 - Portal diagnostics load.
 - Each configured app can be selected in the portal.
 - Each app's configured smoke text is visible through the Shinylive iframe.
+- Each configured DOM probe is visible through the Shinylive iframe.
+- `subject-profile-reference` proves `SUBJ-001 AE count: 3` and `#overview_lab_trend img`.
 - No non-local HTTP(S) requests are observed.
 - `reports/e2e-diagnostics.json` is written.
 

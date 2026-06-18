@@ -17,6 +17,13 @@ Expected:
 - `verify` exports every configured app, builds the portal, runs TypeScript/Rust checks, runs static verification, and runs Playwright E2E.
 - `build:release-local` creates an unsigned internal app/DMG/pkg release candidate and validation pack.
 
+This repository currently exports two apps:
+
+- `subject-safety-mini`
+- `subject-profile-reference`
+
+The Subject Profile app verifies `SUBJ-001 AE count: 3` and the rendered ALT trend image from a synthetic clinical data pack.
+
 ## Create A New Harness
 
 ```sh
@@ -46,6 +53,8 @@ npm run verify
 ```
 
 Every app gets a `shinylive-src/<id>/app.R` source directory. `npm run verify` exports all configured apps and verifies every app smoke text through the portal.
+
+For richer apps, add `data_pack`, `data_paths`, and optional `dom_probes` to the app entry in `harness.toml`. The generated app manifest will include the data pack hash, and E2E will wait for each DOM probe.
 
 ## Release Candidate
 

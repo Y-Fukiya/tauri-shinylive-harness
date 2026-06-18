@@ -160,6 +160,9 @@ const normalizeConfig = (config) => {
     offlineRequired: Boolean(app.offline_required ?? true),
     smokeText: Array.isArray(app.smoke_text) ? app.smoke_text : [],
     headerProbes: Array.isArray(app.header_probes) ? app.header_probes : ["index.html"],
+    domProbes: Array.isArray(app.dom_probes) ? app.dom_probes : [],
+    dataPack: app.data_pack ?? "",
+    dataPaths: Array.isArray(app.data_paths) ? app.data_paths : [],
   }));
 
   const ids = new Set();
@@ -178,20 +181,60 @@ const normalizeConfig = (config) => {
 
 export const readConfig = async () => parseHarnessToml(await readFile(configPath, "utf8"));
 
-export const appToManifest = (app) => ({
-  id: app.id,
-  title: app.title,
-  path: app.path,
-  description: app.description,
-  kind: app.kind,
-  offlineRequired: app.offlineRequired,
-  source: app.source,
-  output: app.output,
-  smokeText: app.smokeText,
-  headerProbes: app.headerProbes.map((probe) =>
-    probe.startsWith("/") ? probe : `${app.path.replace(/\/index\.html$/, "")}/${probe}`,
-  ),
-});
+const sha256Text = (value) => createHash("sha256").update(value).digest("hex");
+
+const createDataPackManifest = async (app) => {
+  if (!app.dataPack && app.dataPaths.length === 0) {
+    return null;
+  }
+
+  const files = [];
+  for (const relativePath of app.dataPaths) {
+    const targetPath = path.join(rootDir, relativePath);
+    const metadata = await stat(targetPath);
+    files.push({
+      path: toPosix(relativePath),
+      size: metadata.size,
+      sha256: await sha256File(targetPath),
+    });
+  }
+
+  const fingerprint = files
+    .map((file) => `${file.path}\0${file.size}\0${file.sha256}`)
+    .join("\n");
+
+  return {
+    id: app.dataPack || `${app.id}-data`,
+    sha256: sha256Text(fingerprint),
+    fileCount: files.length,
+    files,
+  };
+};
+
+export const appToManifest = async (app) => {
+  const manifest = {
+    id: app.id,
+    title: app.title,
+    path: app.path,
+    description: app.description,
+    kind: app.kind,
+    offlineRequired: app.offlineRequired,
+    source: app.source,
+    output: app.output,
+    smokeText: app.smokeText,
+    headerProbes: app.headerProbes.map((probe) =>
+      probe.startsWith("/") ? probe : `${app.path.replace(/\/index\.html$/, "")}/${probe}`,
+    ),
+    domProbes: app.domProbes,
+  };
+
+  const dataPack = await createDataPackManifest(app);
+  if (dataPack) {
+    manifest.dataPack = dataPack;
+  }
+
+  return manifest;
+};
 
 export const createPortalManifest = (config, appManifests) => ({
   schemaVersion: 2,
@@ -520,10 +563,10 @@ export const writeVerificationProcedure = async (config) => {
     "",
     "## Apps",
     "",
-    "| App | Kind | Smoke Text |",
-    "| --- | --- | --- |",
+    "| App | Kind | Data Pack | Smoke Text |",
+    "| --- | --- | --- | --- |",
     ...config.apps.map(
-      (app) => `| ${app.id} | ${app.kind} | ${app.smokeText.join("<br>")} |`,
+      (app) => `| ${app.id} | ${app.kind} | ${app.dataPack || "n/a"} | ${app.smokeText.join("<br>")} |`,
     ),
     "",
   ];

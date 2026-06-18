@@ -38,11 +38,28 @@ apps/<app-id>/
     "/apps/subject-safety-mini/index.html",
     "/apps/subject-safety-mini/harness-boot.js",
     "/apps/subject-safety-mini/shinylive/webr/R.wasm"
-  ]
+  ],
+  "domProbes": [],
+  "dataPack": {
+    "id": "clinical-demo-subject-profile-v1",
+    "sha256": "<aggregate data pack sha256>",
+    "fileCount": 8,
+    "files": [
+      {
+        "path": "shinylive-src/subject-profile-reference/data/demographics.csv",
+        "size": 901,
+        "sha256": "<file sha256>"
+      }
+    ]
+  }
 }
 ```
 
 The portal manifest references app paths from the localhost server root. At runtime, `/apps/subject-safety-mini/index.html` resolves to `http://127.0.0.1:<port>/apps/subject-safety-mini/index.html`.
+
+`dataPack` is optional. When an app declares `data_pack` and `data_paths` in `harness.toml`, the harness computes file hashes from the source data and carries them into both `harness-app.json` and `dist/manifest.json`.
+
+`domProbes` is optional. When present, Playwright E2E waits for those selectors inside the nested Shinylive app iframe after smoke text is visible.
 
 For a real Shinylive export, keep the app under its own directory and ensure all webR, WASM, package, and data assets are local to the exported tree. Do not overwrite Shinylive's own `app.json`; the harness portal reads `harness-app.json` instead.
 

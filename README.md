@@ -8,9 +8,10 @@ The harness is now config-driven:
 - `node scripts/harness.mjs` provides `new`, `add-app`, `list`, `doctor`, `export`, `prepare`, `verify-static`, `verify`, and `build`.
 - The portal supports multiple configured apps with search, selection, same-origin iframe loading, diagnostics, and JSON report download.
 - `dist/manifest.json` aggregates `apps/*/harness-app.json`.
+- App manifests can include `dataPack` file hashes and DOM probes for richer verification.
 - `dist/harness-bundle-manifest.json` records file-level SHA-256 hashes.
 - `dist/checksums/SHA256SUMS`, `dist/reports/sbom.json`, and `dist/reports/licenses.md` are generated during prepare.
-- Playwright E2E verifies portal diagnostics, Shiny smoke text, and zero external HTTP(S) requests.
+- Playwright E2E verifies portal diagnostics, Shiny smoke text, optional DOM probes, and zero external HTTP(S) requests.
 - Phase 3 preflight checks Apple signing/notarization/GitHub release readiness without printing secrets.
 - `release/` packaging creates app archive, DMG/pkg when available, checksums, release notes, and validation pack.
 - GitHub Actions workflows are included for CI and release-candidate builds.
@@ -57,8 +58,11 @@ npm run phase3:release-draft
 
 ## Current Deliverables
 
-- Reusable v0.3.0 CLI/template foundation.
-- One generated Shinylive R smoke app: `subject-safety-mini`.
+- Reusable v0.4.0 CLI/template foundation.
+- Two bundled Shinylive R apps: `subject-safety-mini` and `subject-profile-reference`.
+- Clinical demo data pack with synthetic demographics, visits, labs, vitals, AEs, concomitant meds, and exposure.
+- Data pack SHA-256 traceability in `harness-app.json` and `dist/manifest.json`.
+- Subject Profile Reference App with Overview, Timeline, Labs, AEs, and Meds tabs.
 - Multi-app-ready diagnostics portal.
 - Multi-app scaffold smoke test through `npm run smoke:multi-app`.
 - Embedded Rust loopback static server with COOP/COEP/CORP, CSP, MIME mapping, and path traversal protection.
@@ -90,6 +94,7 @@ See:
 - `docs/spec.md`
 - `docs/quickstart.md`
 - `docs/template-cli.md`
+- `docs/clinical-demo-data-pack.md`
 - `docs/generated/verification-procedure.md`
 - `docs/verification.md`
 - `docs/release-template.md`

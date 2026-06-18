@@ -1,0 +1,69 @@
+{
+  "id": "subject-profile-reference",
+  "title": "Subject Profile Reference App",
+  "path": "/apps/subject-profile-reference/index.html",
+  "description": "Synthetic subject profile reference app with overview, timeline, labs, adverse events, meds, and exposure.",
+  "kind": "shinylive-r",
+  "offlineRequired": true,
+  "source": "shinylive-src/subject-profile-reference",
+  "output": "apps/subject-profile-reference",
+  "smokeText": [
+    "Subject Profile Reference App",
+    "SUBJ-001 AE count: 3"
+  ],
+  "headerProbes": [
+    "/apps/subject-profile-reference/index.html",
+    "/apps/subject-profile-reference/harness-boot.js",
+    "/apps/subject-profile-reference/shinylive/webr/R.wasm"
+  ],
+  "domProbes": [
+    "#overview_lab_trend img"
+  ],
+  "dataPack": {
+    "id": "clinical-demo-subject-profile-v1",
+    "sha256": "7e90126cbf948183ca7dbf0f27ab640c001fe279da18ba19496986b8324f5ebe",
+    "fileCount": 8,
+    "files": [
+      {
+        "path": "shinylive-src/subject-profile-reference/data/clinical-demo-data-pack.json",
+        "size": 359,
+        "sha256": "baad4c0b64b0fb98fc247779c414749550fae17d6e406ea70b3d09253a5ec821"
+      },
+      {
+        "path": "shinylive-src/subject-profile-reference/data/demographics.csv",
+        "size": 901,
+        "sha256": "14ace15dbf0fbb517cb0de9f39c218e86c5d2c2d02aedd144daba4507e52a142"
+      },
+      {
+        "path": "shinylive-src/subject-profile-reference/data/visits.csv",
+        "size": 1824,
+        "sha256": "9ad950721c756d788c6676d27b5104e05843d9f46b194a07062e75f069245e12"
+      },
+      {
+        "path": "shinylive-src/subject-profile-reference/data/labs.csv",
+        "size": 1409,
+        "sha256": "615b7f142eb053f5e3e31aa732cb4cc62ce7d9490604776b54ddd298618b7228"
+      },
+      {
+        "path": "shinylive-src/subject-profile-reference/data/vitals.csv",
+        "size": 835,
+        "sha256": "bec58fa394fe2f32edae47d2fa9ecb5c7c6d05f86aa20ec6b158b3172949b98f"
+      },
+      {
+        "path": "shinylive-src/subject-profile-reference/data/adverse_events.csv",
+        "size": 874,
+        "sha256": "a627d0b3513a2b460db09673e7879f06af176124973ab6113f53864df66e1687"
+      },
+      {
+        "path": "shinylive-src/subject-profile-reference/data/concomitant_meds.csv",
+        "size": 374,
+        "sha256": "141b393f8c7b7f6f38db26fc9564cca5c99bbcafb47bf9d9748800f54dc962bb"
+      },
+      {
+        "path": "shinylive-src/subject-profile-reference/data/exposure.csv",
+        "size": 605,
+        "sha256": "7c303e69e61c1a16865ea3aabd07feee15a94a38aa5c81e02a46557b1076a51b"
+      }
+    ]
+  }
+}

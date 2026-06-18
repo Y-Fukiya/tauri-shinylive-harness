@@ -94,10 +94,15 @@ try {
       await appFrame.getByText(smokeText, { exact: false }).waitFor({ state: "visible", timeout: 60000 });
     }
 
+    for (const domProbe of app.domProbes ?? []) {
+      await appFrame.locator(domProbe).waitFor({ state: "visible", timeout: 60000 });
+    }
+
     const portalText = await page.locator("body").innerText();
     appResults.push({
       id: app.id,
       ok: true,
+      domProbes: app.domProbes ?? [],
       reportedSharedArrayBuffer: portalText.includes("Reported SAB\ntrue"),
       sampleDataLoaded: portalText.includes("Sample data\ntrue"),
     });

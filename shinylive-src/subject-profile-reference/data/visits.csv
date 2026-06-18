@@ -1,0 +1,35 @@
+subject_id,visit,visit_day,visit_date,visit_status,disposition
+SUBJ-001,Screening,-7,2025-01-03,Completed,Eligible
+SUBJ-001,Baseline,1,2025-01-10,Completed,Dosed
+SUBJ-001,Week 2,15,2025-01-24,Completed,On treatment
+SUBJ-001,Week 4,29,2025-02-07,Completed,On treatment
+SUBJ-001,Week 8,57,2025-03-07,Completed,On treatment
+SUBJ-001,Week 12,85,2025-04-04,Completed,On treatment
+SUBJ-002,Screening,-7,2025-01-05,Completed,Eligible
+SUBJ-002,Baseline,1,2025-01-12,Completed,Dosed
+SUBJ-002,Week 2,15,2025-01-26,Completed,On treatment
+SUBJ-002,Week 4,29,2025-02-09,Completed,On treatment
+SUBJ-002,Week 8,57,2025-03-09,Completed,On treatment
+SUBJ-002,Week 12,85,2025-04-06,Completed,On treatment
+SUBJ-003,Screening,-8,2025-01-09,Completed,Eligible
+SUBJ-003,Baseline,1,2025-01-17,Completed,Dosed
+SUBJ-003,Week 2,15,2025-01-31,Completed,On treatment
+SUBJ-003,Week 4,29,2025-02-14,Completed,On treatment
+SUBJ-003,Week 8,57,2025-03-14,Completed,Discontinued
+SUBJ-004,Screening,-7,2025-01-15,Completed,Eligible
+SUBJ-004,Baseline,1,2025-01-22,Completed,Dosed
+SUBJ-004,Week 2,15,2025-02-05,Completed,On treatment
+SUBJ-004,Week 4,29,2025-02-19,Completed,On treatment
+SUBJ-004,Week 8,57,2025-03-19,Completed,On treatment
+SUBJ-004,Week 12,85,2025-04-16,Completed,On treatment
+SUBJ-005,Screening,-7,2025-01-18,Completed,Eligible
+SUBJ-005,Baseline,1,2025-01-25,Completed,Dosed
+SUBJ-005,Week 2,15,2025-02-08,Completed,On treatment
+SUBJ-005,Week 4,29,2025-02-22,Missed,On treatment
+SUBJ-005,Week 8,57,2025-03-22,Completed,On treatment
+SUBJ-006,Screening,-8,2025-01-21,Completed,Eligible
+SUBJ-006,Baseline,1,2025-01-29,Completed,Dosed
+SUBJ-006,Week 2,15,2025-02-12,Completed,On treatment
+SUBJ-006,Week 4,29,2025-02-26,Completed,On treatment
+SUBJ-006,Week 8,57,2025-03-26,Completed,On treatment
+SUBJ-006,Week 12,85,2025-04-23,Completed,On treatment

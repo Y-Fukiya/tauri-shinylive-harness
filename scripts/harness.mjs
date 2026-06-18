@@ -438,6 +438,12 @@ const doctor = async () => {
     await pushCheck(`app:${app.id}:unique`, !duplicate);
     await pushCheck(`app:${app.id}:source`, await exists(path.join(rootDir, app.source)), app.source);
     await pushCheck(`app:${app.id}:app.R`, await exists(path.join(rootDir, app.source, "app.R")), path.join(app.source, "app.R"));
+    if (app.dataPack) {
+      await pushCheck(`app:${app.id}:data-pack`, app.dataPaths.length > 0, app.dataPack);
+    }
+    for (const dataPath of app.dataPaths) {
+      await pushCheck(`app:${app.id}:data:${dataPath}`, await exists(path.join(rootDir, dataPath)), dataPath);
+    }
   }
 
   const ok = checks.every((check) => check.ok);
@@ -467,7 +473,7 @@ const exportApp = async (app) => {
       HARNESS_APP_HEADER_PROBES: JSON.stringify(app.headerProbes),
     },
   });
-  await writeJson(path.join(rootDir, app.output, "harness-app.json"), appToManifest(app));
+  await writeJson(path.join(rootDir, app.output, "harness-app.json"), await appToManifest(app));
 };
 
 const exportApps = async (appId) => {
