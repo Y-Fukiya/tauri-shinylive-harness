@@ -313,6 +313,58 @@ const relativeToRoot = (targetPath) => toPosix(path.relative(rootDir, targetPath
 const logicalDataPackPath = (targetPath, dataDir) => toPosix(path.relative(dataDir, targetPath));
 
 const visitKey = (record) => `${record.subject_id}\0${record.visit}\0${record.visit_day}`;
+const normalizeTerm = (value) => String(value ?? "").trim().toLowerCase();
+
+const treatmentRelatedAeTerms = new Set(["Possible", "Probable", "Related"]);
+const backgroundMedicationIndications = new Set([
+  "hyperlipidemia",
+  "hypertension",
+  "diabetes",
+  "supplement",
+  "prophylaxis",
+  "other",
+]);
+const labLinkedAeTerms = [
+  {
+    pattern: /alanine aminotransferase|alt/i,
+    labTest: "ALT",
+  },
+  {
+    pattern: /aspartate aminotransferase|ast/i,
+    labTest: "AST",
+  },
+  {
+    pattern: /hemoglobin|anaemia|anemia/i,
+    labTest: "HGB",
+  },
+];
+
+const recordsBySubject = (records) => {
+  const bySubject = new Map();
+  for (const record of records) {
+    if (isBlank(record.subject_id)) {
+      continue;
+    }
+    const subjectRecords = bySubject.get(record.subject_id) ?? [];
+    subjectRecords.push(record);
+    bySubject.set(record.subject_id, subjectRecords);
+  }
+  return bySubject;
+};
+
+const activeExposureRecords = (records) =>
+  records.filter((record) => {
+    const dose = asNumber(record.dose_mg);
+    return dose !== null && dose > 0 && !["Control", "Not dosed"].includes(record.dose_status);
+  });
+
+const intervalEnd = (record) => {
+  const end = asNumber(record.end_day);
+  return end === null ? Number.POSITIVE_INFINITY : end;
+};
+
+const aeLabMapping = (record) =>
+  labLinkedAeTerms.find((mapping) => mapping.pattern.test(record.ae_term ?? "")) ?? null;
 
 const createDataDictionaryMarkdown = (result) => {
   const lines = [
@@ -658,6 +710,115 @@ export const validateClinicalDataPack = async ({
           subject_id: record.subject_id,
         });
       }
+    }
+  }
+
+  const adverseEventsBySubject = recordsBySubject(csvByDomain.get("adverse_events")?.records ?? []);
+  const labsBySubject = recordsBySubject(csvByDomain.get("labs")?.records ?? []);
+  const exposureBySubject = recordsBySubject(csvByDomain.get("exposure")?.records ?? []);
+
+  for (const [subjectId, exposureRecords] of exposureBySubject.entries()) {
+    const ordered = exposureRecords
+      .map((record) => ({
+        record,
+        start: asNumber(record.start_day),
+        end: intervalEnd(record),
+      }))
+      .filter((item) => item.start !== null)
+      .sort((left, right) => left.start - right.start || left.end - right.end);
+
+    let previous = null;
+    for (const item of ordered) {
+      if (previous && item.start <= previous.end) {
+        addIssue(issues, "error", "overlapping-exposure-interval", "exposure intervals overlap for a subject.", {
+          subject_id: subjectId,
+          row: item.record.__row,
+          previous_row: previous.record.__row,
+          start_day: item.record.start_day,
+          previous_end_day: previous.record.end_day,
+        });
+      }
+      if (!previous || item.end > previous.end) {
+        previous = item;
+      }
+    }
+  }
+
+  for (const [subjectId, aeRecords] of adverseEventsBySubject.entries()) {
+    const subjectActiveExposure = activeExposureRecords(exposureBySubject.get(subjectId) ?? [])
+      .map((record) => ({
+        record,
+        start: asNumber(record.start_day),
+        end: intervalEnd(record),
+      }))
+      .filter((item) => item.start !== null);
+    const firstExposureStart =
+      subjectActiveExposure.length > 0 ? Math.min(...subjectActiveExposure.map((item) => item.start)) : null;
+
+    for (const record of aeRecords) {
+      const start = asNumber(record.start_day);
+      const end = intervalEnd(record);
+      const isTreatmentRelated = treatmentRelatedAeTerms.has(record.related);
+
+      if (isTreatmentRelated && subjectActiveExposure.length === 0) {
+        addIssue(issues, "error", "related-ae-without-active-exposure", "Treatment-related AE has no active exposure record for the subject.", {
+          row: record.__row,
+          subject_id: subjectId,
+          ae_id: record.ae_id,
+          related: record.related,
+        });
+      } else if (isTreatmentRelated && start !== null && firstExposureStart !== null && start < firstExposureStart) {
+        addIssue(issues, "error", "ae-before-first-exposure", "Treatment-related AE starts before the subject's first active exposure.", {
+          row: record.__row,
+          subject_id: subjectId,
+          ae_id: record.ae_id,
+          start_day: record.start_day,
+          first_exposure_start_day: firstExposureStart,
+        });
+      }
+
+      const labMapping = aeLabMapping(record);
+      if (labMapping && start !== null) {
+        const supportWindowStart = start - 14;
+        const supportWindowEnd = (Number.isFinite(end) ? end : start) + 14;
+        const supportingLab = (labsBySubject.get(subjectId) ?? []).find((lab) => {
+          const visitDay = asNumber(lab.visit_day);
+          return (
+            lab.lab_test === labMapping.labTest &&
+            visitDay !== null &&
+            visitDay >= supportWindowStart &&
+            visitDay <= supportWindowEnd
+          );
+        });
+        if (!supportingLab) {
+          addIssue(issues, "error", "lab-ae-without-supporting-lab", "Lab-linked AE has no nearby supporting lab record.", {
+            row: record.__row,
+            subject_id: subjectId,
+            ae_id: record.ae_id,
+            ae_term: record.ae_term,
+            expected_lab_test: labMapping.labTest,
+            support_window: [supportWindowStart, supportWindowEnd],
+          });
+        }
+      }
+    }
+  }
+
+  for (const record of csvByDomain.get("concomitant_meds")?.records ?? []) {
+    const indication = normalizeTerm(record.indication);
+    if (isBlank(indication) || backgroundMedicationIndications.has(indication)) {
+      continue;
+    }
+    const hasMatchingAe = (adverseEventsBySubject.get(record.subject_id) ?? []).some(
+      (aeRecord) => normalizeTerm(aeRecord.ae_term) === indication,
+    );
+    if (!hasMatchingAe) {
+      addIssue(issues, "error", "medication-indication-without-ae", "Concomitant medication indication does not match an AE term for the subject.", {
+        row: record.__row,
+        subject_id: record.subject_id,
+        medication: record.medication,
+        indication: record.indication,
+      });
     }
   }
 

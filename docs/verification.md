@@ -50,6 +50,7 @@ Expected:
 - Required columns are present for demographics, visits, labs, vitals, adverse events, concomitant meds, and exposure.
 - Every non-demographics subject reference resolves to demographics.
 - Visit dates, AE start/end days, medication days, and exposure intervals are valid.
+- Cross-domain checks cover treatment-related AE exposure context, lab-linked AE support records, medication indication alignment, and overlapping exposure intervals.
 - `reports/clinical-data-pack-validation.json` records the validation result and aggregate data pack hash.
 - `docs/generated/clinical-data-dictionary.md` records inferred column types and missingness.
 
@@ -78,6 +79,7 @@ Expected:
 - `/__harness/integrity` reads `dist/harness-bundle-manifest.json`.
 - Every listed bundled asset exists under the static root.
 - Every asset size and SHA-256 matches the manifest.
+- Static assets advertise byte range support and cache headers suitable for bundled webR assets.
 - The diagnostics portal displays `Bundle Integrity`.
 - `reports/bundle-integrity.json` is written.
 
@@ -159,7 +161,7 @@ Expected:
 - Missing credentials are reported as readiness issues, not as leaked secret values.
 - Tauri creates the macOS app and Windows NSIS installer, and Phase 3 packaging creates platform release evidence.
 - `release/SHA256SUMS` covers every generated release file.
-- `release/validation-pack/` and `release/validation-pack.zip` contain verification evidence, config validation, runtime integrity, data validation report, data dictionary, screenshots, manifest, SBOM/license inventory, platform manual clean checklist, and checksums.
+- `release/validation-pack/` and `release/validation-pack.zip` contain verification evidence, config validation, runtime integrity, data validation report, data dictionary, screenshots, manifest, SBOM/license inventory, platform manual clean checklist, release smoke test plan, and checksums.
 
 With Apple credentials configured, replace `npm run tauri:build:app:no-sign` with:
 

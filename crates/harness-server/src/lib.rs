@@ -1,5 +1,6 @@
 use std::{
     collections::BTreeMap,
+    io::SeekFrom,
     net::{Ipv4Addr, SocketAddr},
     path::{Path, PathBuf},
     sync::Arc,
@@ -10,7 +11,10 @@ use axum::{
     body::Body,
     extract::{Query, State},
     http::{
-        header::{CONTENT_SECURITY_POLICY, CONTENT_TYPE},
+        header::{
+            ACCEPT_RANGES, CACHE_CONTROL, CONTENT_LENGTH, CONTENT_RANGE, CONTENT_SECURITY_POLICY,
+            CONTENT_TYPE, RANGE,
+        },
         HeaderMap, HeaderName, HeaderValue, StatusCode, Uri,
     },
     response::{IntoResponse, Response},
@@ -20,7 +24,11 @@ use axum::{
 use percent_encoding::percent_decode_str;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use tokio::{fs, net::TcpListener};
+use tokio::{
+    fs,
+    io::{AsyncReadExt, AsyncSeekExt},
+    net::TcpListener,
+};
 
 pub const CSP: &str = "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:; connect-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; frame-src 'self'; object-src 'none'; base-uri 'self';";
 
@@ -30,6 +38,13 @@ pub enum StaticPathError {
     Traversal,
     InvalidEncoding,
     InvalidSegment,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ByteRange {
+    Full,
+    Partial { start: u64, end: u64 },
+    Unsatisfiable,
 }
 
 #[derive(Debug, Clone)]
@@ -251,6 +266,75 @@ pub fn security_headers_for(content_type: &str) -> HeaderMap {
     headers
 }
 
+pub fn cache_control_for_path(path: &Path) -> &'static str {
+    match path
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .map(|extension| extension.to_ascii_lowercase())
+        .as_deref()
+    {
+        Some("html") | Some("json") => "no-store",
+        _ => "public, max-age=31536000, immutable",
+    }
+}
+
+pub fn static_headers_for(path: &Path, content_type: &str) -> HeaderMap {
+    let mut headers = security_headers_for(content_type);
+    headers.insert(ACCEPT_RANGES, HeaderValue::from_static("bytes"));
+    headers.insert(
+        CACHE_CONTROL,
+        HeaderValue::from_static(cache_control_for_path(path)),
+    );
+    headers
+}
+
+pub fn parse_range_header(range_header: Option<&str>, file_size: u64) -> ByteRange {
+    let Some(header) = range_header else {
+        return ByteRange::Full;
+    };
+    let Some(spec) = header.trim().strip_prefix("bytes=") else {
+        return ByteRange::Full;
+    };
+    if file_size == 0 || spec.contains(',') {
+        return ByteRange::Full;
+    }
+    let Some((start_text, end_text)) = spec.split_once('-') else {
+        return ByteRange::Full;
+    };
+
+    if start_text.is_empty() {
+        let Ok(suffix_length) = end_text.parse::<u64>() else {
+            return ByteRange::Full;
+        };
+        if suffix_length == 0 {
+            return ByteRange::Unsatisfiable;
+        }
+        let start = file_size.saturating_sub(suffix_length);
+        return ByteRange::Partial {
+            start,
+            end: file_size - 1,
+        };
+    }
+
+    let Ok(start) = start_text.parse::<u64>() else {
+        return ByteRange::Full;
+    };
+    let end = if end_text.is_empty() {
+        file_size - 1
+    } else {
+        match end_text.parse::<u64>() {
+            Ok(value) => value.min(file_size - 1),
+            Err(_) => return ByteRange::Full,
+        }
+    };
+
+    if start >= file_size || start > end {
+        return ByteRange::Unsatisfiable;
+    }
+
+    ByteRange::Partial { start, end }
+}
+
 pub async fn start(config: ServerConfig) -> Result<StartedServer, ServerError> {
     if !config.asset_root.exists() {
         return Err(ServerError::MissingAssetRoot(config.asset_root));
@@ -335,7 +419,7 @@ async fn header_probe(
         normalized_path: Some(normalized.display().to_string()),
         exists,
         content_type: Some(content_type),
-        headers: headers_to_map(&security_headers_for(content_type)),
+        headers: headers_to_map(&static_headers_for(&normalized, content_type)),
         error: None,
     })
 }
@@ -462,7 +546,7 @@ async fn integrity(State(state): State<Arc<AppState>>) -> Json<IntegrityResponse
     })
 }
 
-async fn static_file(State(state): State<Arc<AppState>>, uri: Uri) -> Response {
+async fn static_file(State(state): State<Arc<AppState>>, headers: HeaderMap, uri: Uri) -> Response {
     let normalized = match normalize_request_path(uri.path()) {
         Ok(path) => path,
         Err(_) => return status_response(StatusCode::BAD_REQUEST, "invalid path"),
@@ -487,15 +571,71 @@ async fn static_file(State(state): State<Arc<AppState>>, uri: Uri) -> Response {
         return status_response(StatusCode::NOT_FOUND, "not found");
     }
 
-    let body = match fs::read(&canonical).await {
-        Ok(bytes) => bytes,
-        Err(_) => return status_response(StatusCode::INTERNAL_SERVER_ERROR, "read failed"),
-    };
     let content_type = content_type_for_path(&normalized);
-    let mut response = Response::new(Body::from(body));
+    let file_size = metadata.len();
+    let range_header = headers.get(RANGE).and_then(|value| value.to_str().ok());
+    let mut response_headers = static_headers_for(&normalized, content_type);
 
-    *response.status_mut() = StatusCode::OK;
-    *response.headers_mut() = security_headers_for(content_type);
+    let (status, body, content_length, content_range) =
+        match parse_range_header(range_header, file_size) {
+            ByteRange::Full => {
+                let body = match fs::read(&canonical).await {
+                    Ok(bytes) => bytes,
+                    Err(_) => {
+                        return status_response(StatusCode::INTERNAL_SERVER_ERROR, "read failed")
+                    }
+                };
+                (StatusCode::OK, body, file_size, None)
+            }
+            ByteRange::Partial { start, end } => {
+                let length = end - start + 1;
+                let mut file = match fs::File::open(&canonical).await {
+                    Ok(file) => file,
+                    Err(_) => {
+                        return status_response(StatusCode::INTERNAL_SERVER_ERROR, "read failed")
+                    }
+                };
+                if file.seek(SeekFrom::Start(start)).await.is_err() {
+                    return status_response(StatusCode::INTERNAL_SERVER_ERROR, "read failed");
+                }
+                let mut body = vec![0u8; length as usize];
+                if file.read_exact(&mut body).await.is_err() {
+                    return status_response(StatusCode::INTERNAL_SERVER_ERROR, "read failed");
+                }
+                (
+                    StatusCode::PARTIAL_CONTENT,
+                    body,
+                    length,
+                    Some(format!("bytes {start}-{end}/{file_size}")),
+                )
+            }
+            ByteRange::Unsatisfiable => {
+                response_headers.insert(
+                    CONTENT_RANGE,
+                    HeaderValue::from_str(&format!("bytes */{file_size}"))
+                        .expect("content range is a valid header"),
+                );
+                let mut response = Response::new(Body::from("range not satisfiable"));
+                *response.status_mut() = StatusCode::RANGE_NOT_SATISFIABLE;
+                *response.headers_mut() = response_headers;
+                return response;
+            }
+        };
+
+    response_headers.insert(
+        CONTENT_LENGTH,
+        HeaderValue::from_str(&content_length.to_string()).expect("content length is valid"),
+    );
+    if let Some(content_range) = content_range {
+        response_headers.insert(
+            CONTENT_RANGE,
+            HeaderValue::from_str(&content_range).expect("content range is a valid header"),
+        );
+    }
+
+    let mut response = Response::new(Body::from(body));
+    *response.status_mut() = status;
+    *response.headers_mut() = response_headers;
 
     response
 }
@@ -543,8 +683,8 @@ mod tests {
     use http::header::{CONTENT_SECURITY_POLICY, CONTENT_TYPE};
 
     use super::{
-        content_type_for_path, normalize_request_path, security_headers_for, sha256_file,
-        StaticPathError,
+        cache_control_for_path, content_type_for_path, normalize_request_path, parse_range_header,
+        security_headers_for, sha256_file, ByteRange, StaticPathError,
     };
 
     #[test]
@@ -637,12 +777,47 @@ mod tests {
         assert!(headers.get(CONTENT_SECURITY_POLICY).is_none());
     }
 
+    #[test]
+    fn chooses_cache_policy_by_static_asset_type() {
+        assert_eq!(
+            cache_control_for_path(Path::new("portal/index.html")),
+            "no-store"
+        );
+        assert_eq!(
+            cache_control_for_path(Path::new("manifest.json")),
+            "no-store"
+        );
+        assert_eq!(
+            cache_control_for_path(Path::new("apps/subject-profile/shinylive/webr/R.wasm")),
+            "public, max-age=31536000, immutable"
+        );
+    }
+
+    #[test]
+    fn parses_single_byte_ranges_for_large_runtime_assets() {
+        assert_eq!(
+            parse_range_header(Some("bytes=10-19"), 100),
+            ByteRange::Partial { start: 10, end: 19 }
+        );
+        assert_eq!(
+            parse_range_header(Some("bytes=90-"), 100),
+            ByteRange::Partial { start: 90, end: 99 }
+        );
+        assert_eq!(
+            parse_range_header(Some("bytes=-10"), 100),
+            ByteRange::Partial { start: 90, end: 99 }
+        );
+        assert_eq!(
+            parse_range_header(Some("bytes=100-120"), 100),
+            ByteRange::Unsatisfiable
+        );
+        assert_eq!(parse_range_header(Some("items=0-10"), 100), ByteRange::Full);
+    }
+
     #[tokio::test]
     async fn computes_sha256_for_integrity_checks() {
-        let dir = std::env::temp_dir().join(format!(
-            "harness-server-sha-test-{}",
-            std::process::id()
-        ));
+        let dir =
+            std::env::temp_dir().join(format!("harness-server-sha-test-{}", std::process::id()));
         tokio::fs::create_dir_all(&dir).await.unwrap();
         let file = dir.join("sample.txt");
         tokio::fs::write(&file, b"abc").await.unwrap();

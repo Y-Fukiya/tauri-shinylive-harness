@@ -18,6 +18,7 @@ import {
   sha256File,
   toPosix,
 } from "./harness-core.mjs";
+import { buildReleaseSmokePlan, renderReleaseSmokeMarkdown } from "./release-smoke-plan.mjs";
 
 const releaseRoot = path.join(rootDir, "release");
 const macosBundleRoot = path.join(rootDir, "src-tauri", "target", "release", "bundle", "macos");
@@ -176,6 +177,29 @@ const copyIfExists = async (source, destination) => {
   }
 };
 
+const copyReportEvidence = async (evidenceRoot) => {
+  const manifestPath = path.join(reportsRoot, "report-export-manifest.json");
+  const reportSourceRoot = path.join(reportsRoot, "exported");
+  const reportEvidenceRoot = path.join(evidenceRoot, "reports");
+  if (!(await exists(manifestPath)) || !(await exists(reportSourceRoot))) {
+    return;
+  }
+
+  await copyIfExists(path.join(reportSourceRoot, "index.html"), path.join(reportEvidenceRoot, "index.html"));
+  const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+  const reportPaths = new Set(
+    (manifest.appResults ?? [])
+      .flatMap((appResult) => appResult.reports ?? [])
+      .map((report) => report.path)
+      .filter((reportPath) => typeof reportPath === "string" && reportPath.startsWith("reports/exported/"))
+      .map((reportPath) => reportPath.slice("reports/exported/".length)),
+  );
+
+  for (const reportPath of [...reportPaths].sort()) {
+    await copyIfExists(path.join(reportSourceRoot, reportPath), path.join(reportEvidenceRoot, reportPath));
+  }
+};
+
 const notarizeIfConfigured = async (artifactPath) => {
   if (process.env.APPLE_API_ISSUER && process.env.APPLE_API_KEY && process.env.APPLE_API_KEY_PATH) {
     await runCommand("xcrun", [
@@ -264,7 +288,7 @@ const createValidationPack = async (config, assets, platform = "macos") => {
   await copyIfExists(path.join(reportsRoot, "clinical-data-pack-validation.json"), path.join(evidenceRoot, "clinical-data-pack-validation.json"));
   await copyIfExists(path.join(reportsRoot, "report-export-manifest.json"), path.join(evidenceRoot, "report-export-manifest.json"));
   await copyIfExists(path.join(reportsRoot, "review-workflow.json"), path.join(evidenceRoot, "review-workflow.json"));
-  await copyIfExists(path.join(reportsRoot, "exported"), path.join(evidenceRoot, "reports"));
+  await copyReportEvidence(evidenceRoot);
   await copyIfExists(path.join(reportsRoot, "screenshots"), path.join(evidenceRoot, "screenshots"));
   await copyIfExists(path.join(reportsRoot, "phase3-preflight.json"), path.join(evidenceRoot, "phase3-preflight.json"));
   await copyIfExists(path.join(distRoot, "manifest.json"), path.join(evidenceRoot, "portal-manifest.json"));
@@ -280,6 +304,12 @@ const createValidationPack = async (config, assets, platform = "macos") => {
   await copyIfExists(path.join(rootDir, "docs", "validation-approval-template.md"), path.join(evidenceRoot, "validation-approval-template.md"));
   const checklistName = platform === "windows" ? "manual-clean-windows-checklist.md" : "manual-clean-macos-checklist.md";
   await copyIfExists(path.join(rootDir, "docs", checklistName), path.join(validationRoot, checklistName));
+  const releaseSmokePlan = buildReleaseSmokePlan({ config, context, platform });
+  await writeFile(
+    path.join(validationRoot, "release-smoke-plan.json"),
+    `${JSON.stringify(releaseSmokePlan, null, 2)}\n`,
+  );
+  await writeFile(path.join(validationRoot, "release-smoke-test.md"), renderReleaseSmokeMarkdown(releaseSmokePlan));
 
   const evidenceFiles = (await listFiles(validationRoot)).sort();
   const evidence = [];
@@ -342,6 +372,7 @@ const createValidationPack = async (config, assets, platform = "macos") => {
       "- Review workflow status template for reviewer, reviewed_at, decision, and notes",
       "- Screenshot evidence for the portal and verified apps",
       "- Release asset checksum inventory",
+      "- Release artifact smoke test plan with platform install, offline, app, and evidence checks",
       `- Manual clean ${platform === "windows" ? "Windows" : "macOS"} checklist included`,
       "",
       "## Reviewer Sign-Off",

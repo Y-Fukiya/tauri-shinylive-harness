@@ -14,6 +14,7 @@ Use this checklist for unsigned internal release candidates and for credential-b
 ## Install And Launch
 
 - [ ] Verify `release/SHA256SUMS` against downloaded artifacts.
+- [ ] Open `release/validation-pack/release-smoke-test.md` and use it as the authoritative smoke procedure for this artifact set.
 - [ ] Copy or install the app on a clean macOS account or clean macOS VM.
 - [ ] Launch the app from Finder.
 - [ ] Confirm the portal opens on `127.0.0.1`.
@@ -39,6 +40,7 @@ Use this checklist for unsigned internal release candidates and for credential-b
 - [ ] Review `release/validation-pack/evidence/e2e-diagnostics.json`.
 - [ ] Review `release/validation-pack/evidence/bundle-integrity.json`.
 - [ ] Review `release/validation-pack/evidence/harness-config-validation.json`.
+- [ ] Review `release/validation-pack/release-smoke-plan.json`.
 - [ ] Review clinical data validation and generated data dictionary.
 - [ ] Review SBOM/license inventory.
 - [ ] Review `reports/local-release-audit.json`.

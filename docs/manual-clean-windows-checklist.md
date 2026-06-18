@@ -14,6 +14,7 @@ Use this checklist for unsigned internal Windows release candidates and for cred
 ## Install And Launch
 
 - [ ] Verify `release/SHA256SUMS` against downloaded artifacts.
+- [ ] Open `release/validation-pack/release-smoke-test.md` and use it as the authoritative smoke procedure for this artifact set.
 - [ ] Install the NSIS setup executable on a clean Windows account or VM.
 - [ ] Launch the installed app from the Start menu.
 - [ ] Confirm the portal opens on `127.0.0.1`.
@@ -39,6 +40,7 @@ Use this checklist for unsigned internal Windows release candidates and for cred
 - [ ] Review `release/validation-pack/evidence/e2e-diagnostics.json`.
 - [ ] Review `release/validation-pack/evidence/bundle-integrity.json`.
 - [ ] Review `release/validation-pack/evidence/harness-config-validation.json`.
+- [ ] Review `release/validation-pack/release-smoke-plan.json`.
 - [ ] Review clinical data validation and generated data dictionary.
 - [ ] Review SBOM/license inventory.
 - [ ] Review `reports/local-release-audit.json`.

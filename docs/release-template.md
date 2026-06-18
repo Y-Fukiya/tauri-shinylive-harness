@@ -32,6 +32,8 @@
 - `reports/local-release-audit-<platform>.json`
 - `release/validation-pack.zip`
 - `release/validation-pack/evidence-index.json`
+- `release/validation-pack/release-smoke-plan.json`
+- `release/validation-pack/release-smoke-test.md`
 - `release/validation-pack/manual-clean-macos-checklist.md`
 - `release/validation-pack/manual-clean-windows-checklist.md`
 
@@ -57,6 +59,7 @@
 - Data pack hashes are present in app manifests for apps that declare `data_pack`
 - Screenshot evidence is present for the portal and verified apps
 - Release checksums match `release/SHA256SUMS`
+- Release smoke plan matches the tested platform and app catalog
 - Portal, release notes, and validation summary state not for clinical decision making
 
 ## Phase 3 Signing Checklist

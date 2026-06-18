@@ -64,6 +64,10 @@ The validator checks:
 - visit day numeric values
 - AE start/end day ordering
 - medication and exposure start/end day ordering
+- exposure interval overlap by subject
+- treatment-related AE consistency against active exposure records
+- lab-linked AE terms, such as ALT increase, against nearby supporting lab records
+- concomitant medication indications against same-subject AE terms for non-background indications
 - per-file SHA-256 and aggregate data pack SHA-256
 
 The aggregate data pack hash is computed from each file's logical path inside the pack plus file size and SHA-256, so the same data pack produces the same aggregate hash whether it is stored under `data-packs/<id>/` or materialized into an app source directory.

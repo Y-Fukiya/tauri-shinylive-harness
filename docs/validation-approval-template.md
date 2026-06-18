@@ -27,6 +27,8 @@
 - `dist/checksums/SHA256SUMS`
 - `release/SHA256SUMS`
 - `release/validation-pack/evidence-index.json`
+- `release/validation-pack/release-smoke-plan.json`
+- `release/validation-pack/release-smoke-test.md`
 - `release/validation-pack/evidence/reports/`
 - `release/validation-pack/manual-clean-macos-checklist.md`
 - `release/validation-pack/manual-clean-windows-checklist.md`
@@ -40,6 +42,7 @@
 - Review workflow status, reviewer, reviewed_at, decision, and notes fields are present.
 - External request audit contains zero non-local HTTP(S) requests.
 - Static bundle hashes, runtime bundle integrity, and release checksums match.
+- Release smoke plan is completed for the tested artifact set.
 - SBOM/license inventory reviewed.
 - Apple signing identity is expected for external macOS release.
 - Notarization and stapling are complete for external macOS release.
