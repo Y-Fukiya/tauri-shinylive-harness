@@ -9,6 +9,7 @@
 - Build date:
 - Reviewer:
 - Approver:
+- Clinical use limitation confirmed:
 
 ## Automated Evidence
 
@@ -17,6 +18,8 @@
 - `reports/bundle-integrity.json`
 - `reports/e2e-diagnostics.json`
 - `reports/phase3-preflight.json`
+- `reports/local-release-audit.json`
+- `reports/local-release-audit-<platform>.json`
 - `dist/harness-bundle-manifest.json`
 - `dist/checksums/SHA256SUMS`
 - `release/SHA256SUMS`
@@ -36,6 +39,7 @@
 - Notarization and stapling are complete for external macOS release.
 - Windows code-signing identity or signing command is expected for external Windows release.
 - Offline launch procedure passes on clean macOS and clean Windows machines.
+- Portal, release notes, and validation summary state that the harness is not for clinical decision making.
 
 ## Decision
 

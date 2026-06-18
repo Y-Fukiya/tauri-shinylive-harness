@@ -182,10 +182,20 @@ try {
   await page.waitForFunction(() => document.body.innerText.includes("Reported SAB"), null, {
     timeout: 20000,
   });
+  await page.waitForFunction(
+    () => document.body.innerText.toLowerCase().includes("not for clinical decision making"),
+    null,
+    {
+      timeout: 20000,
+    },
+  );
 
   const integrityResponse = await page.request.get(new URL("/__harness/integrity", portalUrl).toString());
   const bundleIntegrity = await integrityResponse.json();
   await writeBundleIntegrityReport(bundleIntegrity);
+  const portalClinicalDisclaimer = (await page.locator("body").innerText())
+    .toLowerCase()
+    .includes("not for clinical decision making");
 
   await mkdir(path.join(reportsRoot, "screenshots"), { recursive: true });
   const portalScreenshot = path.join(reportsRoot, "screenshots", "portal.png");
@@ -220,11 +230,16 @@ try {
 
   const report = {
     schemaVersion: 1,
-    ok: externalRequests.length === 0 && appResults.every((result) => result.ok) && bundleIntegrity.ok === true,
+    ok:
+      externalRequests.length === 0 &&
+      appResults.every((result) => result.ok) &&
+      bundleIntegrity.ok === true &&
+      portalClinicalDisclaimer,
     portalUrl,
     checkedAt: new Date().toISOString(),
     appFilter: appId,
     bundleIntegrity,
+    portalClinicalDisclaimer,
     appResults,
     externalRequests,
     screenshots,

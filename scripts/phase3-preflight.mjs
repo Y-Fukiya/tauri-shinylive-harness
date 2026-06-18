@@ -32,6 +32,16 @@ const runCapture = (command, args, options = {}) =>
   });
 
 const present = (name) => Boolean(process.env[name]);
+const envPathExists = async (name) => {
+  if (!present(name)) {
+    return false;
+  }
+  const configuredPath = process.env[name];
+  const resolvedPath = path.isAbsolute(configuredPath)
+    ? configuredPath
+    : path.join(rootDir, configuredPath);
+  return exists(resolvedPath);
+};
 
 const parseOptions = (values) => {
   const options = { _: [] };
@@ -81,8 +91,11 @@ const targetPlatform =
 const config = await readConfig();
 
 if (targetPlatform === "windows") {
+  const certificatePathExists = await envPathExists("WINDOWS_CERTIFICATE_PATH");
   const windows = {
     certificatePfx: present("WINDOWS_CERTIFICATE"),
+    certificatePath: present("WINDOWS_CERTIFICATE_PATH"),
+    certificatePathExists,
     certificatePassword: present("WINDOWS_CERTIFICATE_PASSWORD"),
     certificateThumbprint: present("WINDOWS_CERTIFICATE_THUMBPRINT"),
     signCommand: present("WINDOWS_SIGN_COMMAND"),
@@ -102,7 +115,13 @@ if (targetPlatform === "windows") {
   const issues = [];
 
   if (config.phase3.signingRequired && !signingReady) {
-    issues.push("Missing Windows signing input: set WINDOWS_CERTIFICATE + WINDOWS_CERTIFICATE_PASSWORD, WINDOWS_CERTIFICATE_THUMBPRINT, or WINDOWS_SIGN_COMMAND.");
+    issues.push("Missing Windows signing input: set WINDOWS_CERTIFICATE_THUMBPRINT after importing a PFX certificate, or provide WINDOWS_SIGN_COMMAND. CI may also set WINDOWS_CERTIFICATE + WINDOWS_CERTIFICATE_PASSWORD so the workflow can import the PFX first.");
+  }
+  if (windows.certificatePath && !windows.certificatePathExists) {
+    issues.push("WINDOWS_CERTIFICATE_PATH is set but the PFX file does not exist.");
+  }
+  if (windows.certificatePathExists && windows.certificatePassword && !windows.certificateThumbprint && !windows.signCommand) {
+    issues.push("WINDOWS_CERTIFICATE_PATH exists, but Tauri still needs WINDOWS_CERTIFICATE_THUMBPRINT after import, or WINDOWS_SIGN_COMMAND.");
   }
   if (signingReady && !commands.signtool.ok && !windows.signCommand) {
     issues.push("Windows signing is configured but signtool was not found. Install Windows SDK or provide WINDOWS_SIGN_COMMAND.");

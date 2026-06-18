@@ -18,3 +18,4 @@ apps/**/* [0-9]/
 README [0-9].md
 docs/* [0-9].md
 docs/generated/phase3-readiness.md
+docs/generated/local-release-audit*.md

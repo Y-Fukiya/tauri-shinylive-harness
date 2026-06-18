@@ -2,6 +2,10 @@
 
 Reusable Tauri + Shinylive harness for generating, validating, packaging, and preparing release candidates for bundled Shinylive/webR apps inside a desktop shell.
 
+## Clinical Use Limitation
+
+This harness and its bundled synthetic demo apps are for technical evaluation only. They are not validated medical devices and are not for clinical decision making unless an organization completes its own regulated validation and approval.
+
 The harness is now config-driven:
 
 - `harness.toml` is the app catalog and distribution source of truth.
@@ -63,12 +67,14 @@ node scripts/e2e-verify.mjs
 npm run phase3:preflight
 npm run phase3:package
 npm run phase3:package:windows
+npm run local:audit:macos
+npm run local:audit:windows
 npm run phase3:release-draft
 ```
 
 ## Current Deliverables
 
-- Reusable v0.9.0 CLI/template foundation.
+- Reusable v0.9.1 CLI/template foundation.
 - Two bundled Shinylive R apps: `subject-safety-mini` and `subject-profile-reference`.
 - Clinical demo data pack with synthetic demographics, visits, labs, vitals, AEs, concomitant meds, and exposure.
 - Data-pack registry under `data-packs/*` with app-level `data_pack_source` traceability.
@@ -94,6 +100,8 @@ Credential-free local release candidate:
 npm run build:release-local
 npm run build:release-windows-local
 ```
+
+These local commands now write `reports/local-release-audit-<platform>.json`, update `reports/local-release-audit.json` with the latest audit, and generate `docs/generated/local-release-audit-<platform>.md` so unsigned internal readiness, missing signing, and pending clean-machine install verification are explicit.
 
 Credential-backed release candidate:
 

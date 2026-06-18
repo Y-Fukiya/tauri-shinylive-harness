@@ -6,6 +6,8 @@ Turn the Spike/MVP into a reusable local-first template and CLI that can generat
 
 Phase 3 automates release-candidate evidence and credential-ready desktop distribution. Production macOS signing/notarization, Windows code signing, and organization-specific clinical validation approval still depend on credentials and operational signoff.
 
+Clinical boundary: bundled synthetic demo apps are for technical evaluation only and are not for clinical decision making unless an organization completes its own regulated validation and approval.
+
 ## Decisions
 
 - Source of truth: `harness.toml`.
@@ -70,6 +72,8 @@ npm run phase3:package:windows
 npm run phase3:release-draft
 npm run build:release-local
 npm run build:release-windows-local
+npm run local:audit:macos
+npm run local:audit:windows
 ```
 
 `build:release-local` creates an unsigned internal macOS release candidate. `build:release-windows-local` creates an unsigned internal Windows release candidate on Windows. The stable macOS path builds the `.app` with Tauri, then lets `phase3:package` create the DMG/pkg, sign the DMG, and notarize/staple it when Apple credentials are configured. The stable Windows path builds the NSIS installer with Tauri, then lets `phase3:package:windows` collect installer artifacts and validation evidence.

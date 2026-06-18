@@ -20,6 +20,7 @@ Use this checklist for unsigned internal release candidates and for credential-b
 - [ ] Confirm `/__harness/health` reports `ok: true`.
 - [ ] Confirm `/__harness/integrity` reports `ok: true`.
 - [ ] Confirm Gatekeeper behavior is expected for the release type.
+- [ ] Confirm the portal states the app is not for clinical decision making.
 
 ## Offline Runtime
 
@@ -40,4 +41,6 @@ Use this checklist for unsigned internal release candidates and for credential-b
 - [ ] Review `release/validation-pack/evidence/harness-config-validation.json`.
 - [ ] Review clinical data validation and generated data dictionary.
 - [ ] Review SBOM/license inventory.
+- [ ] Review `reports/local-release-audit.json`.
+- [ ] Confirm release notes and validation summary state not for clinical decision making.
 - [ ] Complete reviewer sign-off in `release/validation-pack/validation-summary.md`.

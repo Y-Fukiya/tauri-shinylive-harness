@@ -2,6 +2,10 @@
 
 Phase 3 turns the verified harness bundle into macOS and Windows release candidates with distribution evidence.
 
+## Clinical Use Limitation
+
+This harness and its bundled synthetic demo apps are for technical evaluation only. They are not validated medical devices and are not for clinical decision making unless an organization completes its own regulated validation and approval.
+
 ## Local Unsigned Release Candidate
 
 ```sh
@@ -10,6 +14,8 @@ npm run build:release-windows-local
 ```
 
 These create unsigned internal release candidates plus `release/` evidence. They are suitable for engineering review, not external distribution.
+
+The local build scripts also run `local:audit:macos` or `local:audit:windows` after packaging. The audit writes `reports/local-release-audit-<platform>.json`, updates `reports/local-release-audit.json` with the latest audit, and generates `docs/generated/local-release-audit-<platform>.md` with artifact, checksum, disclaimer, signing, and clean-install status.
 
 ## Apple Signing Inputs
 
@@ -56,6 +62,7 @@ For local or CI Windows signing, configure either a certificate thumbprint after
 
 ```text
 WINDOWS_CERTIFICATE
+WINDOWS_CERTIFICATE_PATH
 WINDOWS_CERTIFICATE_PASSWORD
 WINDOWS_CERTIFICATE_THUMBPRINT
 WINDOWS_SIGN_COMMAND
@@ -63,6 +70,22 @@ WINDOWS_TIMESTAMP_URL
 ```
 
 `WINDOWS_CERTIFICATE` is expected to be a base64-encoded PFX in GitHub Actions. The workflow imports it into the current user's certificate store and exports the thumbprint when it is not provided. `WINDOWS_SIGN_COMMAND` may be used for organization-specific signing tools.
+
+For local Windows signing with a PFX file, import it into the current user's certificate store, copy the thumbprint, and then build:
+
+```powershell
+$pfx = ".\certs\windows-code-signing.pfx"
+Import-PfxCertificate -FilePath $pfx -CertStoreLocation Cert:\CurrentUser\My
+Get-ChildItem Cert:\CurrentUser\My -CodeSigningCert
+$env:WINDOWS_CERTIFICATE_PATH = $pfx
+$env:WINDOWS_CERTIFICATE_PASSWORD = "<pfx-password>"
+$env:WINDOWS_CERTIFICATE_THUMBPRINT = "<imported-thumbprint>"
+$env:WINDOWS_TIMESTAMP_URL = "http://timestamp.digicert.com"
+npm run phase3:preflight:windows
+npm run tauri:build:windows
+npm run phase3:package:windows
+npm run local:audit:windows
+```
 
 ## Commands
 
@@ -73,6 +96,8 @@ npm run phase3:package
 npm run phase3:preflight:windows
 npm run tauri:build:windows
 npm run phase3:package:windows
+npm run local:audit:macos
+npm run local:audit:windows
 npm run phase3:release-draft
 ```
 

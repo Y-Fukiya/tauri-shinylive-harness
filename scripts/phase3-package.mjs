@@ -26,6 +26,8 @@ const windowsReleaseRoot = path.join(rootDir, "src-tauri", "target", "release");
 const nsisRoot = path.join(windowsReleaseRoot, "bundle", "nsis");
 const msiRoot = path.join(windowsReleaseRoot, "bundle", "msi");
 const execFileAsync = promisify(execFile);
+const clinicalUseLimitation =
+  "This harness and its bundled synthetic demo apps are for technical evaluation only. They are not validated medical devices and are not for clinical decision making unless an organization completes its own regulated validation and approval.";
 
 const parseOptions = (values) => {
   const options = { _: [] };
@@ -135,6 +137,10 @@ const writeReleaseNotes = async (config, assets, platform = "macos") => {
     "",
     `Platform: ${platform}`,
     `Channel: ${config.distribution.releaseChannel}`,
+    "",
+    "## Clinical Use Limitation",
+    "",
+    clinicalUseLimitation,
     "",
     "## Verification",
     "",
@@ -315,6 +321,10 @@ const createValidationPack = async (config, assets, platform = "macos") => {
       "## Scope",
       "",
       `This pack contains automated Phase 2/3 readiness evidence for the ${platform} local-first Shinylive desktop harness. It is not a substitute for organization-specific clinical validation approval.`,
+      "",
+      "## Clinical Use Limitation",
+      "",
+      clinicalUseLimitation,
       "",
       "## Automated Checks",
       "",

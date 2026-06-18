@@ -129,6 +129,28 @@ p {
   border-color: #e5bd79;
 }
 
+.safety-notice {
+  padding: 12px;
+}
+
+.safety-notice__heading {
+  align-items: center;
+  color: #8a4c00;
+  display: flex;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.safety-notice__heading svg {
+  flex: 0 0 auto;
+}
+
+.safety-notice p {
+  color: #74440a;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .panel-heading,
 .diagnostics-title {
   align-items: center;

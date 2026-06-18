@@ -23,7 +23,8 @@ This procedure is generated from `harness.toml` and covers Phase 2 verification 
 6. `npm run tauri:build:windows:no-sign` for an unsigned internal Windows release candidate.
 7. `npm run tauri:build:windows` after Windows signing credentials or a signing command are configured.
 8. `npm run phase3:package:windows`
-9. `npm run phase3:release-draft` after the release has been reviewed.
+9. `npm run local:audit:macos` or `npm run local:audit:windows`
+10. `npm run phase3:release-draft` after the release has been reviewed.
 
 ## Acceptance Criteria
 
@@ -31,6 +32,7 @@ This procedure is generated from `harness.toml` and covers Phase 2 verification 
 - `reports/harness-config-validation.json` passes with zero errors.
 - COOP, COEP, CORP, Service-Worker-Allowed, and MIME headers pass for configured probes.
 - The browser reports SharedArrayBuffer availability and cross-origin isolation.
+- The portal states the bundled apps are not for clinical decision making.
 - Each app exposes its configured smoke text in a same-origin iframe.
 - Configured DOM probes are visible, including lab trend and exposure/AE timeline plots.
 - Clinical data pack validation passes with zero errors.
@@ -42,6 +44,7 @@ This procedure is generated from `harness.toml` and covers Phase 2 verification 
 - `dist/checksums/SHA256SUMS` is generated.
 - `dist/reports/sbom.json` and `dist/reports/licenses.md` are generated.
 - `reports/phase3-preflight.json` records signing, notarization, GitHub, and tooling readiness.
+- `reports/local-release-audit-<platform>.json` records artifact, checksum, disclaimer, signing, and clean-install status.
 - `release/` contains platform release artifacts, release notes, checksums, and validation pack.
 - Windows NSIS installer artifacts are generated on Windows when `windows_bundles` includes `nsis`.
 - Public release publication is held until platform signing credentials and organization approval are present.
@@ -52,4 +55,3 @@ This procedure is generated from `harness.toml` and covers Phase 2 verification 
 | --- | --- | --- | --- |
 | subject-safety-mini | shinylive-r | n/a | Subject Safety Mini Dashboard<br>R smoke result<br>SUBJ-001 |
 | subject-profile-reference | shinylive-r | clinical-demo-subject-profile-v1 | Subject Profile Reference App<br>SUBJ-001 AE count: 3<br>Data pack hash |
-

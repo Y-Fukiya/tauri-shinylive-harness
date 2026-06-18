@@ -7,6 +7,7 @@
 - Harness version:
 - App count:
 - Channel: internal
+- Clinical use limitation: not for clinical decision making
 
 ## Required Artifacts
 
@@ -27,6 +28,8 @@
 - `reports/screenshots/`
 - `docs/generated/clinical-data-dictionary.md`
 - `reports/phase3-preflight.json`
+- `reports/local-release-audit.json`
+- `reports/local-release-audit-<platform>.json`
 - `release/validation-pack.zip`
 - `release/validation-pack/evidence-index.json`
 - `release/validation-pack/manual-clean-macos-checklist.md`
@@ -40,6 +43,8 @@
 - `npm run phase3:package`
 - `npm run tauri:build:windows` or `npm run tauri:build:windows:no-sign`
 - `npm run phase3:package:windows`
+- `npm run local:audit:macos`
+- `npm run local:audit:windows`
 - Browser diagnostics show `Reported SAB = true`
 - Every configured app smoke text is visible
 - Configured DOM probes are visible
@@ -52,6 +57,7 @@
 - Data pack hashes are present in app manifests for apps that declare `data_pack`
 - Screenshot evidence is present for the portal and verified apps
 - Release checksums match `release/SHA256SUMS`
+- Portal, release notes, and validation summary state not for clinical decision making
 
 ## Phase 3 Signing Checklist
 

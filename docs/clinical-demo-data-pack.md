@@ -1,6 +1,6 @@
 # Clinical Demo Data Pack
 
-`clinical-demo-subject-profile-v1` is a fully synthetic data pack for harness demos and verification. It is not derived from real subjects and must not be mixed with PHI.
+`clinical-demo-subject-profile-v1` is a fully synthetic data pack for harness demos and verification. It is not derived from real subjects, must not be mixed with PHI, and is not for clinical decision making.
 
 ## Location
 

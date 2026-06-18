@@ -21,6 +21,8 @@ Expected:
 - `verify` validates data packs, exports every configured app, builds the portal, runs TypeScript/Rust checks, runs static verification, and runs Playwright E2E with screenshots.
 - `build:release-local` creates an unsigned internal macOS app/DMG/pkg release candidate and validation evidence pack.
 - `build:release-windows-local` creates an unsigned internal Windows installer release candidate on Windows.
+- Local release packaging writes `reports/local-release-audit-<platform>.json`; external distribution still requires platform signing plus clean-machine install sign-off.
+- The bundled synthetic apps are not for clinical decision making without organization-specific validation and approval.
 
 This repository currently exports two apps:
 
@@ -80,6 +82,8 @@ For richer apps, add `data_pack`, `data_pack_source`, `data_paths`, and optional
 ```sh
 npm run build:release-local
 npm run build:release-windows-local
+npm run local:audit:macos
+npm run local:audit:windows
 ```
 
 The macOS command writes `release/` with app zip, DMG, pkg, checksums, release notes, SBOM/license evidence, config validation evidence, runtime bundle integrity evidence, clinical data validation evidence, Playwright screenshots, manual clean macOS checklist, and `validation-pack.zip`.

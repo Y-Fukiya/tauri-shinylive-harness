@@ -2,6 +2,8 @@
 
 The harness validates synthetic clinical data packs before export, verification, and release packaging.
 
+Synthetic data packs are for technical evaluation and verification only. They are not for clinical decision making without organization-specific validation and approval.
+
 ## Files
 
 Required metadata:

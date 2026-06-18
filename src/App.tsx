@@ -126,6 +126,9 @@ type BrowserDiagnostics = {
   serviceWorkerRegistrationCount: number | null;
 };
 
+const clinicalUseLimitation =
+  "Synthetic demo and technical evaluation only. Not for clinical decision making.";
+
 const unique = <T,>(values: T[]): T[] => Array.from(new Set(values));
 
 const getProbePaths = (app: HarnessApp | null) =>
@@ -367,6 +370,14 @@ export const App = () => {
             <p>{manifest?.project?.portalSubtitle ?? "Localhost runtime harness"}</p>
           </div>
         </div>
+
+        <section className="panel panel--warning safety-notice" aria-label="Clinical use limitation">
+          <div className="safety-notice__heading">
+            <AlertTriangle size={16} aria-hidden />
+            <h2>Clinical Use Limitation</h2>
+          </div>
+          <p>{clinicalUseLimitation}</p>
+        </section>
 
         <section className="panel">
           <div className="panel-heading">
