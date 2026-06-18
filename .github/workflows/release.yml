@@ -1,0 +1,39 @@
+name: Release Candidate
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  macos-app:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: r-lib/actions/setup-r@v2
+      - run: npm ci
+      - run: npx playwright install chromium
+      - run: npm run build:harness
+      - name: Archive app bundle
+        run: ditto -c -k --keepParent "src-tauri/target/release/bundle/macos/Clinical Shinylive Desktop Portal.app" release/clinical-shinylive-desktop-portal-macos.zip
+      - name: Generate archive checksum
+        run: shasum -a 256 release/clinical-shinylive-desktop-portal-macos.zip > release/SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: clinical-shinylive-desktop-portal-macos
+          path: |
+            release/
+            reports/
+            dist/reports/
+            dist/checksums/
+
+      # Phase 3 hook:
+      # Add Apple Developer ID signing, notarization, and GitHub Release publication here
+      # after the repository has APPLE_TEAM_ID, APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD,
+      # and signing certificate secrets configured.

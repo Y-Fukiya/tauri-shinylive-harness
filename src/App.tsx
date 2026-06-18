@@ -4,6 +4,7 @@ import {
   Download,
   ExternalLink,
   RefreshCw,
+  Search,
   Server,
   ShieldCheck
 } from "lucide-react";
@@ -16,11 +17,28 @@ type HarnessApp = {
   description: string;
   kind: string;
   offlineRequired: boolean;
+  source?: string;
+  output?: string;
+  smokeText?: string[];
+  headerProbes?: string[];
 };
 
 type HarnessManifest = {
   schemaVersion: number;
   generatedBy: string;
+  project?: {
+    name: string;
+    version: string;
+    portalTitle: string;
+    portalSubtitle: string;
+    bundleName: string;
+  };
+  distribution?: {
+    artifactName: string;
+    releaseChannel: string;
+    releaseDraft: boolean;
+    requireOffline: boolean;
+  };
   apps: HarnessApp[];
 };
 
@@ -73,11 +91,10 @@ type BrowserDiagnostics = {
   serviceWorkerRegistrationCount: number | null;
 };
 
-const HEADER_PROBES = [
-  "/portal/index.html",
-  "/apps/subject-safety-mini/index.html",
-  "/apps/subject-safety-mini/shinylive/webr/R.wasm"
-];
+const unique = <T,>(values: T[]): T[] => Array.from(new Set(values));
+
+const getProbePaths = (app: HarnessApp | null) =>
+  unique(["/portal/index.html", app?.path, ...(app?.headerProbes ?? [])].filter(Boolean) as string[]);
 
 const getBrowserDiagnostics = async (): Promise<BrowserDiagnostics> => {
   let serviceWorkerRegistrationCount: number | null = null;
@@ -129,44 +146,73 @@ export const App = () => {
   const [health, setHealth] = useState<HarnessHealth | null>(null);
   const [headerProbes, setHeaderProbes] = useState<HeaderProbe[]>([]);
   const [browserDiagnostics, setBrowserDiagnostics] = useState<BrowserDiagnostics | null>(null);
-  const [frameDiagnostics, setFrameDiagnostics] = useState<FrameDiagnostics | null>(null);
+  const [frameDiagnosticsByApp, setFrameDiagnosticsByApp] = useState<Record<string, FrameDiagnostics>>(
+    {}
+  );
+  const [selectedAppId, setSelectedAppId] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
   const [lastError, setLastError] = useState<string | null>(null);
   const [iframeKey, setIframeKey] = useState(0);
   const [iframeState, setIframeState] = useState<"loading" | "loaded" | "timeout" | "error">(
     "loading"
   );
 
-  const selectedApp = manifest?.apps[0] ?? null;
+  const apps = manifest?.apps ?? [];
+  const selectedApp = apps.find((app) => app.id === selectedAppId) ?? apps[0] ?? null;
+  const frameDiagnostics = selectedApp ? frameDiagnosticsByApp[selectedApp.id] ?? null : null;
   const selectedUrl = selectedApp ? new URL(selectedApp.path, window.location.origin).toString() : "";
 
-  const refreshDiagnostics = useCallback(async () => {
-    setLastError(null);
+  const filteredApps = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    if (!normalizedQuery) {
+      return apps;
+    }
+    return apps.filter((app) =>
+      [app.id, app.title, app.description, app.kind].some((value) =>
+        value.toLowerCase().includes(normalizedQuery)
+      )
+    );
+  }, [apps, query]);
 
-    try {
-      const [nextManifest, nextHealth, nextBrowserDiagnostics, nextHeaderProbes] =
-        await Promise.all([
+  const refreshDiagnostics = useCallback(
+    async (appId = selectedAppId) => {
+      setLastError(null);
+
+      try {
+        const [nextManifest, nextHealth, nextBrowserDiagnostics] = await Promise.all([
           fetchJson<HarnessManifest>("/manifest.json"),
           fetchJson<HarnessHealth>("/__harness/health"),
-          getBrowserDiagnostics(),
-          Promise.all(
-            HEADER_PROBES.map((path) =>
-              fetchJson<HeaderProbe>(`/__harness/headers?path=${encodeURIComponent(path)}`)
-            )
-          )
+          getBrowserDiagnostics()
         ]);
+        const nextSelected =
+          nextManifest.apps.find((app) => app.id === appId) ?? nextManifest.apps[0] ?? null;
+        const nextHeaderProbes = nextSelected
+          ? await Promise.all(
+              getProbePaths(nextSelected).map((probePath) =>
+                fetchJson<HeaderProbe>(
+                  `/__harness/headers?path=${encodeURIComponent(probePath)}`
+                )
+              )
+            )
+          : [];
 
-      setManifest(nextManifest);
-      setHealth(nextHealth);
-      setBrowserDiagnostics(nextBrowserDiagnostics);
-      setHeaderProbes(nextHeaderProbes);
-    } catch (error) {
-      setLastError(error instanceof Error ? error.message : String(error));
-    }
-  }, []);
+        setManifest(nextManifest);
+        setHealth(nextHealth);
+        setBrowserDiagnostics(nextBrowserDiagnostics);
+        setHeaderProbes(nextHeaderProbes);
+        setSelectedAppId((current) => current ?? nextSelected?.id ?? null);
+      } catch (error) {
+        setLastError(error instanceof Error ? error.message : String(error));
+      }
+    },
+    [selectedAppId]
+  );
 
   useEffect(() => {
     void refreshDiagnostics();
-  }, [refreshDiagnostics]);
+    // Initial load only; user-initiated selection calls refresh explicitly.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const handler = (event: MessageEvent) => {
@@ -174,8 +220,11 @@ export const App = () => {
         return;
       }
 
-      if (event.data?.type === "shinylive-harness-diagnostics") {
-        setFrameDiagnostics(event.data as FrameDiagnostics);
+      if (event.data?.type === "shinylive-harness-diagnostics" && event.data.appId) {
+        setFrameDiagnosticsByApp((current) => ({
+          ...current,
+          [event.data.appId]: event.data as FrameDiagnostics
+        }));
       }
     };
 
@@ -188,15 +237,21 @@ export const App = () => {
       return undefined;
     }
 
-    const timeoutId = window.setTimeout(() => setIframeState("timeout"), 30000);
+    const timeoutId = window.setTimeout(() => setIframeState("timeout"), 45000);
     return () => window.clearTimeout(timeoutId);
   }, [iframeKey, iframeState]);
 
-  const retry = () => {
-    setFrameDiagnostics(null);
+  const selectApp = (appId: string) => {
+    setSelectedAppId(appId);
     setIframeState("loading");
     setIframeKey((value) => value + 1);
-    void refreshDiagnostics();
+    void refreshDiagnostics(appId);
+  };
+
+  const retry = () => {
+    setIframeState("loading");
+    setIframeKey((value) => value + 1);
+    void refreshDiagnostics(selectedApp?.id ?? null);
   };
 
   const openSameWindow = () => {
@@ -219,7 +274,7 @@ export const App = () => {
     } catch {
       return null;
     }
-  }, [iframeState, frameDiagnostics]);
+  }, [iframeState, frameDiagnostics, selectedAppId]);
 
   const report = useMemo(
     () => ({
@@ -232,12 +287,12 @@ export const App = () => {
       headerProbes,
       iframeState,
       iframeDirectDiagnostics,
-      frameDiagnostics,
+      frameDiagnosticsByApp,
       lastError
     }),
     [
       browserDiagnostics,
-      frameDiagnostics,
+      frameDiagnosticsByApp,
       headerProbes,
       health,
       iframeDirectDiagnostics,
@@ -267,14 +322,54 @@ export const App = () => {
         <div className="brand">
           <ShieldCheck size={26} aria-hidden />
           <div>
-            <h1>Clinical Shinylive Portal</h1>
-            <p>Localhost runtime harness</p>
+            <h1>{manifest?.project?.portalTitle ?? "Clinical Shinylive Portal"}</h1>
+            <p>{manifest?.project?.portalSubtitle ?? "Localhost runtime harness"}</p>
           </div>
         </div>
 
         <section className="panel">
           <div className="panel-heading">
-            <h2>App</h2>
+            <h2>Apps</h2>
+            <StatusPill ok={Boolean(selectedApp)} label={`${apps.length} configured`} />
+          </div>
+          <label className="search-box">
+            <Search size={15} aria-hidden />
+            <input
+              aria-label="Search apps"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search apps"
+            />
+          </label>
+          <div className="app-list">
+            {filteredApps.map((app) => {
+              const active = app.id === selectedApp?.id;
+              const diagnostics = frameDiagnosticsByApp[app.id];
+              return (
+                <button
+                  className={active ? "app-option app-option--active" : "app-option"}
+                  data-testid={`app-option-${app.id}`}
+                  key={app.id}
+                  type="button"
+                  onClick={() => selectApp(app.id)}
+                >
+                  <span>
+                    <strong>{app.title}</strong>
+                    <small>{app.kind}</small>
+                  </span>
+                  <StatusPill
+                    ok={Boolean(diagnostics?.sampleDataLoaded)}
+                    label={diagnostics?.loadStatus ?? (active ? iframeState : "idle")}
+                  />
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className="panel">
+          <div className="panel-heading">
+            <h2>Selected</h2>
             <StatusPill ok={iframeState === "loaded"} label={iframeState} />
           </div>
           <h3>{selectedApp?.title ?? "Loading manifest"}</h3>
@@ -326,11 +421,12 @@ export const App = () => {
         <div className="iframe-wrap">
           {selectedApp ? (
             <iframe
-              key={iframeKey}
+              allow="cross-origin-isolated"
+              className="harness-app-frame"
+              key={`${selectedApp.id}-${iframeKey}`}
               ref={iframeRef}
               src={selectedApp.path}
               title={selectedApp.title}
-              allow="cross-origin-isolated"
               onLoad={() => setIframeState("loaded")}
               onError={() => setIframeState("error")}
             />

@@ -194,6 +194,85 @@ p {
   gap: 8px;
 }
 
+.search-box {
+  align-items: center;
+  background: #f8fafb;
+  border: 1px solid #d6dde2;
+  border-radius: 6px;
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+  min-height: 36px;
+  padding: 0 10px;
+}
+
+.search-box svg {
+  color: #607785;
+  flex: 0 0 auto;
+}
+
+.search-box input {
+  background: transparent;
+  border: 0;
+  color: #17212b;
+  font: inherit;
+  font-size: 13px;
+  min-width: 0;
+  outline: none;
+  width: 100%;
+}
+
+.app-list {
+  display: grid;
+  gap: 8px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.app-option {
+  align-items: center;
+  background: #ffffff;
+  border-color: #d6dde2;
+  color: #17212b;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  justify-content: stretch;
+  min-height: 56px;
+  padding: 9px;
+  text-align: left;
+}
+
+.app-option:hover,
+.app-option--active {
+  background: #e9f5f4;
+  border-color: #145f67;
+}
+
+.app-option span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.app-option strong,
+.app-option small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-option strong {
+  color: #101820;
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.app-option small {
+  color: #607785;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .viewer {
   background: #e8edf0;
   display: grid;

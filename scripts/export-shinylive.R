@@ -1,3 +1,31 @@
+get_env <- function(name, default) {
+  value <- Sys.getenv(name, unset = NA_character_)
+  if (is.na(value) || identical(value, "")) {
+    default
+  } else {
+    value
+  }
+}
+
+json_escape <- function(value) {
+  value <- gsub("\\\\", "\\\\\\\\", value)
+  value <- gsub('"', '\\"', value, fixed = TRUE)
+  value <- gsub("\n", "\\\\n", value, fixed = TRUE)
+  paste0('"', value, '"')
+}
+
+json_bool <- function(value) {
+  if (tolower(value) %in% c("true", "1", "yes")) "true" else "false"
+}
+
+json_array <- function(raw_value) {
+  if (is.na(raw_value) || identical(raw_value, "")) {
+    "[]"
+  } else {
+    raw_value
+  }
+}
+
 local_lib <- normalizePath(".r-lib", mustWork = FALSE)
 dir.create(local_lib, recursive = TRUE, showWarnings = FALSE)
 .libPaths(c(local_lib, .libPaths()))
@@ -6,8 +34,21 @@ if (!requireNamespace("shinylive", quietly = TRUE)) {
   install.packages("shinylive", repos = "https://cloud.r-project.org", lib = local_lib)
 }
 
-source_dir <- "shinylive-src/subject-safety-mini"
-output_dir <- "apps/subject-safety-mini"
+app_id <- get_env("HARNESS_APP_ID", "subject-safety-mini")
+app_title <- get_env("HARNESS_APP_TITLE", "Subject Safety Mini Dashboard")
+app_description <- get_env(
+  "HARNESS_APP_DESCRIPTION",
+  "Clinical smoke app for validating Shinylive/webR runtime requirements."
+)
+app_kind <- get_env("HARNESS_APP_KIND", "shinylive-r")
+app_engine <- get_env("HARNESS_APP_ENGINE", "r")
+source_dir <- get_env("HARNESS_APP_SOURCE", file.path("shinylive-src", app_id))
+output_dir <- get_env("HARNESS_APP_OUTPUT", file.path("apps", app_id))
+app_path <- get_env("HARNESS_APP_PATH", paste0("/apps/", app_id, "/index.html"))
+offline_required <- get_env("HARNESS_APP_OFFLINE_REQUIRED", "true")
+smoke_text <- get_env("HARNESS_APP_SMOKE_TEXT", "[]")
+header_probes <- get_env("HARNESS_APP_HEADER_PROBES", "[]")
+
 assets_version <- shinylive::assets_version()
 assets_dir <- normalizePath(".shinylive-cache", mustWork = FALSE)
 asset_root <- file.path(assets_dir, paste0("shinylive-", assets_version))
@@ -30,15 +71,20 @@ if (dir.exists(output_dir)) {
 
 shinylive::export(source_dir, output_dir, template_dir = template_dir)
 
-app_manifest <- '{
-  "id": "subject-safety-mini",
-  "title": "Subject Safety Mini Dashboard",
-  "path": "/apps/subject-safety-mini/index.html",
-  "description": "Clinical smoke app for validating Shinylive/webR runtime requirements.",
-  "kind": "shinylive-r",
-  "offlineRequired": true
-}
-'
+app_manifest <- paste0(
+  "{\n",
+  "  \"id\": ", json_escape(app_id), ",\n",
+  "  \"title\": ", json_escape(app_title), ",\n",
+  "  \"path\": ", json_escape(app_path), ",\n",
+  "  \"description\": ", json_escape(app_description), ",\n",
+  "  \"kind\": ", json_escape(app_kind), ",\n",
+  "  \"offlineRequired\": ", json_bool(offline_required), ",\n",
+  "  \"source\": ", json_escape(source_dir), ",\n",
+  "  \"output\": ", json_escape(output_dir), ",\n",
+  "  \"smokeText\": ", json_array(smoke_text), ",\n",
+  "  \"headerProbes\": ", json_array(header_probes), "\n",
+  "}\n"
+)
 writeLines(app_manifest, file.path(output_dir, "harness-app.json"))
 
 index_path <- file.path(output_dir, "index.html")
@@ -48,7 +94,7 @@ default_boot_script <- paste(c(
   '      import { runExportedApp } from "./shinylive/shinylive.js";',
   '      runExportedApp({',
   '        id: "root",',
-  '        appEngine: "r",',
+  paste0('        appEngine: "', app_engine, '",'),
   '        relPath: "",',
   '      });',
   '    </script>'
@@ -108,7 +154,7 @@ harness_boot_js <- c(
   '  const { runExportedApp } = await import("./shinylive/shinylive.js");',
   '  await runExportedApp({',
   '    id: "root",',
-  '    appEngine: "r",',
+  paste0('    appEngine: "', app_engine, '",'),
   '    relPath: "",',
   '  });',
   '} catch (error) {',

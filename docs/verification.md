@@ -1,60 +1,79 @@
 # Verification
 
-## Local Build
+## Phase 2 Local Verification
 
 ```sh
-npm install
-npm run build:all
-npm run test:rust
+npm ci
 npm run verify
 ```
 
-## Tauri Dev
+`npm run verify` performs:
+
+- `node scripts/harness.mjs export`
+- Vite portal build
+- `tsc --noEmit`
+- Rust unit tests for the harness server
+- static bundle/hash verification
+- Playwright E2E verification
+
+## Static Verification
 
 ```sh
-npm run tauri:dev
+node scripts/harness.mjs verify-static
 ```
 
 Expected:
 
-- Main window opens after Rust setup starts the localhost server.
-- URL is `http://127.0.0.1:<ephemeral-port>/portal/index.html`.
-- Portal diagnostics can fetch `/manifest.json`, `/__harness/health`, and `/__harness/headers`.
-- App iframe loads `/apps/subject-safety-mini/index.html`.
-- The iframe runtime log reaches `webR initialized` and reports R smoke result `2`.
+- `dist/manifest.json` app count matches `harness.toml`.
+- Every configured header probe exists.
+- Every file in `dist/harness-bundle-manifest.json` exists.
+- Every SHA-256 hash matches current bundled content.
+- `reports/static-verification.json` is written.
+
+## E2E Verification
+
+```sh
+node scripts/e2e-verify.mjs
+```
+
+Expected:
+
+- A Rust localhost server starts against `dist/`.
+- Portal diagnostics load.
+- Each configured app can be selected in the portal.
+- Each app's configured smoke text is visible through the Shinylive iframe.
+- No non-local HTTP(S) requests are observed.
+- `reports/e2e-diagnostics.json` is written.
 
 ## Packaged macOS Build
 
 ```sh
-npm run tauri:build
+npm run build:harness
 ```
 
 Expected:
 
-- Packaged app launches.
-- Server logs show a `127.0.0.1` listener.
-- Portal loads from localhost.
-- Same diagnostics are available as dev.
-
-The MVP build target is the macOS `.app` bundle. DMG creation is intentionally not part of the MVP acceptance target.
+- Full Phase 2 verification passes.
+- Tauri creates `src-tauri/target/release/bundle/macos/Clinical Shinylive Desktop Portal.app`.
+- Launching the `.app` starts a `127.0.0.1` listener.
+- `/__harness/health`, `/manifest.json`, app boot JS, and `R.wasm` are served from bundled resources.
 
 ## Manual Offline Procedure
 
-1. Run `npm run build:all`.
-2. Run `npm run tauri:build`.
-3. Launch the packaged app once while online.
-4. Fully quit the app.
-5. Disconnect OS network.
-6. Relaunch the packaged app.
-7. Confirm the portal loads.
-8. Confirm the app iframe loads.
-9. Confirm the app iframe runs local webR and reports R smoke result `2`.
-10. Confirm diagnostics report no external runtime requirement.
-11. In DevTools Network, confirm there are no requests to CDNs, GitHub, Netlify, Posit CDN, `repo.r-wasm.org`, or r-universe.
+1. Run `npm run build:harness`.
+2. Launch the packaged app once while online.
+3. Fully quit the app.
+4. Disconnect OS network.
+5. Relaunch the packaged app.
+6. Confirm the portal loads.
+7. Confirm every configured app smoke text appears.
+8. Confirm diagnostics report `Reported SAB = true`.
+9. Confirm there are no requests to CDNs, GitHub, Netlify, Posit CDN, `repo.r-wasm.org`, or r-universe.
 
-## Deferred Automated Checks
+## Phase 3 Deferred Checks
 
-- Browser-level network audit.
-- Windows WebView2 packaged build.
-- custom protocol spike.
-- separate WebView window fallback.
+- Developer ID signing.
+- Notarization and stapling.
+- DMG/pkg packaging.
+- Published GitHub Release.
+- Organization-specific clinical validation approval.

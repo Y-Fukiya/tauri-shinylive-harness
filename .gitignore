@@ -1,5 +1,7 @@
 node_modules/
 dist/
+reports/
+release/
 .r-lib/
 .shinylive-cache/
 target/
@@ -7,3 +9,10 @@ src-tauri/target/
 crates/*/target/
 *.log
 .DS_Store
+
+# Local duplicate/conflict copies that can appear during large asset exports.
+scripts/* [0-9].*
+apps/**/* [0-9].*
+apps/**/* [0-9]/
+README [0-9].md
+docs/* [0-9].md
