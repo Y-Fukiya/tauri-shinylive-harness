@@ -1,8 +1,11 @@
 {
   "name": "tauri-shinylive-harness",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
+  "bin": {
+    "tauri-shinylive-harness": "scripts/harness.mjs"
+  },
   "scripts": {
     "harness": "node scripts/harness.mjs",
     "dev": "vite --host 127.0.0.1 --port 1420",
@@ -10,7 +13,9 @@
     "prepare:dist": "node scripts/prepare-dist.mjs",
     "build:all": "npm run build:portal && npm run prepare:dist",
     "check": "tsc --noEmit",
+    "doctor": "node scripts/harness.mjs doctor",
     "test:rust": "cargo test --manifest-path crates/harness-server/Cargo.toml",
+    "smoke:multi-app": "node scripts/multi-app-smoke.mjs",
     "verify": "node scripts/harness.mjs verify",
     "verify:static": "node scripts/harness.mjs verify-static",
     "verify:e2e": "node scripts/e2e-verify.mjs",
@@ -19,8 +24,10 @@
     "phase3:preflight": "node scripts/phase3-preflight.mjs --allow-missing-credentials",
     "phase3:package": "node scripts/phase3-package.mjs",
     "phase3:release-draft": "node scripts/github-release-draft.mjs",
-    "build:release-local": "npm run verify && npm run tauri:build:dmg:no-sign && npm run phase3:preflight && npm run phase3:package",
+    "build:release-local": "npm run verify && npm run tauri:build:app:no-sign && npm run phase3:preflight && npm run phase3:package",
     "tauri:dev": "tauri dev",
+    "tauri:build:app": "tauri build --bundles app",
+    "tauri:build:app:no-sign": "tauri build --bundles app --no-sign",
     "tauri:build": "tauri build --bundles app",
     "tauri:build:dmg": "tauri build --bundles app,dmg",
     "tauri:build:dmg:no-sign": "tauri build --bundles app,dmg --no-sign"

@@ -27,6 +27,8 @@ Phase 3 automates release-candidate evidence and credential-ready macOS distribu
 ```text
 harness new <directory>
 harness add-app <id> [--title "Title"]
+harness list
+harness doctor
 harness export [app-id]
 harness prepare
 harness verify-static
@@ -42,14 +44,21 @@ harness build
 
 ```text
 npm run phase3:preflight
-npm run tauri:build:dmg:no-sign
-npm run tauri:build:dmg
+npm run tauri:build:app:no-sign
+npm run tauri:build:app
 npm run phase3:package
 npm run phase3:release-draft
 npm run build:release-local
 ```
 
-`build:release-local` creates an unsigned internal release candidate. `tauri:build:dmg` is the credential-backed path for Developer ID signing and notarization.
+`build:release-local` creates an unsigned internal release candidate. The stable release path builds the `.app` with Tauri, then lets `phase3:package` create the DMG/pkg, sign the DMG, and notarize/staple it when Apple credentials are configured.
+
+## Template Acceptance Criteria
+
+- `harness new` creates a runnable project skeleton, not only placeholder files.
+- Generated projects include Tauri, React portal, Rust server, harness scripts, CI/release workflows, and one sample Shinylive source app.
+- `harness add-app` can add a second app to the generated project.
+- `npm run smoke:multi-app` verifies the generated template and multi-app config path in a temporary directory.
 
 ## Runtime Architecture
 

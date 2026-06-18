@@ -27,7 +27,7 @@
 
 - `npm run verify`
 - `npm run phase3:preflight`
-- `npm run tauri:build:dmg` or `npm run tauri:build:dmg:no-sign`
+- `npm run tauri:build:app` or `npm run tauri:build:app:no-sign`
 - `npm run phase3:package`
 - Browser diagnostics show `Reported SAB = true`
 - Every configured app smoke text is visible

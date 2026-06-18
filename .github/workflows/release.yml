@@ -38,7 +38,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
 
       - uses: dtolnay/rust-toolchain@stable
@@ -48,6 +48,11 @@ jobs:
       - run: npm ci
 
       - run: npx playwright install chromium
+
+      - name: Check harness template path
+        run: |
+          npm run doctor
+          npm run smoke:multi-app
 
       - name: Verify Phase 2 bundle
         run: npm run verify
@@ -65,6 +70,18 @@ jobs:
           security import "$CERTIFICATE_PATH" -P "$APPLE_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security find-identity -v -p codesigning "$KEYCHAIN_PATH"
+          if [ -z "$APPLE_SIGNING_IDENTITY" ]; then
+            APP_IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" | awk -F '"' '/Developer ID Application/ { print $2; exit }')"
+            if [ -n "$APP_IDENTITY" ]; then
+              echo "APPLE_SIGNING_IDENTITY=$APP_IDENTITY" >> "$GITHUB_ENV"
+            fi
+          fi
+          if [ -z "$APPLE_INSTALLER_SIGNING_IDENTITY" ]; then
+            INSTALLER_IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" | awk -F '"' '/Developer ID Installer/ { print $2; exit }')"
+            if [ -n "$INSTALLER_IDENTITY" ]; then
+              echo "APPLE_INSTALLER_SIGNING_IDENTITY=$INSTALLER_IDENTITY" >> "$GITHUB_ENV"
+            fi
+          fi
 
       - name: Materialize App Store Connect API key
         if: ${{ env.APPLE_API_PRIVATE_KEY != '' && env.APPLE_API_KEY_PATH == '' }}
@@ -81,13 +98,13 @@ jobs:
             node scripts/phase3-preflight.mjs --allow-missing-credentials
           fi
 
-      - name: Build signed DMG
+      - name: Build signed app bundle
         if: ${{ env.APPLE_SIGNING_IDENTITY != '' || env.APPLE_CERTIFICATE != '' }}
-        run: npm run tauri:build:dmg
+        run: npm run tauri:build:app
 
-      - name: Build unsigned internal DMG
+      - name: Build unsigned internal app bundle
         if: ${{ env.APPLE_SIGNING_IDENTITY == '' && env.APPLE_CERTIFICATE == '' }}
-        run: npm run tauri:build:dmg:no-sign
+        run: npm run tauri:build:app:no-sign
 
       - name: Package release evidence
         run: npm run phase3:package

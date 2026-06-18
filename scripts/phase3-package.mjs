@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { createHash } from "node:crypto";
-import { cp, mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { cp, mkdir, readdir, readFile, rm, stat, symlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import {
@@ -76,6 +76,80 @@ const copyIfExists = async (source, destination) => {
     await mkdir(path.dirname(destination), { recursive: true });
     await cp(source, destination, { recursive: true, force: true });
   }
+};
+
+const notarizeIfConfigured = async (artifactPath) => {
+  if (process.env.APPLE_API_ISSUER && process.env.APPLE_API_KEY && process.env.APPLE_API_KEY_PATH) {
+    await runCommand("xcrun", [
+      "notarytool",
+      "submit",
+      artifactPath,
+      "--key",
+      process.env.APPLE_API_KEY_PATH,
+      "--key-id",
+      process.env.APPLE_API_KEY,
+      "--issuer",
+      process.env.APPLE_API_ISSUER,
+      "--wait",
+    ]);
+    await runCommand("xcrun", ["stapler", "staple", artifactPath]);
+    return;
+  }
+
+  if (process.env.APPLE_ID && process.env.APPLE_PASSWORD && process.env.APPLE_TEAM_ID) {
+    await runCommand("xcrun", [
+      "notarytool",
+      "submit",
+      artifactPath,
+      "--apple-id",
+      process.env.APPLE_ID,
+      "--password",
+      process.env.APPLE_PASSWORD,
+      "--team-id",
+      process.env.APPLE_TEAM_ID,
+      "--wait",
+    ]);
+    await runCommand("xcrun", ["stapler", "staple", artifactPath]);
+  }
+};
+
+const createDmgFromAppBundle = async (config, appBundle, destination) => {
+  const stagingRoot = path.join(releaseRoot, "dmg-staging");
+  await rm(stagingRoot, { recursive: true, force: true });
+  await mkdir(stagingRoot, { recursive: true });
+  await cp(appBundle, path.join(stagingRoot, path.basename(appBundle)), {
+    recursive: true,
+    force: true,
+  });
+  try {
+    await symlink("/Applications", path.join(stagingRoot, "Applications"));
+  } catch (error) {
+    if (error?.code !== "EEXIST") {
+      throw error;
+    }
+  }
+
+  try {
+    await rm(destination, { force: true });
+    await runCommand("hdiutil", [
+      "create",
+      "-volname",
+      config.project.bundleName,
+      "-srcfolder",
+      stagingRoot,
+      "-ov",
+      "-format",
+      "UDZO",
+      destination,
+    ]);
+  } finally {
+    await rm(stagingRoot, { recursive: true, force: true });
+  }
+
+  if (process.env.APPLE_SIGNING_IDENTITY) {
+    await runCommand("codesign", ["--force", "--sign", process.env.APPLE_SIGNING_IDENTITY, destination]);
+  }
+  await notarizeIfConfigured(destination);
 };
 
 const createValidationPack = async (config, assets) => {
@@ -170,9 +244,15 @@ if (process.env.APPLE_INSTALLER_SIGNING_IDENTITY) {
 pkgArgs.push(pkgPath);
 await runCommand("pkgbuild", pkgArgs);
 
-const dmg = await findFirst(dmgRoot, (name) => name.endsWith(".dmg"));
+const dmg = await findFirst(
+  dmgRoot,
+  (name) => name.endsWith(".dmg") && name.includes(config.project.version),
+);
+const releaseDmg = path.join(releaseRoot, `${config.distribution.artifactName}-${config.project.version}.dmg`);
 if (dmg) {
-  await cp(dmg, path.join(releaseRoot, `${config.distribution.artifactName}-${config.project.version}.dmg`));
+  await cp(dmg, releaseDmg);
+} else {
+  await createDmgFromAppBundle(config, appBundle, releaseDmg);
 }
 
 await copyIfExists(path.join(distRoot, "harness-bundle-manifest.json"), path.join(releaseRoot, "harness-bundle-manifest.json"));

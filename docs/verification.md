@@ -74,7 +74,7 @@ Expected:
 
 ```sh
 npm run phase3:preflight
-npm run tauri:build:dmg:no-sign
+npm run tauri:build:app:no-sign
 npm run phase3:package
 ```
 
@@ -82,14 +82,14 @@ Expected:
 
 - `reports/phase3-preflight.json` is written.
 - Missing credentials are reported as readiness issues, not as leaked secret values.
-- Tauri creates the macOS app and DMG, and Phase 3 packaging creates a pkg for internal review.
+- Tauri creates the macOS app, and Phase 3 packaging creates the DMG/pkg for internal review.
 - `release/SHA256SUMS` covers every generated release file.
 - `release/validation-pack/` and `release/validation-pack.zip` contain verification evidence.
 
-With Apple credentials configured, replace `npm run tauri:build:dmg:no-sign` with:
+With Apple credentials configured, replace `npm run tauri:build:app:no-sign` with:
 
 ```sh
-npm run tauri:build:dmg
+npm run tauri:build:app
 ```
 
 External release remains gated on successful notarization/stapling and organization approval.

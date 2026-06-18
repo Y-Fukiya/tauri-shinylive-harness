@@ -14,8 +14,8 @@ This procedure is generated from `harness.toml` and covers Phase 2 verification 
 ## Phase 3 Commands
 
 1. `npm run phase3:preflight`
-2. `npm run tauri:build:dmg:no-sign` for an unsigned internal release candidate.
-3. `npm run tauri:build:dmg` after Apple signing and notarization credentials are configured.
+2. `npm run tauri:build:app:no-sign` for an unsigned internal release candidate.
+3. `npm run tauri:build:app` after Apple signing and notarization credentials are configured.
 4. `npm run phase3:package`
 5. `npm run phase3:release-draft` after the release has been reviewed.
 

@@ -1,11 +1,11 @@
 # Tauri Shinylive Harness
 
-Phase 2/3 harness for generating, validating, packaging, and preparing release candidates for bundled Shinylive/webR apps inside a Tauri desktop shell.
+Reusable Tauri + Shinylive harness for generating, validating, packaging, and preparing release candidates for bundled Shinylive/webR apps inside a desktop shell.
 
 The harness is now config-driven:
 
 - `harness.toml` is the app catalog and distribution source of truth.
-- `node scripts/harness.mjs` provides `new`, `add-app`, `export`, `prepare`, `verify-static`, `verify`, and `build`.
+- `node scripts/harness.mjs` provides `new`, `add-app`, `list`, `doctor`, `export`, `prepare`, `verify-static`, `verify`, and `build`.
 - The portal supports multiple configured apps with search, selection, same-origin iframe loading, diagnostics, and JSON report download.
 - `dist/manifest.json` aggregates `apps/*/harness-app.json`.
 - `dist/harness-bundle-manifest.json` records file-level SHA-256 hashes.
@@ -17,8 +17,12 @@ The harness is now config-driven:
 
 ## Commands
 
+Fast path for this repository:
+
 ```sh
 npm ci
+npm run doctor
+npm run smoke:multi-app
 npm run export
 npm run build:all
 npm run verify
@@ -26,10 +30,23 @@ npm run build:harness
 npm run build:release-local
 ```
 
+Create a fresh harness project from this template:
+
+```sh
+npm run harness -- new ../my-shinylive-harness \
+  --name my-shinylive-harness \
+  --portal-title "My Shinylive Portal"
+cd ../my-shinylive-harness
+npm ci
+npm run verify
+```
+
 Useful direct CLI commands:
 
 ```sh
 node scripts/harness.mjs add-app safety-summary --title "Safety Summary"
+node scripts/harness.mjs list
+node scripts/harness.mjs doctor
 node scripts/harness.mjs export safety-summary
 node scripts/harness.mjs verify-static
 node scripts/e2e-verify.mjs
@@ -40,9 +57,10 @@ npm run phase3:release-draft
 
 ## Current Deliverables
 
-- Reusable Phase 2 CLI/template foundation.
+- Reusable v0.3.0 CLI/template foundation.
 - One generated Shinylive R smoke app: `subject-safety-mini`.
 - Multi-app-ready diagnostics portal.
+- Multi-app scaffold smoke test through `npm run smoke:multi-app`.
 - Embedded Rust loopback static server with COOP/COEP/CORP, CSP, MIME mapping, and path traversal protection.
 - macOS `.app` build via Tauri.
 - Static bundle manifest, checksums, SBOM seed, license inventory, audit log, and generated verification procedure.
@@ -62,7 +80,7 @@ Credential-backed release candidate:
 
 ```sh
 npm run phase3:preflight
-npm run tauri:build:dmg
+npm run tauri:build:app
 npm run phase3:package
 npm run phase3:release-draft
 ```
@@ -70,6 +88,8 @@ npm run phase3:release-draft
 See:
 
 - `docs/spec.md`
+- `docs/quickstart.md`
+- `docs/template-cli.md`
 - `docs/generated/verification-procedure.md`
 - `docs/verification.md`
 - `docs/release-template.md`
