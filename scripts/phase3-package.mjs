@@ -44,6 +44,10 @@ const writeReleaseNotes = async (config, assets) => {
   const e2eReport = (await exists(e2eReportPath))
     ? JSON.parse(await readFile(e2eReportPath, "utf8"))
     : null;
+  const dataValidationPath = path.join(reportsRoot, "clinical-data-pack-validation.json");
+  const dataValidationReport = (await exists(dataValidationPath))
+    ? JSON.parse(await readFile(dataValidationPath, "utf8"))
+    : null;
 
   const notes = [
     `# ${config.project.bundleName} ${config.project.version}`,
@@ -54,7 +58,9 @@ const writeReleaseNotes = async (config, assets) => {
     "",
     `- Static verification: ${staticReport?.ok ?? "not available"}`,
     `- E2E verification: ${e2eReport?.ok ?? "not available"}`,
+    `- Clinical data validation: ${dataValidationReport?.ok ?? "not available"}`,
     `- External HTTP(S) requests observed: ${e2eReport?.externalRequests?.length ?? "not available"}`,
+    `- Screenshot evidence files: ${e2eReport?.screenshots?.length ?? "not available"}`,
     "",
     "## Assets",
     "",
@@ -159,11 +165,15 @@ const createValidationPack = async (config, assets) => {
 
   await copyIfExists(path.join(reportsRoot, "static-verification.json"), path.join(evidenceRoot, "static-verification.json"));
   await copyIfExists(path.join(reportsRoot, "e2e-diagnostics.json"), path.join(evidenceRoot, "e2e-diagnostics.json"));
+  await copyIfExists(path.join(reportsRoot, "clinical-data-pack-validation.json"), path.join(evidenceRoot, "clinical-data-pack-validation.json"));
+  await copyIfExists(path.join(reportsRoot, "screenshots"), path.join(evidenceRoot, "screenshots"));
   await copyIfExists(path.join(reportsRoot, "phase3-preflight.json"), path.join(evidenceRoot, "phase3-preflight.json"));
+  await copyIfExists(path.join(distRoot, "manifest.json"), path.join(evidenceRoot, "portal-manifest.json"));
   await copyIfExists(path.join(distRoot, "harness-bundle-manifest.json"), path.join(evidenceRoot, "harness-bundle-manifest.json"));
   await copyIfExists(path.join(distRoot, "checksums", "SHA256SUMS"), path.join(evidenceRoot, "dist-SHA256SUMS"));
   await copyIfExists(path.join(distRoot, "reports", "sbom.json"), path.join(evidenceRoot, "sbom.json"));
   await copyIfExists(path.join(distRoot, "reports", "licenses.md"), path.join(evidenceRoot, "licenses.md"));
+  await copyIfExists(path.join(rootDir, "docs", "generated", "clinical-data-dictionary.md"), path.join(evidenceRoot, "clinical-data-dictionary.md"));
   await copyIfExists(path.join(rootDir, "docs", "generated", "verification-procedure.md"), path.join(evidenceRoot, "verification-procedure.md"));
   await copyIfExists(path.join(rootDir, "docs", "generated", "phase3-readiness.md"), path.join(evidenceRoot, "phase3-readiness.md"));
   await copyIfExists(path.join(rootDir, "docs", "phase3-distribution.md"), path.join(evidenceRoot, "phase3-distribution.md"));
@@ -206,6 +216,14 @@ const createValidationPack = async (config, assets) => {
       "## Scope",
       "",
       "This pack contains automated Phase 2/3 readiness evidence for the local-first Shinylive desktop harness. It is not a substitute for organization-specific clinical validation approval.",
+      "",
+      "## Automated Checks",
+      "",
+      "- Static bundle hash verification",
+      "- Playwright portal/app verification with external HTTP(S) request audit",
+      "- Clinical data pack validation with data dictionary",
+      "- Screenshot evidence for the portal and verified apps",
+      "- Release asset checksum inventory",
       "",
       "## Included Evidence",
       "",

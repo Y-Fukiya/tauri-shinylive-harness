@@ -19,6 +19,9 @@
 - `dist/reports/licenses.md`
 - `reports/static-verification.json`
 - `reports/e2e-diagnostics.json`
+- `reports/clinical-data-pack-validation.json`
+- `reports/screenshots/`
+- `docs/generated/clinical-data-dictionary.md`
 - `reports/phase3-preflight.json`
 - `release/validation-pack.zip`
 - `release/validation-pack/evidence-index.json`
@@ -31,9 +34,13 @@
 - `npm run phase3:package`
 - Browser diagnostics show `Reported SAB = true`
 - Every configured app smoke text is visible
+- Configured DOM probes are visible
 - External request audit has zero entries
 - Static asset hashes match `dist/harness-bundle-manifest.json`
+- Clinical data validation has zero errors
+- Data dictionary generated for validated data packs
 - Data pack hashes are present in app manifests for apps that declare `data_pack`
+- Screenshot evidence is present for the portal and verified apps
 - Release checksums match `release/SHA256SUMS`
 
 ## Phase 3 Signing Checklist

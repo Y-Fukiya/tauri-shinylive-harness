@@ -87,6 +87,11 @@ type FrameDiagnostics = {
   subjectCount?: number;
   aeCount?: number;
   seriousAeCount?: number;
+  profileSubject?: string;
+  labTest?: string;
+  dataPackId?: string;
+  dataPackSha256?: string;
+  dataPackFileCount?: number;
   rSmokeResult?: string;
   shinyliveExportPresent?: boolean;
   note?: string;
@@ -506,6 +511,10 @@ export const App = () => {
           <Field label="Reported isolated" value={frameDiagnostics?.crossOriginIsolated} />
           <Field label="Reported SAB" value={frameDiagnostics?.sharedArrayBufferAvailable} />
           <Field label="Sample data" value={frameDiagnostics?.sampleDataLoaded} />
+          <Field label="Subject" value={frameDiagnostics?.profileSubject} />
+          <Field label="AE count" value={frameDiagnostics?.aeCount} />
+          <Field label="Serious AE" value={frameDiagnostics?.seriousAeCount} />
+          <Field label="Lab test" value={frameDiagnostics?.labTest} />
           <Field label="R smoke" value={frameDiagnostics?.rSmokeResult} />
           <Field label="Shinylive export" value={frameDiagnostics?.shinyliveExportPresent} />
         </section>
@@ -515,6 +524,7 @@ export const App = () => {
           <Field label="ID" value={selectedDataPack?.id} />
           <Field label="Files" value={selectedDataPack?.fileCount} />
           <Field label="SHA-256" value={selectedDataPack?.sha256} />
+          <Field label="Runtime SHA-256" value={frameDiagnostics?.dataPackSha256} />
         </section>
       </aside>
     </main>

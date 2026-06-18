@@ -9,7 +9,8 @@
   "output": "apps/subject-profile-reference",
   "smokeText": [
     "Subject Profile Reference App",
-    "SUBJ-001 AE count: 3"
+    "SUBJ-001 AE count: 3",
+    "Data pack hash"
   ],
   "headerProbes": [
     "/apps/subject-profile-reference/index.html",
@@ -17,7 +18,9 @@
     "/apps/subject-profile-reference/shinylive/webr/R.wasm"
   ],
   "domProbes": [
-    "#overview_lab_trend img"
+    "#overview_lab_trend img",
+    "#exposure_ae_timeline img",
+    "#data_pack_hash_value[data-harness-status=\"resolved\"]"
   ],
   "dataPack": {
     "id": "clinical-demo-subject-profile-v1",

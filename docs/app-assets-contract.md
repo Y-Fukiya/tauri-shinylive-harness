@@ -39,7 +39,11 @@ apps/<app-id>/
     "/apps/subject-safety-mini/harness-boot.js",
     "/apps/subject-safety-mini/shinylive/webr/R.wasm"
   ],
-  "domProbes": [],
+  "domProbes": [
+    "#overview_lab_trend img",
+    "#exposure_ae_timeline img",
+    "#data_pack_hash_value[data-harness-status=\"resolved\"]"
+  ],
   "dataPack": {
     "id": "clinical-demo-subject-profile-v1",
     "sha256": "<aggregate data pack sha256>",
@@ -59,7 +63,9 @@ The portal manifest references app paths from the localhost server root. At runt
 
 `dataPack` is optional. When an app declares `data_pack` and `data_paths` in `harness.toml`, the harness computes file hashes from the source data and carries them into both `harness-app.json` and `dist/manifest.json`.
 
-`domProbes` is optional. When present, Playwright E2E waits for those selectors inside the nested Shinylive app iframe after smoke text is visible.
+`domProbes` is optional. When present, Playwright E2E waits for those selectors inside the nested Shinylive app iframe after smoke text is visible. The Subject Profile reference app uses DOM probes for the lab trend, exposure/AE timeline, and resolved in-app data pack hash.
+
+Clinical apps that declare a data pack should pass `node scripts/harness.mjs validate-data <app-id>`. The generated validation report and data dictionary become release evidence in `validation-pack.zip`.
 
 For a real Shinylive export, keep the app under its own directory and ensure all webR, WASM, package, and data assets are local to the exported tree. Do not overwrite Shinylive's own `app.json`; the harness portal reads `harness-app.json` instead.
 

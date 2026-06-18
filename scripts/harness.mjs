@@ -3,6 +3,11 @@ import { cp, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import {
+  clinicalDomains,
+  validateClinicalDataPack,
+  validateConfiguredDataPacks,
+} from "./clinical-data-pack-validator.mjs";
+import {
   appendAudit,
   appToManifest,
   configPath,
@@ -20,13 +25,15 @@ const args = process.argv.slice(3);
 
 const usage = `Usage:
   node scripts/harness.mjs new <directory> [--name name] [--portal-title "Title"] [--bundle-name "Bundle"]
-  node scripts/harness.mjs add-app <id> [--title "Title"]
+  node scripts/harness.mjs add-app <id> [--title "Title"] [--template subject-profile]
+  node scripts/harness.mjs add-data-pack <app-id> <data-dir> [--id data-pack-id]
+  node scripts/harness.mjs validate-data [app-id] [--data-dir dir] [--id data-pack-id]
   node scripts/harness.mjs list
   node scripts/harness.mjs doctor
   node scripts/harness.mjs export [app-id]
   node scripts/harness.mjs prepare
   node scripts/harness.mjs verify-static
-  node scripts/harness.mjs verify
+  node scripts/harness.mjs verify [--app app-id]
   node scripts/harness.mjs build
 
 Phase 2 commands are intentionally local-first: they generate static assets,
@@ -54,6 +61,7 @@ const parseOptions = (values) => {
 };
 
 const tomlString = (value) => `"${String(value).replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+const tomlArray = (values) => `[${values.map(tomlString).join(", ")}]`;
 
 const slugify = (value) =>
   String(value)
@@ -96,12 +104,64 @@ const appendAppToConfig = async (app) => {
     `output = ${tomlString(app.output)}`,
     `path = ${tomlString(app.path)}`,
     "offline_required = true",
-    `smoke_text = [${app.smokeText.map(tomlString).join(", ")}]`,
-    'header_probes = ["index.html", "harness-boot.js", "shinylive/webr/R.wasm"]',
+    `smoke_text = ${tomlArray(app.smokeText)}`,
+    ...(app.domProbes?.length ? [`dom_probes = ${tomlArray(app.domProbes)}`] : []),
+    ...(app.dataPack ? [`data_pack = ${tomlString(app.dataPack)}`] : []),
+    ...(app.dataPaths?.length ? [`data_paths = ${tomlArray(app.dataPaths)}`] : []),
+    `header_probes = ${tomlArray(app.headerProbes ?? ["index.html", "harness-boot.js", "shinylive/webr/R.wasm"])}`,
     "",
   ].join("\n");
 
   await writeFile(configPath, `${await readFile(configPath, "utf8")}${block}`);
+};
+
+const appBlock = (app) =>
+  [
+    "",
+    "[[apps]]",
+    `id = ${tomlString(app.id)}`,
+    `title = ${tomlString(app.title)}`,
+    `description = ${tomlString(app.description)}`,
+    `kind = ${tomlString(app.kind)}`,
+    `source = ${tomlString(app.source)}`,
+    `output = ${tomlString(app.output)}`,
+    `path = ${tomlString(app.path)}`,
+    `offline_required = ${app.offlineRequired ? "true" : "false"}`,
+    `smoke_text = ${tomlArray(app.smokeText ?? [])}`,
+    ...(app.domProbes?.length ? [`dom_probes = ${tomlArray(app.domProbes)}`] : []),
+    ...(app.dataPack ? [`data_pack = ${tomlString(app.dataPack)}`] : []),
+    ...(app.dataPaths?.length ? [`data_paths = ${tomlArray(app.dataPaths)}`] : []),
+    `header_probes = ${tomlArray(app.headerProbes ?? ["index.html", "harness-boot.js", "shinylive/webr/R.wasm"])}`,
+  ].join("\n");
+
+const serializeHarnessToml = (config) =>
+  [
+    "[project]",
+    `name = ${tomlString(config.project.name)}`,
+    `version = ${tomlString(config.project.version)}`,
+    `portal_title = ${tomlString(config.project.portalTitle)}`,
+    `portal_subtitle = ${tomlString(config.project.portalSubtitle)}`,
+    `bundle_name = ${tomlString(config.project.bundleName)}`,
+    "",
+    "[distribution]",
+    `artifact_name = ${tomlString(config.distribution.artifactName)}`,
+    `release_channel = ${tomlString(config.distribution.releaseChannel)}`,
+    `release_draft = ${config.distribution.releaseDraft ? "true" : "false"}`,
+    `require_offline = ${config.distribution.requireOffline ? "true" : "false"}`,
+    `mac_bundles = ${tomlArray(config.distribution.macBundles)}`,
+    `github_repo = ${tomlString(config.distribution.githubRepo)}`,
+    "",
+    "[phase3]",
+    `signing_required = ${config.phase3.signingRequired ? "true" : "false"}`,
+    `notarization_required = ${config.phase3.notarizationRequired ? "true" : "false"}`,
+    `validation_pack_required = ${config.phase3.validationPackRequired ? "true" : "false"}`,
+    `release_draft_default = ${config.phase3.releaseDraftDefault ? "true" : "false"}`,
+    ...config.apps.map(appBlock),
+    "",
+  ].join("\n");
+
+const writeHarnessConfig = async (config) => {
+  await writeFile(configPath, serializeHarnessToml(config));
 };
 
 const createSourceApp = async (app, baseDir = rootDir) => {
@@ -182,9 +242,11 @@ const templateEntries = [
   ".github",
   "crates",
   "docs",
+  "schemas",
   "scripts",
   "src",
   "src-tauri",
+  "templates",
   ".gitignore",
   "index.html",
   "package-lock.json",
@@ -335,6 +397,51 @@ const updateGeneratedTauriConfig = async (target, { projectName, bundleName }) =
   ]);
 };
 
+const clinicalDataPathsForSource = (source) => [
+  path.join(source, "data", "clinical-demo-data-pack.json"),
+  ...Object.values(clinicalDomains).map((domain) => path.join(source, "data", domain.file)),
+].map(toPosixLocal);
+
+function toPosixLocal(value) {
+  return value.split(path.sep).join("/");
+}
+
+const subjectProfileTemplateSource = async () => {
+  const template = path.join(rootDir, "templates", "apps", "subject-profile-reference");
+  if (await exists(template)) {
+    return template;
+  }
+  return path.join(rootDir, "shinylive-src", "subject-profile-reference");
+};
+
+const createSubjectProfileTemplateApp = async (app) => {
+  const sourceDir = path.join(rootDir, app.source);
+  if (await exists(sourceDir)) {
+    throw new Error(`App source already exists: ${app.source}`);
+  }
+
+  await cp(await subjectProfileTemplateSource(), sourceDir, {
+    recursive: true,
+    force: true,
+    filter: shouldCopyTemplatePath,
+  });
+
+  await replaceInFile(path.join(sourceDir, "app.R"), [
+    [/data_pack_id <- ".*"/, `data_pack_id <- "${app.dataPack}"`],
+    [/"Subject Profile Reference App"/g, JSON.stringify(app.title)],
+  ]);
+  await replaceInFile(path.join(sourceDir, "www", "harness-diagnostics.js"), [
+    [/appId: ".*"/, `appId: "${app.id}"`],
+    [/candidate\.id === ".*"/, `candidate.id === "${app.id}"`],
+  ]);
+
+  const metadataPath = path.join(sourceDir, "data", "clinical-demo-data-pack.json");
+  const metadata = await jsonFile(metadataPath);
+  metadata.id = app.dataPack;
+  metadata.description = `Synthetic clinical subject profile data for ${app.title}.`;
+  await writeJsonFile(metadataPath, metadata);
+};
+
 const createNewHarness = async (values) => {
   const options = parseOptions(values);
   const targetDirectory = options._[0];
@@ -394,20 +501,115 @@ const addApp = async (values) => {
     throw new Error(`App already exists: ${id}`);
   }
 
+  const template = options.template ?? "basic";
+  const title = options.title ?? id.replace(/-/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
   const app = {
     id,
-    title: options.title ?? id.replace(/-/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase()),
+    title,
     description: options.description ?? "Generated Shinylive app.",
     kind: options.kind ?? "shinylive-r",
     source: options.source ?? `shinylive-src/${id}`,
     output: options.output ?? `apps/${id}`,
     path: `/apps/${id}/index.html`,
-    smokeText: [options.title ?? id, "2", "SUBJ-001"],
+    headerProbes: ["index.html", "harness-boot.js", "shinylive/webr/R.wasm"],
+    smokeText: [title, "2", "SUBJ-001"],
   };
 
-  await createSourceApp(app);
+  if (template === "subject-profile") {
+    app.description =
+      options.description ??
+      "Synthetic subject profile reference app with overview, timeline, labs, adverse events, meds, exposure, and data pack traceability.";
+    app.dataPack = options["data-pack"] ?? `${id}-clinical-demo-data-v1`;
+    app.dataPaths = clinicalDataPathsForSource(app.source);
+    app.domProbes = [
+      "#overview_lab_trend img",
+      "#exposure_ae_timeline img",
+      '#data_pack_hash_value[data-harness-status="resolved"]',
+    ];
+    app.smokeText = [title, "SUBJ-001 AE count: 3", "Data pack hash"];
+    await createSubjectProfileTemplateApp(app);
+  } else if (template === "basic") {
+    await createSourceApp(app);
+  } else {
+    throw new Error(`Unknown app template: ${template}`);
+  }
+
   await appendAppToConfig(app);
   await appendAudit("add-app", "ok", { id });
+};
+
+const addDataPack = async (values) => {
+  const options = parseOptions(values);
+  const appId = options.app ?? options._[0];
+  const sourceDataDir = options["data-dir"] ?? options._[1];
+  if (!appId || !sourceDataDir) {
+    throw new Error("add-data-pack requires an app id and data directory.");
+  }
+
+  const config = await readConfig();
+  const app = config.apps.find((candidate) => candidate.id === appId);
+  if (!app) {
+    throw new Error(`No app matched: ${appId}`);
+  }
+
+  const resolvedSourceDataDir = path.resolve(process.cwd(), sourceDataDir);
+  const validation = await validateClinicalDataPack({
+    appId,
+    dataDir: resolvedSourceDataDir,
+    dataPackId: options.id ?? null,
+    writeOutputs: false,
+  });
+  if (!validation.ok) {
+    throw new Error(`Data pack validation failed for ${sourceDataDir}`);
+  }
+
+  const destination = path.join(rootDir, app.source, "data");
+  if (path.resolve(destination) !== resolvedSourceDataDir) {
+    await mkdir(destination, { recursive: true });
+    await cp(resolvedSourceDataDir, destination, {
+      recursive: true,
+      force: true,
+      filter: shouldCopyTemplatePath,
+    });
+  }
+
+  if (options.id) {
+    const metadataPath = path.join(destination, "clinical-demo-data-pack.json");
+    const metadata = await jsonFile(metadataPath);
+    metadata.id = options.id;
+    await writeJsonFile(metadataPath, metadata);
+  }
+
+  app.dataPack = options.id ?? validation.dataPack.id;
+  app.dataPaths = clinicalDataPathsForSource(app.source);
+  await writeHarnessConfig(config);
+  await validateConfiguredDataPacks({ appId });
+  await appendAudit("add-data-pack", "ok", { appId, dataPack: app.dataPack });
+};
+
+const validateData = async (values) => {
+  const options = parseOptions(values);
+  const appId = options.app ?? options._[0] ?? null;
+  const reportPath = options.report ? path.resolve(options.report) : undefined;
+  const dictionaryPath = options.dictionary ? path.resolve(options.dictionary) : undefined;
+
+  let result;
+  if (options["data-dir"]) {
+    result = await validateClinicalDataPack({
+      appId,
+      dataDir: path.resolve(process.cwd(), options["data-dir"]),
+      dataPackId: options.id ?? null,
+      reportPath,
+      dictionaryPath,
+    });
+    if (!result.ok) {
+      throw new Error("Clinical data pack validation failed.");
+    }
+  } else {
+    result = await validateConfiguredDataPacks({ appId, reportPath, dictionaryPath });
+  }
+
+  await appendAudit("validate-data", result.ok ? "ok" : "failed", result);
 };
 
 const listApps = async () => {
@@ -429,6 +631,8 @@ const doctor = async () => {
   await pushCheck("harness.toml", await exists(configPath), path.relative(rootDir, configPath));
   await pushCheck("package.json", await exists(path.join(rootDir, "package.json")), "npm scripts");
   await pushCheck("src-tauri/tauri.conf.json", await exists(path.join(rootDir, "src-tauri", "tauri.conf.json")), "Tauri config");
+  await pushCheck("schemas/clinical-data-pack.schema.json", await exists(path.join(rootDir, "schemas", "clinical-data-pack.schema.json")), "clinical data contract");
+  await pushCheck("templates/apps/subject-profile-reference", await exists(path.join(rootDir, "templates", "apps", "subject-profile-reference")), "subject profile template");
   await pushCheck("configured apps", config.apps.length > 0, `${config.apps.length} app(s)`);
 
   const ids = new Set();
@@ -494,14 +698,24 @@ const buildPortalAndPrepare = async () => {
   await appendAudit("prepare", "ok");
 };
 
-const verifyAll = async () => {
+const verifyAll = async (values = []) => {
+  const options = parseOptions(values);
+  const appId = options.app ?? options._[0] ?? null;
+  const config = await readConfig();
+  const selectedApp = appId ? config.apps.find((app) => app.id === appId) : null;
+  if (appId && !selectedApp) {
+    throw new Error(`No app matched: ${appId}`);
+  }
+  if (!appId || selectedApp?.dataPack) {
+    await validateConfiguredDataPacks({ appId });
+  }
   await exportApps();
   await buildPortalAndPrepare();
   await runCommand("npm", ["run", "check"]);
   await runCommand("cargo", ["test", "--manifest-path", "crates/harness-server/Cargo.toml"]);
   await verifyBundleArtifacts();
-  await runCommand("node", ["scripts/e2e-verify.mjs"]);
-  await appendAudit("verify", "ok");
+  await runCommand("node", ["scripts/e2e-verify.mjs", ...(appId ? ["--app", appId] : [])]);
+  await appendAudit("verify", "ok", { appId });
 };
 
 try {
@@ -516,6 +730,12 @@ try {
       break;
     case "add-app":
       await addApp(args);
+      break;
+    case "add-data-pack":
+      await addDataPack(args);
+      break;
+    case "validate-data":
+      await validateData(args);
       break;
     case "list":
       await listApps();
@@ -533,10 +753,10 @@ try {
       await verifyBundleArtifacts();
       break;
     case "verify":
-      await verifyAll();
+      await verifyAll(args);
       break;
     case "build":
-      await verifyAll();
+      await verifyAll(args);
       await runCommand("npm", ["run", "tauri:build"]);
       await appendAudit("build", "ok");
       break;

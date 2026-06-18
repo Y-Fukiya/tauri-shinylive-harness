@@ -1,0 +1,16 @@
+{
+  "id": "clinical-demo-subject-profile-v1",
+  "version": "1.0.0",
+  "synthetic": true,
+  "description": "Synthetic clinical subject profile data for harness verification and demos.",
+  "domains": [
+    "demographics",
+    "visits",
+    "labs",
+    "vitals",
+    "adverse_events",
+    "concomitant_meds",
+    "exposure"
+  ],
+  "primarySubject": "SUBJ-001"
+}

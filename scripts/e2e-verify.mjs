@@ -6,6 +6,27 @@ import { chromium } from "@playwright/test";
 
 import { distRoot, readConfig, reportsRoot, rootDir } from "./harness-core.mjs";
 
+const parseOptions = (values) => {
+  const options = { _: [] };
+  for (let index = 0; index < values.length; index += 1) {
+    const value = values[index];
+    if (!value.startsWith("--")) {
+      options._.push(value);
+      continue;
+    }
+
+    const key = value.slice(2);
+    const next = values[index + 1];
+    if (!next || next.startsWith("--")) {
+      options[key] = true;
+    } else {
+      options[key] = next;
+      index += 1;
+    }
+  }
+  return options;
+};
+
 const isLocalRequest = (url) => {
   if (url.startsWith("data:") || url.startsWith("blob:")) {
     return true;
@@ -61,9 +82,37 @@ const writeReport = async (report) => {
   await writeFile(path.join(reportsRoot, "e2e-diagnostics.json"), `${JSON.stringify(report, null, 2)}\n`);
 };
 
+const waitForDomProbe = async (appFrame, domProbe) => {
+  const locator = appFrame.locator(domProbe);
+  try {
+    await locator.waitFor({ state: "visible", timeout: 15000 });
+    return;
+  } catch {
+    const tabLabels = ["Overview", "Timeline", "Labs", "AEs", "Meds"];
+    for (const tabLabel of tabLabels) {
+      try {
+        await appFrame.getByText(tabLabel, { exact: true }).first().click({ timeout: 5000 });
+        await locator.waitFor({ state: "visible", timeout: 15000 });
+        return;
+      } catch {
+        // Try the next tab before surfacing the original probe failure.
+      }
+    }
+    await locator.waitFor({ state: "visible", timeout: 30000 });
+  }
+};
+
+const options = parseOptions(process.argv.slice(2));
+const appId = options.app ?? options._[0] ?? null;
 const config = await readConfig();
+const targetApps = appId ? config.apps.filter((app) => app.id === appId) : config.apps;
+if (appId && targetApps.length === 0) {
+  throw new Error(`No app matched: ${appId}`);
+}
+
 const externalRequests = [];
 const appResults = [];
+const screenshots = [];
 const { child, portalUrl } = await startServer();
 let browser;
 
@@ -86,7 +135,12 @@ try {
     timeout: 20000,
   });
 
-  for (const app of config.apps) {
+  await mkdir(path.join(reportsRoot, "screenshots"), { recursive: true });
+  const portalScreenshot = path.join(reportsRoot, "screenshots", "portal.png");
+  await page.screenshot({ path: portalScreenshot, fullPage: true });
+  screenshots.push({ name: "portal", path: path.relative(rootDir, portalScreenshot).split(path.sep).join("/") });
+
+  for (const app of targetApps) {
     await page.getByTestId(`app-option-${app.id}`).click();
     const appFrame = page.frameLocator("iframe.harness-app-frame").frameLocator("iframe.app-frame");
 
@@ -95,8 +149,12 @@ try {
     }
 
     for (const domProbe of app.domProbes ?? []) {
-      await appFrame.locator(domProbe).waitFor({ state: "visible", timeout: 60000 });
+      await waitForDomProbe(appFrame, domProbe);
     }
+
+    const screenshotPath = path.join(reportsRoot, "screenshots", `${app.id}.png`);
+    await page.screenshot({ path: screenshotPath, fullPage: true });
+    screenshots.push({ name: app.id, path: path.relative(rootDir, screenshotPath).split(path.sep).join("/") });
 
     const portalText = await page.locator("body").innerText();
     appResults.push({
@@ -113,8 +171,10 @@ try {
     ok: externalRequests.length === 0 && appResults.every((result) => result.ok),
     portalUrl,
     checkedAt: new Date().toISOString(),
+    appFilter: appId,
     appResults,
     externalRequests,
+    screenshots,
   };
 
   await writeReport(report);

@@ -9,12 +9,34 @@ npm run verify
 
 `npm run verify` performs:
 
+- `node scripts/harness.mjs validate-data`
 - `node scripts/harness.mjs export`
 - Vite portal build
 - `tsc --noEmit`
 - Rust unit tests for the harness server
 - static bundle/hash verification
 - Playwright E2E verification
+
+To verify one app while still preparing the full portal manifest:
+
+```sh
+npm run harness -- verify --app subject-profile-reference
+```
+
+## Clinical Data Validation
+
+```sh
+npm run validate:data
+```
+
+Expected:
+
+- `schemas/clinical-data-pack.schema.json` defines the metadata contract.
+- Required columns are present for demographics, visits, labs, vitals, adverse events, concomitant meds, and exposure.
+- Every non-demographics subject reference resolves to demographics.
+- Visit dates, AE start/end days, medication days, and exposure intervals are valid.
+- `reports/clinical-data-pack-validation.json` records the validation result and aggregate data pack hash.
+- `docs/generated/clinical-data-dictionary.md` records inferred column types and missingness.
 
 ## Static Verification
 
@@ -43,7 +65,8 @@ Expected:
 - Each configured app can be selected in the portal.
 - Each app's configured smoke text is visible through the Shinylive iframe.
 - Each configured DOM probe is visible through the Shinylive iframe.
-- `subject-profile-reference` proves `SUBJ-001 AE count: 3` and `#overview_lab_trend img`.
+- `subject-profile-reference` proves `SUBJ-001 AE count: 3`, `#overview_lab_trend img`, `#exposure_ae_timeline img`, and a resolved in-app data pack hash.
+- Screenshot evidence is written under `reports/screenshots/`.
 - No non-local HTTP(S) requests are observed.
 - `reports/e2e-diagnostics.json` is written.
 
@@ -86,7 +109,7 @@ Expected:
 - Missing credentials are reported as readiness issues, not as leaked secret values.
 - Tauri creates the macOS app, and Phase 3 packaging creates the DMG/pkg for internal review.
 - `release/SHA256SUMS` covers every generated release file.
-- `release/validation-pack/` and `release/validation-pack.zip` contain verification evidence.
+- `release/validation-pack/` and `release/validation-pack.zip` contain verification evidence, data validation report, data dictionary, screenshots, manifest, SBOM/license inventory, and checksums.
 
 With Apple credentials configured, replace `npm run tauri:build:app:no-sign` with:
 

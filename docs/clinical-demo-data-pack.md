@@ -34,6 +34,13 @@ During `npm run export`, the harness computes per-file SHA-256 hashes and an agg
 - `dist/manifest.json`
 - `release/validation-pack.zip` evidence after Phase 3 packaging
 
+`npm run validate:data` also writes:
+
+- `reports/clinical-data-pack-validation.json`
+- `docs/generated/clinical-data-dictionary.md`
+
+The validator checks metadata, required columns, subject ID references, visit dates, AE start/end days, medication intervals, exposure intervals, and the aggregate data pack hash.
+
 ## Reference Checks
 
 `npm run verify` confirms:
@@ -41,4 +48,8 @@ During `npm run export`, the harness computes per-file SHA-256 hashes and an agg
 - `Subject Profile Reference App` is visible.
 - `SUBJ-001 AE count: 3` is visible.
 - `#overview_lab_trend img` is visible.
+- `#exposure_ae_timeline img` is visible.
+- `#data_pack_hash_value[data-harness-status="resolved"]` is visible.
 - no external HTTP(S) requests are observed.
+
+The Subject Profile app displays the resolved data pack hash from `/manifest.json`, so the visible profile can be traced back to the exact hashed data pack used for generation and verification.

@@ -1,0 +1,9 @@
+subject_id,medication,indication,start_day,end_day,ongoing
+SUBJ-001,Acetaminophen,Headache,9,11,N
+SUBJ-001,Ondansetron,Nausea,18,22,N
+SUBJ-001,Multivitamin,Supplement,-30,,Y
+SUBJ-002,Atorvastatin,Hyperlipidemia,-180,,Y
+SUBJ-003,Cetirizine,Rash,12,20,N
+SUBJ-004,Amlodipine,Hypertension,45,,Y
+SUBJ-005,Levothyroxine,Hypothyroidism,-365,,Y
+SUBJ-006,Meclizine,Dizziness,17,18,N

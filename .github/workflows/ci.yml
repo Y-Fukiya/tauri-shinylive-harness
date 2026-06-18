@@ -29,5 +29,6 @@ jobs:
           name: harness-reports
           path: |
             reports/
+            docs/generated/clinical-data-dictionary.md
             dist/reports/
             dist/checksums/
