@@ -72,6 +72,7 @@ const commands = {
   securityIdentities: summarizeCommand(await runCapture("security", ["find-identity", "-v", "-p", "codesigning"])),
   notarytool: summarizeCommand(await runCapture("xcrun", ["-f", "notarytool"])),
   stapler: summarizeCommand(await runCapture("xcrun", ["-f", "stapler"])),
+  pkgbuild: summarizeCommand(await runCapture("xcrun", ["-f", "pkgbuild"])),
   ghAuth: summarizeCommand(await runCapture("gh", ["auth", "status"])),
 };
 
@@ -89,7 +90,8 @@ const signingReady =
   (apple.certificateP12 && apple.certificatePassword && apple.keychainPassword);
 const notarizationReady = apple.appStoreConnectApi || apple.appleIdNotary;
 const githubReady = commands.ghAuth.ok || present("GITHUB_TOKEN");
-const toolingReady = commands.codesign.ok && commands.notarytool.ok && commands.stapler.ok;
+const toolingReady =
+  commands.codesign.ok && commands.notarytool.ok && commands.stapler.ok && commands.pkgbuild.ok;
 
 const issues = [];
 if (config.phase3.signingRequired && !signingReady) {
@@ -108,7 +110,7 @@ if (!githubReady) {
   issues.push("GitHub release automation is not ready: gh auth status failed and GITHUB_TOKEN is absent.");
 }
 if (!toolingReady) {
-  issues.push("macOS signing/notarization tooling is incomplete. Check codesign, xcrun notarytool, and xcrun stapler.");
+  issues.push("macOS signing/notarization/package tooling is incomplete. Check codesign, xcrun notarytool, xcrun stapler, and xcrun pkgbuild.");
 }
 
 const report = {

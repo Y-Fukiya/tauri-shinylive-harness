@@ -82,7 +82,7 @@ Expected:
 
 - `reports/phase3-preflight.json` is written.
 - Missing credentials are reported as readiness issues, not as leaked secret values.
-- Tauri creates the macOS app archive and DMG for internal review.
+- Tauri creates the macOS app and DMG, and Phase 3 packaging creates a pkg for internal review.
 - `release/SHA256SUMS` covers every generated release file.
 - `release/validation-pack/` and `release/validation-pack.zip` contain verification evidence.
 

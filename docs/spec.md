@@ -16,7 +16,7 @@ Phase 3 automates release-candidate evidence and credential-ready macOS distribu
 - Bundle integrity: `dist/harness-bundle-manifest.json` plus `dist/checksums/SHA256SUMS`.
 - Verification: TypeScript check, Rust tests, static hash verification, and Playwright E2E.
 - Network posture: E2E fails if non-local HTTP(S) requests are observed.
-- Distribution proof: unsigned macOS `.app` and DMG build.
+- Distribution proof: unsigned macOS `.app`, DMG, and pkg build.
 - Phase 3 preflight: Apple signing, notarization, GitHub release, and tooling readiness.
 - Phase 3 package: app zip, DMG, checksums, release notes, SBOM/license evidence, and validation pack.
 - GitHub Release: draft/prerelease creation after review.
@@ -90,6 +90,7 @@ dist/
 release/
   clinical-shinylive-desktop-portal-<version>-macos-app.zip
   clinical-shinylive-desktop-portal-<version>.dmg
+  clinical-shinylive-desktop-portal-<version>.pkg
   RELEASE_NOTES.md
   SHA256SUMS
   validation-pack/
@@ -155,7 +156,7 @@ The Rust server must:
 - Playwright E2E records zero external HTTP(S) requests.
 - `npm run build:harness` produces the unsigned macOS `.app`.
 - Packaged `.app` health endpoint serves `dist` from bundled resources.
-- `npm run build:release-local` produces an unsigned app archive, DMG when available, release checksums, release notes, and validation pack.
+- `npm run build:release-local` produces an unsigned app archive, DMG/pkg, release checksums, release notes, and validation pack.
 - `npm run phase3:preflight` reports missing credentials without exposing secret values.
 - Signed/notarized release builds pass when Apple Developer ID and notarization credentials are configured.
 - GitHub draft release creation is available through `npm run phase3:release-draft`.

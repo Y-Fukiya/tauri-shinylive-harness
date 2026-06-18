@@ -11,6 +11,7 @@
 ## Required Artifacts
 
 - macOS app archive
+- macOS pkg
 - `SHA256SUMS`
 - `dist/harness-bundle-manifest.json`
 - `dist/checksums/SHA256SUMS`
@@ -37,6 +38,7 @@
 ## Phase 3 Signing Checklist
 
 - Developer ID Application certificate installed
+- Developer ID Installer certificate installed when publishing pkg
 - Apple Team ID configured
 - Notarization credentials configured
 - Hardened runtime enabled

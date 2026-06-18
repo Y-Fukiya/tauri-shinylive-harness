@@ -157,6 +157,19 @@ if (!appBundle) {
 const appZip = path.join(releaseRoot, `${config.distribution.artifactName}-${config.project.version}-macos-app.zip`);
 await runCommand("ditto", ["-c", "-k", "--keepParent", appBundle, appZip]);
 
+const pkgPath = path.join(releaseRoot, `${config.distribution.artifactName}-${config.project.version}.pkg`);
+const pkgArgs = [
+  "--component",
+  appBundle,
+  "--install-location",
+  "/Applications",
+];
+if (process.env.APPLE_INSTALLER_SIGNING_IDENTITY) {
+  pkgArgs.push("--sign", process.env.APPLE_INSTALLER_SIGNING_IDENTITY);
+}
+pkgArgs.push(pkgPath);
+await runCommand("pkgbuild", pkgArgs);
+
 const dmg = await findFirst(dmgRoot, (name) => name.endsWith(".dmg"));
 if (dmg) {
   await cp(dmg, path.join(releaseRoot, `${config.distribution.artifactName}-${config.project.version}.dmg`));

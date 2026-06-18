@@ -12,7 +12,7 @@ The harness is now config-driven:
 - `dist/checksums/SHA256SUMS`, `dist/reports/sbom.json`, and `dist/reports/licenses.md` are generated during prepare.
 - Playwright E2E verifies portal diagnostics, Shiny smoke text, and zero external HTTP(S) requests.
 - Phase 3 preflight checks Apple signing/notarization/GitHub release readiness without printing secrets.
-- `release/` packaging creates app archive, DMG when available, checksums, release notes, and validation pack.
+- `release/` packaging creates app archive, DMG/pkg when available, checksums, release notes, and validation pack.
 - GitHub Actions workflows are included for CI and release-candidate builds.
 
 ## Commands
@@ -50,7 +50,7 @@ npm run phase3:release-draft
 
 ## Phase 3 Boundary
 
-The repository can now drive the Phase 3 path up to a credential-ready release candidate. Production Apple Developer ID signing, notarization, stapling, and public GitHub Release publication require Apple/GitHub credentials. Formal clinical validation approval still requires organization review and signoff.
+The repository can now drive the Phase 3 path up to a credential-ready release candidate. Production Apple Developer ID signing, installer signing, notarization, stapling, and public GitHub Release publication require Apple/GitHub credentials. Formal clinical validation approval still requires organization review and signoff.
 
 Credential-free local release candidate:
 

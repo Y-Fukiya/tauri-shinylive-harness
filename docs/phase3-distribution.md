@@ -24,7 +24,10 @@ For CI signing, configure these GitHub Actions secrets:
 APPLE_CERTIFICATE
 APPLE_CERTIFICATE_PASSWORD
 KEYCHAIN_PASSWORD
+APPLE_INSTALLER_SIGNING_IDENTITY
 ```
+
+`APPLE_INSTALLER_SIGNING_IDENTITY` is optional for local/internal pkg creation, but should be set to a Developer ID Installer identity for externally distributed signed pkg artifacts.
 
 For notarization, configure either App Store Connect API credentials:
 
@@ -63,6 +66,7 @@ npm run phase3:release-draft
 
 - macOS app zip
 - DMG when Tauri generated one
+- pkg generated with `pkgbuild`
 - `RELEASE_NOTES.md`
 - `SHA256SUMS`
 - bundle manifest and dist checksums
