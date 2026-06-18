@@ -179,6 +179,7 @@ const normalizeConfig = (config) => {
     smokeText: Array.isArray(app.smoke_text) ? app.smoke_text : [],
     headerProbes: Array.isArray(app.header_probes) ? app.header_probes : ["index.html"],
     domProbes: Array.isArray(app.dom_probes) ? app.dom_probes : [],
+    reportTemplates: Array.isArray(app.report_templates) ? app.report_templates : [],
     dataPack: app.data_pack ?? "",
     dataPackSource: app.data_pack_source ?? "",
     dataPaths: Array.isArray(app.data_paths) ? app.data_paths : [],
@@ -344,7 +345,25 @@ export const validateHarnessConfig = async (
     validateStringArray(issues, `${prefix}.smokeText`, app.smokeText, { minLength: 1 });
     validateStringArray(issues, `${prefix}.headerProbes`, app.headerProbes, { minLength: 1 });
     validateStringArray(issues, `${prefix}.domProbes`, app.domProbes);
+    validateStringArray(issues, `${prefix}.reportTemplates`, app.reportTemplates);
     validateStringArray(issues, `${prefix}.dataPaths`, app.dataPaths);
+
+    for (const reportTemplate of app.reportTemplates) {
+      if (!/^[a-z0-9][a-z0-9._-]*$/.test(reportTemplate)) {
+        issue(issues, "error", "invalid-report-template-id", "report_templates entries must use lowercase letters, numbers, dots, underscores, or hyphens.", {
+          appId: app.id,
+          reportTemplate,
+        });
+      }
+      const reportTemplatePath = path.join(rootDir, "templates", "reports", reportTemplate, "template.json");
+      if (!(await exists(reportTemplatePath))) {
+        issue(issues, "error", "missing-report-template", "Configured report template is missing from templates/reports.", {
+          appId: app.id,
+          reportTemplate,
+          path: toPosix(path.relative(rootDir, reportTemplatePath)),
+        });
+      }
+    }
 
     if (!(await exists(path.join(rootDir, app.source)))) {
       issue(issues, "error", "missing-app-source", "Configured app source directory does not exist.", {
@@ -465,6 +484,7 @@ export const appToManifest = async (app) => {
       probe.startsWith("/") ? probe : `${app.path.replace(/\/index\.html$/, "")}/${probe}`,
     ),
     domProbes: app.domProbes,
+    reportTemplates: app.reportTemplates,
   };
 
   const dataPack = await createDataPackManifest(app);
@@ -860,10 +880,11 @@ export const writeVerificationProcedure = async (config) => {
     "2. `node scripts/harness.mjs validate-config`",
     "3. `node scripts/harness.mjs validate-data`",
     "4. `node scripts/harness.mjs export`",
-    "5. `node scripts/harness.mjs prepare`",
-    "6. `node scripts/harness.mjs verify-static`",
-    "7. `node scripts/e2e-verify.mjs`",
-    "8. `npm run tauri:build`",
+    "5. `node scripts/harness.mjs export-reports`",
+    "6. `node scripts/harness.mjs prepare`",
+    "7. `node scripts/harness.mjs verify-static`",
+    "8. `node scripts/e2e-verify.mjs`",
+    "9. `npm run tauri:build`",
     "",
     "## Phase 3 Commands",
     "",
@@ -889,6 +910,9 @@ export const writeVerificationProcedure = async (config) => {
     "- Configured DOM probes are visible, including lab trend and exposure/AE timeline plots.",
     "- Clinical data pack validation passes with zero errors.",
     "- `reports/clinical-data-pack-validation.json` and `docs/generated/clinical-data-dictionary.md` are generated.",
+    "- Configured report templates export HTML report evidence under `reports/exported/`.",
+    "- Exported reports include data pack hash, generated timestamp, app version, clinical-use limitation, and reviewer sign-off fields.",
+    "- `reports/review-workflow.json` records review status, reviewer, reviewed_at, decision, and notes fields.",
     "- Playwright screenshot evidence is generated for the portal and verified apps.",
     "- E2E network audit observes no external HTTP(S) requests.",
     "- `dist/harness-bundle-manifest.json` hashes match bundled files.",
@@ -903,10 +927,10 @@ export const writeVerificationProcedure = async (config) => {
     "",
     "## Apps",
     "",
-    "| App | Kind | Data Pack | Smoke Text |",
-    "| --- | --- | --- | --- |",
+    "| App | Kind | Data Pack | Reports | Smoke Text |",
+    "| --- | --- | --- | --- | --- |",
     ...config.apps.map(
-      (app) => `| ${app.id} | ${app.kind} | ${app.dataPack || "n/a"} | ${app.smokeText.join("<br>")} |`,
+      (app) => `| ${app.id} | ${app.kind} | ${app.dataPack || "n/a"} | ${(app.reportTemplates ?? []).join("<br>") || "n/a"} | ${app.smokeText.join("<br>")} |`,
     ),
     "",
   ];

@@ -27,6 +27,94 @@ first_or_na <- function(value) {
   }
 }
 
+max_severity <- function(rows) {
+  if (nrow(rows) == 0) {
+    return("n/a")
+  }
+  severity_rank <- c(Mild = 1, Moderate = 2, Severe = 3)
+  ranked <- severity_rank[rows$severity]
+  if (all(is.na(ranked))) {
+    return("n/a")
+  }
+  names(ranked)[which.max(ranked)]
+}
+
+count_related <- function(rows) {
+  sum(rows$related %in% c("Possible", "Probable", "Related"))
+}
+
+count_abnormal_labs <- function(rows) {
+  sum(rows$flag != "Normal")
+}
+
+build_subject_snapshot <- function(profile, visits, aes, labs, exposure_rows) {
+  data.frame(
+    Section = c(
+      "Identity", "Identity", "Identity", "Study conduct", "Study conduct",
+      "Exposure", "Exposure", "Safety", "Safety", "Safety", "Laboratory"
+    ),
+    Item = c(
+      "Subject", "Site / Region", "Demographics", "Current status", "Latest visit",
+      "Cycles observed", "Dose status", "AE count", "Serious AE count", "Maximum severity",
+      "Abnormal lab records"
+    ),
+    Value = c(
+      first_or_na(profile$subject_id),
+      paste(first_or_na(profile$site_id), first_or_na(profile$region), sep = " / "),
+      paste(first_or_na(profile$sex), paste0(first_or_na(profile$age), " years"), first_or_na(profile$race), sep = " / "),
+      first_or_na(profile$study_status),
+      first_or_na(tail(visits$visit, 1)),
+      nrow(exposure_rows),
+      paste(unique(exposure_rows$dose_status), collapse = ", "),
+      nrow(aes),
+      sum(aes$serious == "Y"),
+      max_severity(aes),
+      count_abnormal_labs(labs)
+    ),
+    check.names = FALSE
+  )
+}
+
+build_safety_review <- function(aes, labs, exposure_rows) {
+  alt_rows <- labs[labs$lab_test == "ALT", , drop = FALSE]
+  high_alt <- alt_rows[alt_rows$flag != "Normal", , drop = FALSE]
+  reduced_dose <- exposure_rows[exposure_rows$dose_status %in% c("Dose reduced", "Interrupted"), , drop = FALSE]
+  serious_count <- sum(aes$serious == "Y")
+  related_count <- count_related(aes)
+
+  data.frame(
+    Review_Item = c(
+      "Serious adverse events",
+      "Treatment-related adverse events",
+      "Maximum AE severity",
+      "ALT abnormality",
+      "Dose modification"
+    ),
+    Finding = c(
+      paste(serious_count, "serious event(s)"),
+      paste(related_count, "possibly/probably/related event(s)"),
+      max_severity(aes),
+      if (nrow(high_alt) == 0) "No abnormal ALT records" else paste(nrow(high_alt), "high ALT record(s)"),
+      if (nrow(reduced_dose) == 0) "No dose reduction/interruption" else paste(reduced_dose$cycle, reduced_dose$dose_status, collapse = "; ")
+    ),
+    Evidence = c(
+      if (serious_count == 0) "AE listing" else paste(aes$ae_id[aes$serious == "Y"], collapse = ", "),
+      if (related_count == 0) "AE listing" else paste(aes$ae_id[aes$related %in% c("Possible", "Probable", "Related")], collapse = ", "),
+      if (nrow(aes) == 0) "No AE records" else paste(aes$ae_id, aes$severity, collapse = "; "),
+      if (nrow(high_alt) == 0) "Lab listing" else paste(high_alt$visit, high_alt$lab_value, high_alt$unit, collapse = "; "),
+      if (nrow(reduced_dose) == 0) "Exposure listing" else paste("Cycle", reduced_dose$cycle, reduced_dose$dose_intensity_pct, "%", collapse = "; ")
+    ),
+    Review_Status = c(
+      if (serious_count > 0) "Medical review" else "No SAE signal",
+      if (related_count > 0) "Causality review" else "No related AE",
+      if (max_severity(aes) %in% c("Severe")) "Priority review" else "Routine review",
+      if (nrow(high_alt) > 0) "Lab follow-up" else "No lab flag",
+      if (nrow(reduced_dose) > 0) "Dose review" else "No action"
+    ),
+    check.names = FALSE
+  )
+}
+
 profile_css <- "
   body { background: #f5f7f8; color: #17212b; }
   .eyebrow { color: #496675; font-size: 12px; font-weight: 800; letter-spacing: 0; text-transform: uppercase; }
@@ -48,10 +136,39 @@ profile_css <- "
   .timeline-row strong { color: #101820; }
   .timeline-row span { color: #526b79; font-size: 13px; }
   .data-note { color: #526b79; font-size: 12px; font-weight: 700; margin-top: 8px; }
+  .report-intro { align-items: center; display: flex; gap: 12px; justify-content: space-between; margin: 0 0 12px; }
+  .report-page { background: #fff; border: 1px solid #d7dee3; border-radius: 8px; margin-top: 14px; padding: 18px; }
+  .report-title { align-items: flex-start; border-bottom: 1px solid #edf1f3; display: flex; gap: 16px; justify-content: space-between; margin-bottom: 14px; padding-bottom: 12px; }
+  .report-title h2 { margin: 0 0 4px; }
+  .report-title p { color: #526b79; font-size: 13px; font-weight: 700; margin: 0; }
+  .report-meta { color: #526b79; font-size: 12px; font-weight: 800; text-align: right; }
+  .report-grid { display: grid; gap: 10px; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 12px 0 16px; }
+  .report-kpi { background: #f7fafb; border: 1px solid #d7dee3; border-radius: 8px; padding: 12px; }
+  .report-kpi span { color: #526b79; display: block; font-size: 12px; font-weight: 800; margin-bottom: 6px; }
+  .report-kpi strong { color: #101820; display: block; font-size: 20px; line-height: 1.15; }
+  .report-narrative { background: #f2f7f4; border: 1px solid #bfd9cb; border-radius: 8px; color: #17392d; font-size: 14px; font-weight: 700; line-height: 1.55; margin: 12px 0; padding: 12px; }
+  .report-warning { background: #fff7ed; border: 1px solid #f0c997; border-radius: 8px; color: #77420f; font-size: 12px; font-weight: 800; margin: 12px 0; padding: 10px 12px; }
+  .report-stack { display: grid; gap: 14px; }
+  .listing-grid { display: grid; gap: 14px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .listing-panel { border: 1px solid #edf1f3; border-radius: 8px; padding: 12px; }
+  .listing-panel h3 { font-size: 16px; margin: 0 0 8px; }
+  .table-note { color: #526b79; font-size: 12px; font-weight: 700; margin-top: 8px; }
+  .print-hint { color: #526b79; font-size: 12px; font-weight: 800; }
   @media (max-width: 860px) {
     .profile-header { align-items: stretch; flex-direction: column; }
     .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .report-intro { align-items: stretch; flex-direction: column; }
+    .report-title { flex-direction: column; }
+    .report-meta { text-align: left; }
+    .report-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .listing-grid { grid-template-columns: 1fr; }
     .timeline-row { grid-template-columns: 1fr; }
+  }
+  @media print {
+    body { background: #fff; }
+    .profile-header, .nav, .tabbable > .nav-tabs, .selector { display: none !important; }
+    .section-card, .report-page { border: 1px solid #cfd8de; break-inside: avoid; box-shadow: none; }
+    .report-page { margin-top: 0; }
   }
 "
 
@@ -154,6 +271,85 @@ ui <- fluidPage(
         class = "section-card",
         h2("Exposure"),
         tableOutput("exposure_table")
+      )
+    ),
+    tabPanel(
+      "Reports",
+      div(
+        class = "section-card",
+        div(
+          class = "report-intro",
+          div(
+            h2("Review-ready reports"),
+            p("Fixed-format synthetic reports generated from the selected subject and registered data pack.")
+          ),
+          div(class = "print-hint", "Use browser print for a PDF-style handout.")
+        ),
+        div(class = "report-warning", "Synthetic demo and technical evaluation only. Not for clinical decision making.")
+      ),
+      tabsetPanel(
+        tabPanel(
+          "Subject Snapshot",
+          div(
+            id = "subject_snapshot_report",
+            class = "report-page",
+            div(
+              class = "report-title",
+              div(
+                div(class = "eyebrow", "Subject-level report"),
+                h2("Subject Snapshot Report"),
+                p("A concise clinical profile summary for walkthroughs and reviewer orientation.")
+              ),
+              div(class = "report-meta", textOutput("snapshot_report_meta", inline = TRUE))
+            ),
+            uiOutput("snapshot_kpis"),
+            uiOutput("snapshot_narrative"),
+            tableOutput("snapshot_report_table"),
+            div(class = "table-note", "Source: synthetic demographics, visits, exposure, labs, and AE files.")
+          )
+        ),
+        tabPanel(
+          "Safety Review",
+          div(
+            id = "safety_review_report",
+            class = "report-page",
+            div(
+              class = "report-title",
+              div(
+                div(class = "eyebrow", "Safety monitoring report"),
+                h2("Safety Review Worksheet"),
+                p("Signal-oriented review items with traceable source evidence.")
+              ),
+              div(class = "report-meta", textOutput("safety_report_meta", inline = TRUE))
+            ),
+            uiOutput("safety_review_kpis"),
+            tableOutput("safety_review_table"),
+            div(class = "table-note", "Review status is computed from synthetic AE, lab, and exposure records.")
+          )
+        ),
+        tabPanel(
+          "Data Listing",
+          div(
+            id = "data_listing_report",
+            class = "report-page",
+            div(
+              class = "report-title",
+              div(
+                div(class = "eyebrow", "Audit-style listing"),
+                h2("Subject Data Listing Pack"),
+                p("Compact listings used to explain traceability from source data to visual profile.")
+              ),
+              div(class = "report-meta", textOutput("listing_report_meta", inline = TRUE))
+            ),
+            div(
+              class = "listing-grid",
+              div(class = "listing-panel", h3("Visits"), tableOutput("listing_visits")),
+              div(class = "listing-panel", h3("Exposure"), tableOutput("listing_exposure")),
+              div(class = "listing-panel", h3("Adverse events"), tableOutput("listing_aes")),
+              div(class = "listing-panel", h3("Abnormal labs"), tableOutput("listing_abnormal_labs"))
+            )
+          )
+        )
       )
     )
   )
@@ -365,6 +561,92 @@ server <- function(input, output, session) {
     spacing = "s"
   )
 
+  output$snapshot_report_meta <- renderText({
+    paste(selected_subject(), "|", data_pack_id)
+  })
+
+  output$safety_report_meta <- renderText({
+    paste(selected_subject(), "|", data_pack_id)
+  })
+
+  output$listing_report_meta <- renderText({
+    paste(selected_subject(), "|", data_pack_id)
+  })
+
+  output$snapshot_kpis <- renderUI({
+    profile <- subject_profile()
+    aes <- subject_aes()
+    labs <- subject_labs()
+    exposure_rows <- subject_exposure()
+    div(
+      class = "report-grid",
+      div(class = "report-kpi", span("Subject"), strong(selected_subject())),
+      div(class = "report-kpi", span("Arm / status"), strong(paste(first_or_na(profile$arm), first_or_na(profile$study_status), sep = " / "))),
+      div(class = "report-kpi", span("AE / SAE"), strong(paste0(nrow(aes), " / ", sum(aes$serious == "Y")))),
+      div(class = "report-kpi", span("Abnormal labs"), strong(count_abnormal_labs(labs))),
+      div(class = "report-kpi", span("Max severity"), strong(max_severity(aes))),
+      div(class = "report-kpi", span("Dose cycles"), strong(nrow(exposure_rows))),
+      div(class = "report-kpi", span("Related AEs"), strong(count_related(aes))),
+      div(class = "report-kpi", span("Latest visit"), strong(first_or_na(tail(subject_visits()$visit, 1))))
+    )
+  })
+
+  output$snapshot_narrative <- renderUI({
+    profile <- subject_profile()
+    aes <- subject_aes()
+    labs <- subject_labs()
+    exposure_rows <- subject_exposure()
+    div(
+      class = "report-narrative",
+      paste0(
+        selected_subject(), " is a ", first_or_na(profile$age), "-year-old ", first_or_na(profile$sex),
+        " subject in the ", first_or_na(profile$arm), " arm. The synthetic profile includes ",
+        nrow(exposure_rows), " exposure cycle(s), ", nrow(aes), " adverse event(s), ",
+        sum(aes$serious == "Y"), " serious adverse event(s), and ",
+        count_abnormal_labs(labs), " abnormal lab record(s)."
+      )
+    )
+  })
+
+  output$snapshot_report_table <- renderTable({
+    build_subject_snapshot(subject_profile(), subject_visits(), subject_aes(), subject_labs(), subject_exposure())
+  }, striped = TRUE, spacing = "s")
+
+  output$safety_review_kpis <- renderUI({
+    aes <- subject_aes()
+    labs <- subject_labs()
+    high_labs <- labs[labs$flag != "Normal", , drop = FALSE]
+    div(
+      class = "report-grid",
+      div(class = "report-kpi", span("SAE"), strong(sum(aes$serious == "Y"))),
+      div(class = "report-kpi", span("Related/Possible"), strong(count_related(aes))),
+      div(class = "report-kpi", span("High labs"), strong(nrow(high_labs))),
+      div(class = "report-kpi", span("Review path"), strong(ifelse(sum(aes$serious == "Y") > 0 || nrow(high_labs) > 0, "Follow-up", "Routine")))
+    )
+  })
+
+  output$safety_review_table <- renderTable({
+    build_safety_review(subject_aes(), subject_labs(), subject_exposure())
+  }, striped = TRUE, spacing = "s")
+
+  output$listing_visits <- renderTable({
+    subject_visits()[, c("visit", "visit_day", "visit_date", "visit_status", "disposition")]
+  }, striped = TRUE, spacing = "s")
+
+  output$listing_exposure <- renderTable({
+    subject_exposure()[, c("cycle", "start_day", "end_day", "dose_mg", "dose_status", "dose_intensity_pct")]
+  }, striped = TRUE, spacing = "s")
+
+  output$listing_aes <- renderTable({
+    subject_aes()[, c("ae_id", "ae_term", "start_day", "end_day", "severity", "serious", "related")]
+  }, striped = TRUE, spacing = "s")
+
+  output$listing_abnormal_labs <- renderTable({
+    rows <- subject_labs()
+    rows <- rows[rows$flag != "Normal", , drop = FALSE]
+    rows[, c("visit", "visit_day", "lab_test", "lab_value", "unit", "low", "high", "flag")]
+  }, striped = TRUE, spacing = "s")
+
   observe({
     session$sendCustomMessage(
       "harness-diagnostics",
@@ -377,6 +659,7 @@ server <- function(input, output, session) {
         seriousAeCount = sum(subject_aes()$serious == "Y"),
         labCount = nrow(subject_labs()),
         labTest = input$lab_test,
+        reportCount = 3,
         dataPackId = data_pack_id,
         rSmokeResult = as.character(1 + 1)
       )

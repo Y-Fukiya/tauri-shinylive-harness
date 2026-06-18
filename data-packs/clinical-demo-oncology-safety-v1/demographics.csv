@@ -1,0 +1,37 @@
+subject_id,site_id,arm,sex,age,race,ethnicity,region,baseline_weight_kg,baseline_bmi,consent_date,first_dose_date,last_contact_date,study_status
+SUBJ-001,SITE-203,Investigational,F,54,Asian,Not Hispanic or Latino,Europe,61.0,22.7,2025-01-02,2025-01-10,2025-04-11,On study
+SUBJ-002,SITE-305,Standard of care,M,52,Black or African American,Not Hispanic or Latino,Asia Pacific,74.0,24.4,2025-01-05,2025-01-14,2025-04-15,On study
+SUBJ-003,SITE-407,Investigational,F,59,Other,Not Hispanic or Latino,North America,71.0,26.1,2025-01-09,2025-01-16,2025-04-17,On study
+SUBJ-004,SITE-101,Investigational,M,66,White,Not Hispanic or Latino,Europe,84.0,27.8,2025-01-10,2025-01-18,2025-04-19,On study
+SUBJ-005,SITE-203,Standard of care,F,38,Asian,Hispanic or Latino,Asia Pacific,81.0,29.5,2025-01-11,2025-01-20,2025-04-21,On study
+SUBJ-006,SITE-305,Investigational,M,45,Black or African American,Not Hispanic or Latino,North America,94.0,22.2,2025-01-15,2025-01-22,2025-04-23,On study
+SUBJ-007,SITE-407,Investigational,F,52,Other,Not Hispanic or Latino,Europe,91.0,23.9,2025-01-16,2025-01-24,2025-04-25,On study
+SUBJ-008,SITE-101,Standard of care,M,59,White,Not Hispanic or Latino,Asia Pacific,66.0,25.6,2025-01-17,2025-01-26,2025-04-27,On study
+SUBJ-009,SITE-203,Investigational,F,66,Asian,Not Hispanic or Latino,North America,63.0,27.3,2025-01-21,2025-01-28,2025-04-29,On study
+SUBJ-010,SITE-305,Investigational,M,38,Black or African American,Hispanic or Latino,Europe,76.0,29.0,2025-01-22,2025-01-30,2025-05-01,On study
+SUBJ-011,SITE-407,Standard of care,F,45,Other,Not Hispanic or Latino,Asia Pacific,73.0,21.7,2025-01-23,2025-02-01,2025-04-05,Discontinued
+SUBJ-012,SITE-101,Investigational,M,52,White,Not Hispanic or Latino,North America,86.0,23.4,2025-01-27,2025-02-03,2025-05-05,On study
+SUBJ-013,SITE-203,Investigational,F,59,Asian,Not Hispanic or Latino,Europe,83.0,25.1,2025-01-28,2025-02-05,2025-05-07,On study
+SUBJ-014,SITE-305,Standard of care,M,66,Black or African American,Not Hispanic or Latino,Asia Pacific,96.0,26.8,2025-01-29,2025-02-07,2025-05-09,On study
+SUBJ-015,SITE-407,Investigational,F,38,Other,Hispanic or Latino,North America,93.0,28.5,2025-02-02,2025-02-09,2025-05-11,On study
+SUBJ-016,SITE-101,Investigational,M,45,White,Not Hispanic or Latino,Europe,68.0,21.2,2025-02-03,2025-02-11,2025-05-13,On study
+SUBJ-017,SITE-203,Standard of care,F,52,Asian,Not Hispanic or Latino,Asia Pacific,65.0,22.9,2025-02-04,2025-02-13,2025-04-17,Discontinued
+SUBJ-018,SITE-305,Investigational,M,59,Black or African American,Not Hispanic or Latino,North America,78.0,24.6,2025-02-08,2025-02-15,2025-05-17,On study
+SUBJ-019,SITE-407,Investigational,F,66,Other,Not Hispanic or Latino,Europe,75.0,26.3,2025-02-09,2025-02-17,2025-05-19,On study
+SUBJ-020,SITE-101,Standard of care,M,38,White,Hispanic or Latino,Asia Pacific,88.0,28.0,2025-02-10,2025-02-19,2025-05-21,On study
+SUBJ-021,SITE-203,Investigational,F,45,Asian,Not Hispanic or Latino,North America,85.0,29.7,2025-02-14,2025-02-21,2025-05-23,On study
+SUBJ-022,SITE-305,Investigational,M,52,Black or African American,Not Hispanic or Latino,Europe,98.0,22.4,2025-02-15,2025-02-23,2025-04-27,Discontinued
+SUBJ-023,SITE-407,Standard of care,F,59,Other,Not Hispanic or Latino,Asia Pacific,57.0,24.1,2025-02-16,2025-02-25,2025-05-27,On study
+SUBJ-024,SITE-101,Investigational,M,66,White,Not Hispanic or Latino,North America,70.0,25.8,2025-02-20,2025-02-27,2025-05-29,On study
+SUBJ-025,SITE-203,Investigational,F,38,Asian,Hispanic or Latino,Europe,67.0,27.5,2025-02-21,2025-03-01,2025-05-31,On study
+SUBJ-026,SITE-305,Standard of care,M,45,Black or African American,Not Hispanic or Latino,Asia Pacific,80.0,29.2,2025-02-22,2025-03-03,2025-06-02,On study
+SUBJ-027,SITE-407,Investigational,F,52,Other,Not Hispanic or Latino,North America,77.0,21.9,2025-02-26,2025-03-05,2025-06-04,On study
+SUBJ-028,SITE-101,Investigational,M,59,White,Not Hispanic or Latino,Europe,90.0,23.6,2025-02-27,2025-03-07,2025-06-06,On study
+SUBJ-029,SITE-203,Standard of care,F,66,Asian,Not Hispanic or Latino,Asia Pacific,87.0,25.3,2025-02-28,2025-03-09,2025-06-08,On study
+SUBJ-030,SITE-305,Investigational,M,38,Black or African American,Hispanic or Latino,North America,100.0,27.0,2025-03-04,2025-03-11,2025-06-10,On study
+SUBJ-031,SITE-407,Investigational,F,45,Other,Not Hispanic or Latino,Europe,59.0,28.7,2025-03-05,2025-03-13,2025-06-12,On study
+SUBJ-032,SITE-101,Standard of care,M,52,White,Not Hispanic or Latino,Asia Pacific,72.0,21.4,2025-03-06,2025-03-15,2025-06-14,On study
+SUBJ-033,SITE-203,Investigational,F,59,Asian,Not Hispanic or Latino,North America,69.0,23.1,2025-03-10,2025-03-17,2025-05-19,Discontinued
+SUBJ-034,SITE-305,Investigational,M,66,Black or African American,Not Hispanic or Latino,Europe,82.0,24.8,2025-03-11,2025-03-19,2025-05-21,Discontinued
+SUBJ-035,SITE-407,Standard of care,F,38,Other,Hispanic or Latino,Asia Pacific,79.0,26.5,2025-03-12,2025-03-21,2025-06-20,On study
+SUBJ-036,SITE-101,Investigational,M,45,White,Not Hispanic or Latino,North America,92.0,28.2,2025-03-16,2025-03-23,2025-06-22,On study

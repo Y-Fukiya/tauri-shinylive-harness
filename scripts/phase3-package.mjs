@@ -254,6 +254,7 @@ const createValidationPack = async (config, assets, platform = "macos") => {
   const validationRoot = path.join(releaseRoot, "validation-pack");
   const evidenceRoot = path.join(validationRoot, "evidence");
   const context = await releaseContext(config);
+  await rm(validationRoot, { recursive: true, force: true });
   await mkdir(evidenceRoot, { recursive: true });
 
   await copyIfExists(path.join(reportsRoot, "harness-config-validation.json"), path.join(evidenceRoot, "harness-config-validation.json"));
@@ -261,6 +262,9 @@ const createValidationPack = async (config, assets, platform = "macos") => {
   await copyIfExists(path.join(reportsRoot, "bundle-integrity.json"), path.join(evidenceRoot, "bundle-integrity.json"));
   await copyIfExists(path.join(reportsRoot, "e2e-diagnostics.json"), path.join(evidenceRoot, "e2e-diagnostics.json"));
   await copyIfExists(path.join(reportsRoot, "clinical-data-pack-validation.json"), path.join(evidenceRoot, "clinical-data-pack-validation.json"));
+  await copyIfExists(path.join(reportsRoot, "report-export-manifest.json"), path.join(evidenceRoot, "report-export-manifest.json"));
+  await copyIfExists(path.join(reportsRoot, "review-workflow.json"), path.join(evidenceRoot, "review-workflow.json"));
+  await copyIfExists(path.join(reportsRoot, "exported"), path.join(evidenceRoot, "reports"));
   await copyIfExists(path.join(reportsRoot, "screenshots"), path.join(evidenceRoot, "screenshots"));
   await copyIfExists(path.join(reportsRoot, "phase3-preflight.json"), path.join(evidenceRoot, "phase3-preflight.json"));
   await copyIfExists(path.join(distRoot, "manifest.json"), path.join(evidenceRoot, "portal-manifest.json"));
@@ -270,6 +274,7 @@ const createValidationPack = async (config, assets, platform = "macos") => {
   await copyIfExists(path.join(distRoot, "reports", "licenses.md"), path.join(evidenceRoot, "licenses.md"));
   await copyIfExists(path.join(rootDir, "docs", "generated", "clinical-data-dictionary.md"), path.join(evidenceRoot, "clinical-data-dictionary.md"));
   await copyIfExists(path.join(rootDir, "docs", "generated", "verification-procedure.md"), path.join(evidenceRoot, "verification-procedure.md"));
+  await copyIfExists(path.join(rootDir, "docs", "generated", "report-export-index.md"), path.join(evidenceRoot, "report-export-index.md"));
   await copyIfExists(path.join(rootDir, "docs", "generated", "phase3-readiness.md"), path.join(evidenceRoot, "phase3-readiness.md"));
   await copyIfExists(path.join(rootDir, "docs", "phase3-distribution.md"), path.join(evidenceRoot, "phase3-distribution.md"));
   await copyIfExists(path.join(rootDir, "docs", "validation-approval-template.md"), path.join(evidenceRoot, "validation-approval-template.md"));
@@ -333,6 +338,8 @@ const createValidationPack = async (config, assets, platform = "macos") => {
       "- Runtime bundle integrity endpoint verification",
       "- Playwright portal/app verification with external HTTP(S) request audit",
       "- Clinical data pack validation with data dictionary",
+      "- Exported subject reports with data pack hash, generated timestamp, and reviewer sign-off fields",
+      "- Review workflow status template for reviewer, reviewed_at, decision, and notes",
       "- Screenshot evidence for the portal and verified apps",
       "- Release asset checksum inventory",
       `- Manual clean ${platform === "windows" ? "Windows" : "macOS"} checklist included`,
@@ -371,7 +378,10 @@ const createZip = async (source, destination) => {
     return;
   }
 
-  await runCommand("ditto", ["-c", "-k", "--keepParent", source, destination]);
+  await rm(destination, { force: true });
+  await runCommand("zip", ["-r", "-X", destination, path.basename(source)], {
+    cwd: path.dirname(source),
+  });
 };
 
 const copyReleaseEvidence = async () => {
@@ -483,7 +493,9 @@ if (!appBundle) {
 }
 
 const appZip = path.join(releaseRoot, `${config.distribution.artifactName}-${config.project.version}-macos-app.zip`);
-await runCommand("ditto", ["-c", "-k", "--keepParent", appBundle, appZip]);
+await runCommand("ditto", ["-c", "-k", "--norsrc", "--keepParent", appBundle, appZip], {
+  env: { ...process.env, COPYFILE_DISABLE: "1" },
+});
 
 const pkgPath = path.join(releaseRoot, `${config.distribution.artifactName}-${config.project.version}.pkg`);
 const pkgArgs = [

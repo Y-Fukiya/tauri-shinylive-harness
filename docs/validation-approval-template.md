@@ -17,6 +17,9 @@
 - `reports/static-verification.json`
 - `reports/bundle-integrity.json`
 - `reports/e2e-diagnostics.json`
+- `reports/report-export-manifest.json`
+- `reports/review-workflow.json`
+- `reports/exported/`
 - `reports/phase3-preflight.json`
 - `reports/local-release-audit.json`
 - `reports/local-release-audit-<platform>.json`
@@ -24,6 +27,7 @@
 - `dist/checksums/SHA256SUMS`
 - `release/SHA256SUMS`
 - `release/validation-pack/evidence-index.json`
+- `release/validation-pack/evidence/reports/`
 - `release/validation-pack/manual-clean-macos-checklist.md`
 - `release/validation-pack/manual-clean-windows-checklist.md`
 
@@ -32,6 +36,8 @@
 - App catalog matches intended release scope.
 - Harness config validation has zero errors.
 - Smoke text passes for every configured app.
+- Configured report exports are present and include data pack hash, generation timestamp, app version, clinical-use limitation, and reviewer sign-off fields.
+- Review workflow status, reviewer, reviewed_at, decision, and notes fields are present.
 - External request audit contains zero non-local HTTP(S) requests.
 - Static bundle hashes, runtime bundle integrity, and release checksums match.
 - SBOM/license inventory reviewed.

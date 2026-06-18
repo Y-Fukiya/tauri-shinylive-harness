@@ -42,7 +42,8 @@ output = "apps/subject-profile-reference"
 path = "/apps/subject-profile-reference/index.html"
 offline_required = true
 smoke_text = ["Subject Profile Reference App", "SUBJ-001 AE count: 3", "Data pack hash"]
-dom_probes = ["#overview_lab_trend img", "#exposure_ae_timeline img", "#data_pack_hash_value[data-harness-status=\"resolved\"]"]
+dom_probes = ["#overview_lab_trend img", "#exposure_ae_timeline img", "#data_pack_hash_value[data-harness-status=\"resolved\"]", "#snapshot_report_table table", "#safety_review_table table", "#listing_visits table"]
+report_templates = ["subject-snapshot", "safety-review", "data-listing"]
 data_pack = "clinical-demo-subject-profile-v1"
 data_pack_source = "data-packs/clinical-demo-subject-profile-v1"
 data_paths = ["shinylive-src/subject-profile-reference/data/clinical-demo-data-pack.json", "shinylive-src/subject-profile-reference/data/demographics.csv", "shinylive-src/subject-profile-reference/data/visits.csv", "shinylive-src/subject-profile-reference/data/labs.csv", "shinylive-src/subject-profile-reference/data/vitals.csv", "shinylive-src/subject-profile-reference/data/adverse_events.csv", "shinylive-src/subject-profile-reference/data/concomitant_meds.csv", "shinylive-src/subject-profile-reference/data/exposure.csv"]

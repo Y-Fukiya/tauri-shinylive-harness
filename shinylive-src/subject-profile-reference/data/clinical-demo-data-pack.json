@@ -1,8 +1,10 @@
 {
   "id": "clinical-demo-subject-profile-v1",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "synthetic": true,
-  "description": "Synthetic clinical subject profile data for harness verification and demos.",
+  "scenario": "subject-profile",
+  "subjectCount": 30,
+  "description": "Synthetic clinical subject profile data for harness verification, report export, and demos.",
   "domains": [
     "demographics",
     "visits",

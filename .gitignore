@@ -1,7 +1,7 @@
 node_modules/
-dist/
-reports/
-release/
+/dist/
+/reports/
+/release/
 .release-upload/
 .r-lib/
 .shinylive-cache/

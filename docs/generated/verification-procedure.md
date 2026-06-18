@@ -8,10 +8,11 @@ This procedure is generated from `harness.toml` and covers Phase 2 verification 
 2. `node scripts/harness.mjs validate-config`
 3. `node scripts/harness.mjs validate-data`
 4. `node scripts/harness.mjs export`
-5. `node scripts/harness.mjs prepare`
-6. `node scripts/harness.mjs verify-static`
-7. `node scripts/e2e-verify.mjs`
-8. `npm run tauri:build`
+5. `node scripts/harness.mjs export-reports`
+6. `node scripts/harness.mjs prepare`
+7. `node scripts/harness.mjs verify-static`
+8. `node scripts/e2e-verify.mjs`
+9. `npm run tauri:build`
 
 ## Phase 3 Commands
 
@@ -37,6 +38,9 @@ This procedure is generated from `harness.toml` and covers Phase 2 verification 
 - Configured DOM probes are visible, including lab trend and exposure/AE timeline plots.
 - Clinical data pack validation passes with zero errors.
 - `reports/clinical-data-pack-validation.json` and `docs/generated/clinical-data-dictionary.md` are generated.
+- Configured report templates export HTML report evidence under `reports/exported/`.
+- Exported reports include data pack hash, generated timestamp, app version, clinical-use limitation, and reviewer sign-off fields.
+- `reports/review-workflow.json` records review status, reviewer, reviewed_at, decision, and notes fields.
 - Playwright screenshot evidence is generated for the portal and verified apps.
 - E2E network audit observes no external HTTP(S) requests.
 - `dist/harness-bundle-manifest.json` hashes match bundled files.
@@ -51,7 +55,7 @@ This procedure is generated from `harness.toml` and covers Phase 2 verification 
 
 ## Apps
 
-| App | Kind | Data Pack | Smoke Text |
-| --- | --- | --- | --- |
-| subject-safety-mini | shinylive-r | n/a | Subject Safety Mini Dashboard<br>R smoke result<br>SUBJ-001 |
-| subject-profile-reference | shinylive-r | clinical-demo-subject-profile-v1 | Subject Profile Reference App<br>SUBJ-001 AE count: 3<br>Data pack hash |
+| App | Kind | Data Pack | Reports | Smoke Text |
+| --- | --- | --- | --- | --- |
+| subject-safety-mini | shinylive-r | n/a | n/a | Subject Safety Mini Dashboard<br>R smoke result<br>SUBJ-001 |
+| subject-profile-reference | shinylive-r | clinical-demo-subject-profile-v1 | subject-snapshot<br>safety-review<br>data-listing | Subject Profile Reference App<br>SUBJ-001 AE count: 3<br>Data pack hash |

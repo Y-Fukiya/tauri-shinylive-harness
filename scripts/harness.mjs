@@ -20,6 +20,7 @@ import {
   verifyBundleArtifacts,
   writeJson,
 } from "./harness-core.mjs";
+import { exportReports } from "./report-exporter.mjs";
 
 const command = process.argv[2] ?? "help";
 const args = process.argv.slice(3);
@@ -33,6 +34,7 @@ const usage = `Usage:
   node scripts/harness.mjs list
   node scripts/harness.mjs doctor
   node scripts/harness.mjs export [app-id]
+  node scripts/harness.mjs export-reports [--app app-id] [--subject subject-id] [--all-subjects]
   node scripts/harness.mjs prepare
   node scripts/harness.mjs verify-static
   node scripts/harness.mjs verify [--app app-id]
@@ -108,6 +110,7 @@ const appendAppToConfig = async (app) => {
     "offline_required = true",
     `smoke_text = ${tomlArray(app.smokeText)}`,
     ...(app.domProbes?.length ? [`dom_probes = ${tomlArray(app.domProbes)}`] : []),
+    ...(app.reportTemplates?.length ? [`report_templates = ${tomlArray(app.reportTemplates)}`] : []),
     ...(app.dataPack ? [`data_pack = ${tomlString(app.dataPack)}`] : []),
     ...(app.dataPackSource ? [`data_pack_source = ${tomlString(app.dataPackSource)}`] : []),
     ...(app.dataPaths?.length ? [`data_paths = ${tomlArray(app.dataPaths)}`] : []),
@@ -132,6 +135,7 @@ const appBlock = (app) =>
     `offline_required = ${app.offlineRequired ? "true" : "false"}`,
     `smoke_text = ${tomlArray(app.smokeText ?? [])}`,
     ...(app.domProbes?.length ? [`dom_probes = ${tomlArray(app.domProbes)}`] : []),
+    ...(app.reportTemplates?.length ? [`report_templates = ${tomlArray(app.reportTemplates)}`] : []),
     ...(app.dataPack ? [`data_pack = ${tomlString(app.dataPack)}`] : []),
     ...(app.dataPackSource ? [`data_pack_source = ${tomlString(app.dataPackSource)}`] : []),
     ...(app.dataPaths?.length ? [`data_paths = ${tomlArray(app.dataPaths)}`] : []),
@@ -557,7 +561,11 @@ const addApp = async (values) => {
       "#overview_lab_trend img",
       "#exposure_ae_timeline img",
       '#data_pack_hash_value[data-harness-status="resolved"]',
+      "#snapshot_report_table table",
+      "#safety_review_table table",
+      "#listing_visits table",
     ];
+    app.reportTemplates = ["subject-snapshot", "safety-review", "data-listing"];
     app.smokeText = [title, "SUBJ-001 AE count: 3", "Data pack hash"];
     await createSubjectProfileTemplateApp(app);
   } else if (template === "basic") {
@@ -712,6 +720,7 @@ const doctor = async () => {
   await pushCheck("schemas/harness.schema.json", await exists(path.join(rootDir, "schemas", "harness.schema.json")), "harness config contract");
   await pushCheck("schemas/clinical-data-pack.schema.json", await exists(path.join(rootDir, "schemas", "clinical-data-pack.schema.json")), "clinical data contract");
   await pushCheck("templates/apps/subject-profile-reference", await exists(path.join(rootDir, "templates", "apps", "subject-profile-reference")), "subject profile template");
+  await pushCheck("templates/reports", await exists(path.join(rootDir, "templates", "reports")), "report template registry");
   await pushCheck("configured apps", config.apps.length > 0, `${config.apps.length} app(s)`);
 
   const ids = new Set();
@@ -729,6 +738,13 @@ const doctor = async () => {
     }
     for (const dataPath of app.dataPaths) {
       await pushCheck(`app:${app.id}:data:${dataPath}`, await exists(path.join(rootDir, dataPath)), dataPath);
+    }
+    for (const reportTemplate of app.reportTemplates) {
+      await pushCheck(
+        `app:${app.id}:report-template:${reportTemplate}`,
+        await exists(path.join(rootDir, "templates", "reports", reportTemplate, "template.json")),
+        `templates/reports/${reportTemplate}/template.json`,
+      );
     }
   }
 
@@ -804,6 +820,7 @@ const verifyAll = async (values = []) => {
     await validateConfiguredDataPacks({ appId });
   }
   await exportApps();
+  await exportReports({ appId });
   await buildPortalAndPrepare();
   await runCommand("npm", ["run", "check"]);
   await runCommand("cargo", ["test", "--manifest-path", "crates/harness-server/Cargo.toml"]);
@@ -843,6 +860,15 @@ try {
     case "export":
       await exportApps(args[0]);
       break;
+    case "export-reports": {
+      const options = parseOptions(args);
+      await exportReports({
+        appId: options.app ?? options._[0] ?? null,
+        subjectId: options.subject ?? null,
+        allSubjects: Boolean(options["all-subjects"]),
+      });
+      break;
+    }
     case "prepare":
       await buildPortalAndPrepare();
       break;

@@ -11,6 +11,7 @@ harness validate-data [app-id]
 harness list
 harness doctor
 harness export [app-id]
+harness export-reports [--app app-id] [--subject subject-id] [--all-subjects]
 harness prepare
 harness verify-static
 harness verify [--app app-id]
@@ -113,3 +114,30 @@ dom_probes = [
 ```
 
 `npm run verify` waits for those selectors inside the Shinylive app iframe, so reference apps can prove that a chart or other rendered element actually appeared.
+
+## Report Template Contract
+
+Apps can declare report templates in `harness.toml`:
+
+```toml
+report_templates = ["subject-snapshot", "safety-review", "data-listing"]
+```
+
+Templates are registered under `templates/reports/<template-id>/template.json`.
+The `export-reports` command renders configured HTML reports to `reports/exported/<app-id>/`.
+
+```sh
+npm run harness -- export-reports --app subject-profile-reference
+npm run harness -- export-reports --app subject-profile-reference --all-subjects
+```
+
+Generated reports include:
+
+- app version
+- subject ID
+- data pack ID and aggregate SHA-256
+- generation timestamp
+- clinical-use limitation
+- reviewer sign-off fields
+
+`npm run verify` runs report export automatically so Phase 3 packaging can include the latest report evidence.

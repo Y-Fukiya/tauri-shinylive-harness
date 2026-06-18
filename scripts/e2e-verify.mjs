@@ -129,11 +129,25 @@ const writeBundleIntegrityReport = async (integrity) => {
 
 const waitForDomProbe = async (appFrame, domProbe) => {
   const locator = appFrame.locator(domProbe);
+  const explicitNavigation = [
+    { selector: "#snapshot_report_table", tabs: ["Reports", "Subject Snapshot"] },
+    { selector: "#safety_review_table", tabs: ["Reports", "Safety Review"] },
+    { selector: "#listing_visits", tabs: ["Reports", "Data Listing"] },
+  ].find((candidate) => domProbe.includes(candidate.selector));
+
+  if (explicitNavigation) {
+    for (const tabLabel of explicitNavigation.tabs) {
+      await appFrame.getByText(tabLabel, { exact: true }).first().click({ timeout: 30000 });
+    }
+    await locator.waitFor({ state: "visible", timeout: 60000 });
+    return;
+  }
+
   try {
     await locator.waitFor({ state: "visible", timeout: 15000 });
     return;
   } catch {
-    const tabLabels = ["Overview", "Timeline", "Labs", "AEs", "Meds"];
+    const tabLabels = ["Overview", "Timeline", "Labs", "AEs", "Meds", "Reports"];
     for (const tabLabel of tabLabels) {
       try {
         await appFrame.getByText(tabLabel, { exact: true }).first().click({ timeout: 5000 });

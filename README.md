@@ -9,11 +9,12 @@ This harness and its bundled synthetic demo apps are for technical evaluation on
 The harness is now config-driven:
 
 - `harness.toml` is the app catalog and distribution source of truth.
-- `node scripts/harness.mjs` provides `new`, `add-app`, `add-data-pack`, `validate-config`, `validate-data`, `list`, `doctor`, `export`, `prepare`, `verify-static`, `verify`, and `build`.
+- `node scripts/harness.mjs` provides `new`, `add-app`, `add-data-pack`, `validate-config`, `validate-data`, `list`, `doctor`, `export`, `export-reports`, `prepare`, `verify-static`, `verify`, and `build`.
 - `schemas/harness.schema.json` and `reports/harness-config-validation.json` define and record harness config validation.
 - The portal supports multiple configured apps with search, selection, same-origin iframe loading, diagnostics, and JSON report download.
 - `dist/manifest.json` aggregates `apps/*/harness-app.json`.
 - App manifests can include `dataPack` file hashes, clinical data validation evidence, and DOM probes for richer verification.
+- Apps can declare `report_templates`, and `export-reports` writes HTML report evidence with data pack hash, generated timestamp, app version, clinical-use limitation, and reviewer sign-off fields.
 - `data-packs/*` stores reusable synthetic clinical data packs; `data_pack_source` links apps back to the pack that generated/validated them.
 - `dist/harness-bundle-manifest.json` records file-level SHA-256 hashes, and `/__harness/integrity` verifies those hashes at runtime.
 - `dist/checksums/SHA256SUMS`, `dist/reports/sbom.json`, and `dist/reports/licenses.md` are generated during prepare.
@@ -31,6 +32,7 @@ npm ci
 npm run validate:config
 npm run doctor
 npm run validate:data
+npm run export:reports
 npm run smoke:multi-app
 npm run export
 npm run build:all
@@ -61,6 +63,7 @@ node scripts/harness.mjs validate-data subject-profile-reference
 node scripts/harness.mjs list
 node scripts/harness.mjs doctor
 node scripts/harness.mjs export safety-summary
+node scripts/harness.mjs export-reports --app subject-profile-reference
 node scripts/harness.mjs verify --app subject-profile-reference
 node scripts/harness.mjs verify-static
 node scripts/e2e-verify.mjs
@@ -76,11 +79,14 @@ npm run phase3:release-draft
 
 - Reusable v0.9.1 CLI/template foundation.
 - Two bundled Shinylive R apps: `subject-safety-mini` and `subject-profile-reference`.
-- Clinical demo data pack with synthetic demographics, visits, labs, vitals, AEs, concomitant meds, and exposure.
+- Clinical demo data packs with synthetic demographics, visits, labs, vitals, AEs, concomitant meds, and exposure. The main Subject Profile pack has 30 subjects, with additional oncology, vaccine, and chronic-disease scenario packs under `data-packs/*`.
 - Data-pack registry under `data-packs/*` with app-level `data_pack_source` traceability.
 - Clinical data pack schema and validator with required column, referential integrity, timeline, data dictionary, and hash report checks.
 - Data pack SHA-256 traceability in `harness-app.json` and `dist/manifest.json`.
 - Subject Profile Reference App v2 with subject selector, lab selector, AE severity/relatedness/seriousness summaries, exposure/AE timeline, and in-app data pack hash display.
+- Subject Profile Reference App reports: Subject Snapshot, Safety Review, and Data Listing.
+- Report Template Registry under `templates/reports/*`, plus generated HTML reports under `reports/exported/*`.
+- Review workflow evidence under `reports/review-workflow.json`, `docs/generated/report-export-index.md`, and the Phase 3 validation pack.
 - App template registry for generating subject profile apps from `--template subject-profile`.
 - Multi-app-ready diagnostics portal.
 - Multi-app scaffold smoke test through `npm run smoke:multi-app`.
@@ -122,6 +128,7 @@ See:
 - `docs/template-cli.md`
 - `docs/clinical-data-contract.md`
 - `docs/clinical-demo-data-pack.md`
+- `docs/report-export.md`
 - `docs/generated/verification-procedure.md`
 - `docs/verification.md`
 - `docs/manual-clean-macos-checklist.md`
