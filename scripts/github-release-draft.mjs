@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-import { readdir } from "node:fs/promises";
+import { cp, mkdir, rm } from "node:fs/promises";
 import path from "node:path";
 
-import { appendAudit, exists, readConfig, rootDir, runCommand } from "./harness-core.mjs";
+import { appendAudit, exists, listFiles, readConfig, rootDir, runCommand } from "./harness-core.mjs";
 
 const options = new Set(process.argv.slice(2));
 const config = await readConfig();
@@ -17,16 +17,44 @@ if (!(await exists(releaseRoot))) {
   throw new Error("Missing release/ directory. Run npm run phase3:package first.");
 }
 
-const entries = await readdir(releaseRoot);
-const assets = entries
-  .filter((entry) =>
-    [".zip", ".dmg", ".pkg", ".json", ".md", "SHA256SUMS"].some((suffix) => entry.endsWith(suffix) || entry === suffix),
-  )
-  .filter((entry) => entry !== "validation-pack")
-  .map((entry) => path.join("release", entry));
+const uploadRoot = path.join(rootDir, ".release-upload");
+await rm(uploadRoot, { recursive: true, force: true });
+await mkdir(uploadRoot, { recursive: true });
 
-if (assets.length === 0) {
+const releaseFiles = (await listFiles(releaseRoot)).sort();
+const candidateAssets = releaseFiles
+  .filter((entry) => !entry.split(path.sep).includes("validation-pack"))
+  .filter((entry) =>
+    [".zip", ".dmg", ".pkg", ".json", ".md", ".exe", ".msi", "SHA256SUMS"].some(
+      (suffix) => entry.endsWith(suffix) || entry === suffix,
+    ),
+  )
+  .map((entry) => path.join(releaseRoot, entry));
+
+if (candidateAssets.length === 0) {
   throw new Error("No release assets found.");
+}
+
+const seen = new Set();
+const assets = [];
+for (const asset of candidateAssets) {
+  const relative = path.relative(releaseRoot, asset);
+  let uploadName = path.basename(asset);
+  if (seen.has(uploadName)) {
+    uploadName = relative.split(path.sep).join("-");
+  }
+  seen.add(uploadName);
+  const uploadPath = path.join(uploadRoot, uploadName);
+  await cp(asset, uploadPath, { force: true });
+  assets.push(uploadPath);
+}
+
+const notesFile =
+  (await exists(path.join(releaseRoot, "RELEASE_NOTES.md")))
+    ? path.join(releaseRoot, "RELEASE_NOTES.md")
+    : candidateAssets.find((asset) => path.basename(asset) === "RELEASE_NOTES.md");
+if (!notesFile) {
+  throw new Error("Missing RELEASE_NOTES.md in release artifacts.");
 }
 
 const args = [
@@ -39,7 +67,7 @@ const args = [
   "--title",
   `${config.project.bundleName} ${config.project.version}`,
   "--notes-file",
-  path.join("release", "RELEASE_NOTES.md"),
+  notesFile,
 ];
 
 if (!options.has("--publish")) {

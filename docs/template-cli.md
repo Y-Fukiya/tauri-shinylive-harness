@@ -44,6 +44,8 @@ tauri-shinylive-harness <command>
 
 Generated projects intentionally do not copy `dist/`, `release/`, `reports/`, `node_modules/`, `.r-lib/`, or Tauri/Cargo target directories.
 
+Generated projects include both `mac_bundles` and `windows_bundles` in `harness.toml`. The default Windows bundle is `nsis`; add `msi` only when the Windows build environment has the required MSI toolchain.
+
 ## Multi-App Contract
 
 `harness add-app` is idempotent for source creation and strict for duplicate app ids. The portal and E2E verification read `harness.toml`, so adding more apps naturally expands the app list and the smoke-test loop.

@@ -19,7 +19,8 @@ Expected:
 - `validate:data` checks the clinical data pack contract and writes a hash-linked data dictionary.
 - `smoke:multi-app` creates a temporary generated harness, adds a basic app, adds a subject-profile template app, and validates its data pack.
 - `verify` validates data packs, exports every configured app, builds the portal, runs TypeScript/Rust checks, runs static verification, and runs Playwright E2E with screenshots.
-- `build:release-local` creates an unsigned internal app/DMG/pkg release candidate and validation evidence pack.
+- `build:release-local` creates an unsigned internal macOS app/DMG/pkg release candidate and validation evidence pack.
+- `build:release-windows-local` creates an unsigned internal Windows installer release candidate on Windows.
 
 This repository currently exports two apps:
 
@@ -78,6 +79,9 @@ For richer apps, add `data_pack`, `data_pack_source`, `data_paths`, and optional
 
 ```sh
 npm run build:release-local
+npm run build:release-windows-local
 ```
 
-This writes `release/` with app zip, DMG, pkg, checksums, release notes, SBOM/license evidence, config validation evidence, runtime bundle integrity evidence, clinical data validation evidence, Playwright screenshots, manual clean macOS checklist, and `validation-pack.zip`.
+The macOS command writes `release/` with app zip, DMG, pkg, checksums, release notes, SBOM/license evidence, config validation evidence, runtime bundle integrity evidence, clinical data validation evidence, Playwright screenshots, manual clean macOS checklist, and `validation-pack.zip`.
+
+The Windows command writes `release/` with NSIS installer artifacts, optional MSI artifacts, checksums, release notes, the same validation evidence, manual clean Windows checklist, and `validation-pack.zip`.

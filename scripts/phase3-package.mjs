@@ -22,7 +22,36 @@ import {
 const releaseRoot = path.join(rootDir, "release");
 const macosBundleRoot = path.join(rootDir, "src-tauri", "target", "release", "bundle", "macos");
 const dmgRoot = path.join(rootDir, "src-tauri", "target", "release", "bundle", "dmg");
+const windowsReleaseRoot = path.join(rootDir, "src-tauri", "target", "release");
+const nsisRoot = path.join(windowsReleaseRoot, "bundle", "nsis");
+const msiRoot = path.join(windowsReleaseRoot, "bundle", "msi");
 const execFileAsync = promisify(execFile);
+
+const parseOptions = (values) => {
+  const options = { _: [] };
+  for (let index = 0; index < values.length; index += 1) {
+    const value = values[index];
+    if (!value.startsWith("--")) {
+      options._.push(value);
+      continue;
+    }
+    const key = value.slice(2);
+    const next = values[index + 1];
+    if (!next || next.startsWith("--")) {
+      options[key] = true;
+    } else {
+      options[key] = next;
+      index += 1;
+    }
+  }
+  return options;
+};
+
+const options = parseOptions(process.argv.slice(2));
+const targetPlatform =
+  options.platform ??
+  process.env.HARNESS_TARGET_PLATFORM ??
+  (process.platform === "win32" ? "windows" : process.platform === "darwin" ? "macos" : process.platform);
 
 const findFirst = async (directory, predicate) => {
   if (!(await exists(directory))) {
@@ -35,6 +64,27 @@ const findFirst = async (directory, predicate) => {
     }
   }
   return null;
+};
+
+const findAll = async (directory, predicate, relative = "") => {
+  if (!(await exists(directory))) {
+    return [];
+  }
+  const current = path.join(directory, relative);
+  const entries = await readdir(current, { withFileTypes: true });
+  const matches = [];
+  for (const entry of entries) {
+    const nextRelative = path.join(relative, entry.name);
+    const fullPath = path.join(directory, nextRelative);
+    if (entry.isDirectory()) {
+      matches.push(...(await findAll(directory, predicate, nextRelative)));
+      continue;
+    }
+    if (entry.isFile() && predicate(entry.name, fullPath)) {
+      matches.push(fullPath);
+    }
+  }
+  return matches.sort();
 };
 
 const sha256Text = (value) => createHash("sha256").update(value).digest("hex");
@@ -58,7 +108,7 @@ const releaseContext = async (config) => ({
   platform: `${os.platform()} ${os.release()} ${os.arch()}`,
 });
 
-const writeReleaseNotes = async (config, assets) => {
+const writeReleaseNotes = async (config, assets, platform = "macos") => {
   const staticReportPath = path.join(reportsRoot, "static-verification.json");
   const e2eReportPath = path.join(reportsRoot, "e2e-diagnostics.json");
   const staticReport = (await exists(staticReportPath))
@@ -83,6 +133,7 @@ const writeReleaseNotes = async (config, assets) => {
   const notes = [
     `# ${config.project.bundleName} ${config.project.version}`,
     "",
+    `Platform: ${platform}`,
     `Channel: ${config.distribution.releaseChannel}`,
     "",
     "## Verification",
@@ -103,7 +154,9 @@ const writeReleaseNotes = async (config, assets) => {
     "",
     "## Phase 3 Notes",
     "",
-    "Developer ID signing and notarization require Apple credentials. If this release was built without those credentials, treat it as an internal unsigned release candidate.",
+    platform === "windows"
+      ? "Windows code signing requires a code-signing certificate and signing command or certificate thumbprint. If this release was built without those credentials, treat it as an internal unsigned release candidate."
+      : "Developer ID signing and notarization require Apple credentials. If this release was built without those credentials, treat it as an internal unsigned release candidate.",
     "",
   ].join("\n");
 
@@ -191,7 +244,7 @@ const createDmgFromAppBundle = async (config, appBundle, destination) => {
   await notarizeIfConfigured(destination);
 };
 
-const createValidationPack = async (config, assets) => {
+const createValidationPack = async (config, assets, platform = "macos") => {
   const validationRoot = path.join(releaseRoot, "validation-pack");
   const evidenceRoot = path.join(validationRoot, "evidence");
   const context = await releaseContext(config);
@@ -214,7 +267,8 @@ const createValidationPack = async (config, assets) => {
   await copyIfExists(path.join(rootDir, "docs", "generated", "phase3-readiness.md"), path.join(evidenceRoot, "phase3-readiness.md"));
   await copyIfExists(path.join(rootDir, "docs", "phase3-distribution.md"), path.join(evidenceRoot, "phase3-distribution.md"));
   await copyIfExists(path.join(rootDir, "docs", "validation-approval-template.md"), path.join(evidenceRoot, "validation-approval-template.md"));
-  await copyIfExists(path.join(rootDir, "docs", "manual-clean-macos-checklist.md"), path.join(validationRoot, "manual-clean-macos-checklist.md"));
+  const checklistName = platform === "windows" ? "manual-clean-windows-checklist.md" : "manual-clean-macos-checklist.md";
+  await copyIfExists(path.join(rootDir, "docs", checklistName), path.join(validationRoot, checklistName));
 
   const evidenceFiles = (await listFiles(validationRoot)).sort();
   const evidence = [];
@@ -255,11 +309,12 @@ const createValidationPack = async (config, assets) => {
       `Git commit: ${context.gitCommit}`,
       `Git branch/ref: ${context.gitBranch}`,
       `Generated by: ${context.generatedBy}`,
+      `Target platform: ${platform}`,
       `Environment: ${context.platform} on ${context.host}`,
       "",
       "## Scope",
       "",
-      "This pack contains automated Phase 2/3 readiness evidence for the local-first Shinylive desktop harness. It is not a substitute for organization-specific clinical validation approval.",
+      `This pack contains automated Phase 2/3 readiness evidence for the ${platform} local-first Shinylive desktop harness. It is not a substitute for organization-specific clinical validation approval.`,
       "",
       "## Automated Checks",
       "",
@@ -270,7 +325,7 @@ const createValidationPack = async (config, assets) => {
       "- Clinical data pack validation with data dictionary",
       "- Screenshot evidence for the portal and verified apps",
       "- Release asset checksum inventory",
-      "- Manual clean macOS checklist included",
+      `- Manual clean ${platform === "windows" ? "Windows" : "macOS"} checklist included`,
       "",
       "## Reviewer Sign-Off",
       "",
@@ -294,7 +349,121 @@ const createValidationPack = async (config, assets) => {
   );
 };
 
+const createZip = async (source, destination) => {
+  if (process.platform === "win32") {
+    await runCommand("powershell", [
+      "-NoProfile",
+      "-Command",
+      "Compress-Archive -Path $args[0] -DestinationPath $args[1] -Force",
+      source,
+      destination,
+    ]);
+    return;
+  }
+
+  await runCommand("ditto", ["-c", "-k", "--keepParent", source, destination]);
+};
+
+const copyReleaseEvidence = async () => {
+  await copyIfExists(path.join(distRoot, "harness-bundle-manifest.json"), path.join(releaseRoot, "harness-bundle-manifest.json"));
+  await copyIfExists(path.join(distRoot, "checksums", "SHA256SUMS"), path.join(releaseRoot, "dist-SHA256SUMS"));
+  await copyIfExists(path.join(distRoot, "reports", "sbom.json"), path.join(releaseRoot, "sbom.json"));
+  await copyIfExists(path.join(distRoot, "reports", "licenses.md"), path.join(releaseRoot, "licenses.md"));
+};
+
+const collectReleaseAssets = async () => {
+  const assetFiles = (await listFiles(releaseRoot))
+    .filter((file) => file !== "SHA256SUMS")
+    .filter((file) => !file.startsWith(`validation-pack${path.sep}`))
+    .sort();
+  const assets = [];
+  for (const file of assetFiles) {
+    const fullPath = path.join(releaseRoot, file);
+    assets.push({
+      name: toPosix(file),
+      sha256: await sha256File(fullPath),
+    });
+  }
+  return assets;
+};
+
+const writeFinalChecksums = async () => {
+  const finalFiles = (await listFiles(releaseRoot))
+    .filter((file) => file !== "SHA256SUMS")
+    .sort();
+  const checksumLines = [];
+  for (const file of finalFiles) {
+    checksumLines.push(`${await sha256File(path.join(releaseRoot, file))}  ${toPosix(file)}`);
+  }
+  await writeFile(path.join(releaseRoot, "SHA256SUMS"), `${checksumLines.join("\n")}\n`);
+  return { finalFiles, checksumLines };
+};
+
+const packageWindows = async (config) => {
+  await rm(releaseRoot, { recursive: true, force: true });
+  await mkdir(releaseRoot, { recursive: true });
+
+  const portableExe = await findFirst(
+    windowsReleaseRoot,
+    (name) => name.endsWith(".exe") && !name.toLowerCase().includes("setup"),
+  );
+  if (portableExe) {
+    await cp(
+      portableExe,
+      path.join(releaseRoot, `${config.distribution.artifactName}-${config.project.version}-windows-portable.exe`),
+    );
+  }
+
+  const nsisInstallers = await findAll(nsisRoot, (name) => name.endsWith(".exe"));
+  const msiInstallers = await findAll(msiRoot, (name) => name.endsWith(".msi"));
+  if (config.distribution.windowsBundles.includes("nsis") && nsisInstallers.length === 0) {
+    throw new Error("No Windows NSIS installer found. Run npm run tauri:build:windows:no-sign first.");
+  }
+  if (config.distribution.windowsBundles.includes("msi") && msiInstallers.length === 0) {
+    throw new Error("No Windows MSI installer found. Run npm run tauri:build:windows:msi first.");
+  }
+
+  for (const [index, installer] of nsisInstallers.entries()) {
+    const suffix = nsisInstallers.length > 1 ? `-${index + 1}` : "";
+    await cp(
+      installer,
+      path.join(releaseRoot, `${config.distribution.artifactName}-${config.project.version}-windows-nsis${suffix}-setup.exe`),
+    );
+  }
+  for (const [index, installer] of msiInstallers.entries()) {
+    const suffix = msiInstallers.length > 1 ? `-${index + 1}` : "";
+    await cp(
+      installer,
+      path.join(releaseRoot, `${config.distribution.artifactName}-${config.project.version}-windows${suffix}.msi`),
+    );
+  }
+
+  await copyReleaseEvidence();
+
+  const assets = await collectReleaseAssets();
+  await createValidationPack(config, assets, "windows");
+  await createZip(path.join(releaseRoot, "validation-pack"), path.join(releaseRoot, "validation-pack.zip"));
+
+  const releaseNoteAssets = await collectReleaseAssets();
+  await writeReleaseNotes(config, releaseNoteAssets, "windows");
+
+  const { finalFiles, checksumLines } = await writeFinalChecksums();
+  await appendAudit("phase3-package", "ok", {
+    platform: "windows",
+    releaseRoot,
+    releaseFingerprint: sha256Text(checksumLines.join("\n")),
+    assetCount: finalFiles.length,
+  });
+
+  console.log(`Windows release package written to ${releaseRoot}`);
+};
+
 const config = await readConfig();
+if (targetPlatform === "windows") {
+  await packageWindows(config);
+  process.exit(0);
+}
+
 await rm(releaseRoot, { recursive: true, force: true });
 await mkdir(releaseRoot, { recursive: true });
 
@@ -348,14 +517,8 @@ for (const file of assetFiles) {
   });
 }
 
-await createValidationPack(config, assets);
-await runCommand("ditto", [
-  "-c",
-  "-k",
-  "--keepParent",
-  path.join(releaseRoot, "validation-pack"),
-  path.join(releaseRoot, "validation-pack.zip"),
-]);
+await createValidationPack(config, assets, "macos");
+await createZip(path.join(releaseRoot, "validation-pack"), path.join(releaseRoot, "validation-pack.zip"));
 
 const releaseNoteAssetFiles = (await listFiles(releaseRoot))
   .filter((file) => !["RELEASE_NOTES.md", "SHA256SUMS"].includes(file))
@@ -369,7 +532,7 @@ for (const file of releaseNoteAssetFiles) {
     sha256: await sha256File(fullPath),
   });
 }
-await writeReleaseNotes(config, releaseNoteAssets);
+await writeReleaseNotes(config, releaseNoteAssets, "macos");
 
 const finalFiles = (await listFiles(releaseRoot))
   .filter((file) => file !== "SHA256SUMS")
@@ -381,6 +544,7 @@ for (const file of finalFiles) {
 await writeFile(path.join(releaseRoot, "SHA256SUMS"), `${checksumLines.join("\n")}\n`);
 
 await appendAudit("phase3-package", "ok", {
+  platform: "macos",
   releaseRoot,
   releaseFingerprint: sha256Text(checksumLines.join("\n")),
   assetCount: finalFiles.length,

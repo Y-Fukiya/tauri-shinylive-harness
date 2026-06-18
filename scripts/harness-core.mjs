@@ -21,8 +21,21 @@ export const distRoot = path.join(rootDir, "dist");
 export const reportsRoot = path.join(rootDir, "reports");
 
 const DUPLICATE_COPY_PATTERN = / \d+(?=(\.[^/.]+)?$)/;
+const WINDOWS_COMMAND_SHIMS = new Map([
+  ["npm", "npm.cmd"],
+  ["npx", "npx.cmd"],
+]);
 
 export const toPosix = (value) => value.split(path.sep).join("/");
+
+export const commandForPlatform = (command) =>
+  process.platform === "win32" && WINDOWS_COMMAND_SHIMS.has(command)
+    ? WINDOWS_COMMAND_SHIMS.get(command)
+    : command;
+
+const shouldUseShellForPlatform = (command) =>
+  process.platform === "win32" &&
+  (WINDOWS_COMMAND_SHIMS.has(command) || /\.(?:cmd|bat)$/i.test(command));
 
 const stripComment = (line) => {
   let inString = false;
@@ -141,6 +154,9 @@ const normalizeConfig = (config) => {
     macBundles: Array.isArray(config.distribution.mac_bundles)
       ? config.distribution.mac_bundles
       : ["app"],
+    windowsBundles: Array.isArray(config.distribution.windows_bundles)
+      ? config.distribution.windows_bundles
+      : ["nsis"],
     githubRepo: config.distribution.github_repo ?? "",
   };
 
@@ -270,6 +286,14 @@ export const validateHarnessConfig = async (
   for (const bundle of nextConfig.distribution.macBundles) {
     if (!["app", "dmg", "pkg"].includes(bundle)) {
       issue(issues, "error", "unsupported-mac-bundle", "distribution.macBundles may contain only app, dmg, or pkg.", {
+        bundle,
+      });
+    }
+  }
+  validateStringArray(issues, "distribution.windowsBundles", nextConfig.distribution.windowsBundles, { minLength: 1 });
+  for (const bundle of nextConfig.distribution.windowsBundles) {
+    if (!["nsis", "msi"].includes(bundle)) {
+      issue(issues, "error", "unsupported-windows-bundle", "distribution.windowsBundles may contain only nsis or msi.", {
         bundle,
       });
     }
@@ -847,7 +871,11 @@ export const writeVerificationProcedure = async (config) => {
     "2. `npm run tauri:build:app:no-sign` for an unsigned internal release candidate.",
     "3. `npm run tauri:build:app` after Apple signing and notarization credentials are configured.",
     "4. `npm run phase3:package`",
-    "5. `npm run phase3:release-draft` after the release has been reviewed.",
+    "5. `npm run phase3:preflight:windows`",
+    "6. `npm run tauri:build:windows:no-sign` for an unsigned internal Windows release candidate.",
+    "7. `npm run tauri:build:windows` after Windows signing credentials or a signing command are configured.",
+    "8. `npm run phase3:package:windows`",
+    "9. `npm run phase3:release-draft` after the release has been reviewed.",
     "",
     "## Acceptance Criteria",
     "",
@@ -866,8 +894,9 @@ export const writeVerificationProcedure = async (config) => {
     "- `dist/checksums/SHA256SUMS` is generated.",
     "- `dist/reports/sbom.json` and `dist/reports/licenses.md` are generated.",
     "- `reports/phase3-preflight.json` records signing, notarization, GitHub, and tooling readiness.",
-    "- `release/` contains an app archive, optional DMG, release notes, checksums, and validation pack.",
-    "- Public release publication is held until Apple credentials and organization approval are present.",
+    "- `release/` contains platform release artifacts, release notes, checksums, and validation pack.",
+    "- Windows NSIS installer artifacts are generated on Windows when `windows_bundles` includes `nsis`.",
+    "- Public release publication is held until platform signing credentials and organization approval are present.",
     "",
     "## Apps",
     "",
@@ -898,12 +927,14 @@ export const appendAudit = async (action, status, details = {}) => {
 
 export const runCommand = async (command, args, options = {}) => {
   const { spawn } = await import("node:child_process");
+  const executable = commandForPlatform(command);
+  const shell = shouldUseShellForPlatform(command);
 
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, {
+    const child = spawn(executable, args, {
       cwd: rootDir,
       stdio: "inherit",
-      shell: false,
+      shell,
       ...options,
     });
 

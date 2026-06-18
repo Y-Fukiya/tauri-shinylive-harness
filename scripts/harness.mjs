@@ -153,6 +153,7 @@ const serializeHarnessToml = (config) =>
     `release_draft = ${config.distribution.releaseDraft ? "true" : "false"}`,
     `require_offline = ${config.distribution.requireOffline ? "true" : "false"}`,
     `mac_bundles = ${tomlArray(config.distribution.macBundles)}`,
+    `windows_bundles = ${tomlArray(config.distribution.windowsBundles)}`,
     `github_repo = ${tomlString(config.distribution.githubRepo)}`,
     "",
     "[phase3]",
@@ -300,6 +301,7 @@ release_channel = "internal"
 release_draft = true
 require_offline = true
 mac_bundles = ["app", "dmg", "pkg"]
+windows_bundles = ["nsis"]
 github_repo = ${tomlString(githubRepo)}
 
 [phase3]

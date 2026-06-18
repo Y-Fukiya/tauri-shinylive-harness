@@ -2,6 +2,7 @@ node_modules/
 dist/
 reports/
 release/
+.release-upload/
 .r-lib/
 .shinylive-cache/
 target/

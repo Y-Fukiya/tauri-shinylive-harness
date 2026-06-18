@@ -114,8 +114,104 @@ jobs:
           name: macos-release-candidate
           path: release/
 
+  windows-release:
+    runs-on: windows-latest
+    env:
+      WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+      WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+      WINDOWS_CERTIFICATE_THUMBPRINT: ${{ secrets.WINDOWS_CERTIFICATE_THUMBPRINT }}
+      WINDOWS_SIGN_COMMAND: ${{ secrets.WINDOWS_SIGN_COMMAND }}
+      WINDOWS_TIMESTAMP_URL: ${{ secrets.WINDOWS_TIMESTAMP_URL }}
+      GITHUB_TOKEN: ${{ github.token }}
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: r-lib/actions/setup-r@v2
+
+      - run: npm ci
+
+      - run: npx playwright install chromium
+
+      - name: Check harness template path
+        run: |
+          npm run doctor
+          npm run smoke:multi-app
+
+      - name: Verify Phase 2 bundle
+        run: npm run verify
+
+      - name: Import Windows signing certificate
+        if: ${{ env.WINDOWS_CERTIFICATE != '' }}
+        shell: pwsh
+        run: |
+          $certificatePath = Join-Path $env:RUNNER_TEMP "windows-signing.pfx"
+          [IO.File]::WriteAllBytes($certificatePath, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE))
+          $securePassword = ConvertTo-SecureString -String $env:WINDOWS_CERTIFICATE_PASSWORD -AsPlainText -Force
+          $cert = Import-PfxCertificate -FilePath $certificatePath -CertStoreLocation Cert:\CurrentUser\My -Password $securePassword
+          if (-not $env:WINDOWS_CERTIFICATE_THUMBPRINT) {
+            "WINDOWS_CERTIFICATE_THUMBPRINT=$($cert.Thumbprint)" | Out-File -FilePath $env:GITHUB_ENV -Append
+          }
+
+      - name: Phase 3 Windows preflight
+        shell: pwsh
+        run: |
+          if ($env:WINDOWS_CERTIFICATE_THUMBPRINT -or $env:WINDOWS_SIGN_COMMAND) {
+            node scripts/phase3-preflight.mjs --platform windows
+          } else {
+            node scripts/phase3-preflight.mjs --platform windows --allow-missing-credentials
+          }
+
+      - name: Build signed Windows installer
+        if: ${{ env.WINDOWS_CERTIFICATE_THUMBPRINT != '' || env.WINDOWS_SIGN_COMMAND != '' }}
+        run: npm run tauri:build:windows
+
+      - name: Build unsigned internal Windows installer
+        if: ${{ env.WINDOWS_CERTIFICATE_THUMBPRINT == '' && env.WINDOWS_SIGN_COMMAND == '' }}
+        run: npm run tauri:build:windows:no-sign
+
+      - name: Package Windows release evidence
+        run: npm run phase3:package:windows
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-release-candidate
+          path: release/
+
+  draft-release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs:
+      - macos-release
+      - windows-release
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: release
+          merge-multiple: false
+
       - name: Create GitHub draft release
-        if: startsWith(github.ref, 'refs/tags/')
         run: |
           if [ "${{ github.event.inputs.publish }}" = "true" ]; then
             node scripts/github-release-draft.mjs --verify-tag --publish

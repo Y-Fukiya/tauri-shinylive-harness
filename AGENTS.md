@@ -24,6 +24,7 @@ For release-candidate work, also run:
 
 ```sh
 npm run build:release-local
+npm run build:release-windows-local
 ```
 
 ## Data Pack Rules
@@ -35,7 +36,7 @@ npm run build:release-local
 
 ## Distribution Boundary
 
-- Apple Developer ID signing, installer signing, notarization, and stapling require real credentials and operational approval.
+- Apple Developer ID signing, installer signing, notarization, stapling, and Windows code signing require real credentials and operational approval.
 - Do not invent, echo, or commit secrets.
 - Unsigned internal candidates are acceptable through `npm run build:release-local`.
 

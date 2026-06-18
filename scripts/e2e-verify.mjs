@@ -41,6 +41,7 @@ const isLocalRequest = (url) => {
 
 const startServer = async () =>
   new Promise((resolve, reject) => {
+    let settled = false;
     const child = spawn(
       "cargo",
       [
@@ -56,26 +57,65 @@ const startServer = async () =>
       { cwd: rootDir, stdio: ["ignore", "pipe", "pipe"] },
     );
     let stderr = "";
+    const startupTimeout = setTimeout(() => {
+      if (!settled) {
+        settled = true;
+        reject(new Error(`Timed out waiting for harness-server\n${stderr}`));
+      }
+    }, 30000);
 
     child.stdout.on("data", (chunk) => {
       const text = chunk.toString();
       const match = text.match(/http:\/\/127\.0\.0\.1:\d+\/portal\/index\.html/);
-      if (match) {
+      if (match && !settled) {
+        settled = true;
+        clearTimeout(startupTimeout);
         resolve({ child, portalUrl: match[0] });
       }
     });
     child.stderr.on("data", (chunk) => {
       stderr += chunk.toString();
     });
-    child.on("error", reject);
+    child.on("error", (error) => {
+      if (!settled) {
+        settled = true;
+        clearTimeout(startupTimeout);
+        reject(error);
+      }
+    });
     child.on("exit", (code) => {
-      if (code !== 0) {
+      if (!settled && code !== 0) {
+        settled = true;
+        clearTimeout(startupTimeout);
         reject(new Error(`harness-server exited with ${code}\n${stderr}`));
       }
     });
-
-    setTimeout(() => reject(new Error(`Timed out waiting for harness-server\n${stderr}`)), 30000);
   });
+
+const stopServer = async (child) => {
+  if (!child || child.exitCode !== null || child.signalCode !== null) {
+    return;
+  }
+
+  const exited = new Promise((resolve) => {
+    child.once("exit", resolve);
+  });
+
+  child.kill();
+  await Promise.race([
+    exited,
+    new Promise((resolve) => {
+      setTimeout(resolve, 5000);
+    }),
+  ]);
+
+  if (child.exitCode === null && child.signalCode === null) {
+    child.kill();
+    child.stdout?.destroy();
+    child.stderr?.destroy();
+    child.unref();
+  }
+};
 
 const writeReport = async (report) => {
   await mkdir(reportsRoot, { recursive: true });
@@ -199,5 +239,5 @@ try {
   if (browser) {
     await browser.close();
   }
-  child.kill("SIGINT");
+  await stopServer(child);
 }

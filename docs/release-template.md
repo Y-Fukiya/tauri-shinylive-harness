@@ -12,6 +12,8 @@
 
 - macOS app archive
 - macOS pkg
+- Windows NSIS setup executable
+- optional Windows MSI
 - `SHA256SUMS`
 - `dist/harness-bundle-manifest.json`
 - `dist/checksums/SHA256SUMS`
@@ -28,6 +30,7 @@
 - `release/validation-pack.zip`
 - `release/validation-pack/evidence-index.json`
 - `release/validation-pack/manual-clean-macos-checklist.md`
+- `release/validation-pack/manual-clean-windows-checklist.md`
 
 ## Verification
 
@@ -35,6 +38,8 @@
 - `npm run phase3:preflight`
 - `npm run tauri:build:app` or `npm run tauri:build:app:no-sign`
 - `npm run phase3:package`
+- `npm run tauri:build:windows` or `npm run tauri:build:windows:no-sign`
+- `npm run phase3:package:windows`
 - Browser diagnostics show `Reported SAB = true`
 - Every configured app smoke text is visible
 - Configured DOM probes are visible
@@ -50,6 +55,8 @@
 
 ## Phase 3 Signing Checklist
 
+### macOS
+
 - Developer ID Application certificate installed
 - Developer ID Installer certificate installed when publishing pkg
 - Apple Team ID configured
@@ -58,10 +65,18 @@
 - App notarized and stapled
 - Signed archive checksum regenerated after final packaging
 
+### Windows
+
+- Windows code-signing certificate or organization signing command configured
+- Timestamp URL configured for signed external release
+- Signed installer checksum regenerated after final packaging
+- SmartScreen behavior reviewed for the release type
+
 ## Approval Checklist
 
 - Validation pack reviewed
 - Offline launch procedure completed on clean macOS
+- Offline launch procedure completed on clean Windows
 - Reviewer sign-off completed in validation summary
 - Release notes reviewed
 - Draft GitHub Release reviewed before publish

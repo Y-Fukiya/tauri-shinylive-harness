@@ -14,9 +14,9 @@ The harness is now config-driven:
 - `dist/harness-bundle-manifest.json` records file-level SHA-256 hashes, and `/__harness/integrity` verifies those hashes at runtime.
 - `dist/checksums/SHA256SUMS`, `dist/reports/sbom.json`, and `dist/reports/licenses.md` are generated during prepare.
 - Playwright E2E verifies portal diagnostics, Shiny smoke text, optional DOM probes, screenshot evidence, and zero external HTTP(S) requests.
-- Phase 3 preflight checks Apple signing/notarization/GitHub release readiness without printing secrets.
-- `release/` packaging creates app archive, DMG/pkg when available, checksums, release notes, and validation pack.
-- GitHub Actions workflows are included for CI and release-candidate builds.
+- Phase 3 preflight checks macOS Apple signing/notarization, Windows code-signing, and GitHub release readiness without printing secrets.
+- `release/` packaging creates macOS app/DMG/pkg or Windows installer artifacts, checksums, release notes, and validation pack.
+- GitHub Actions workflows are included for macOS and Windows CI/release-candidate builds.
 
 ## Commands
 
@@ -62,12 +62,13 @@ node scripts/harness.mjs verify-static
 node scripts/e2e-verify.mjs
 npm run phase3:preflight
 npm run phase3:package
+npm run phase3:package:windows
 npm run phase3:release-draft
 ```
 
 ## Current Deliverables
 
-- Reusable v0.8.0 CLI/template foundation.
+- Reusable v0.9.0 CLI/template foundation.
 - Two bundled Shinylive R apps: `subject-safety-mini` and `subject-profile-reference`.
 - Clinical demo data pack with synthetic demographics, visits, labs, vitals, AEs, concomitant meds, and exposure.
 - Data-pack registry under `data-packs/*` with app-level `data_pack_source` traceability.
@@ -79,18 +80,19 @@ npm run phase3:release-draft
 - Multi-app scaffold smoke test through `npm run smoke:multi-app`.
 - Embedded Rust loopback static server with COOP/COEP/CORP, CSP, MIME mapping, and path traversal protection.
 - Runtime bundle integrity endpoint exposed at `/__harness/integrity`.
-- macOS `.app` build via Tauri.
+- macOS `.app` and Windows NSIS installer builds via Tauri.
 - Static bundle manifest, checksums, SBOM/license inventory, audit log, and generated verification procedure.
-- Phase 3 release candidate preflight, package assembly, screenshot/data/config/integrity validation evidence pack, manual clean macOS checklist, and GitHub draft release automation.
+- Phase 3 release candidate preflight, package assembly, screenshot/data/config/integrity validation evidence pack, manual clean macOS/Windows checklists, and GitHub draft release automation.
 
 ## Phase 3 Boundary
 
-The repository can now drive the Phase 3 path up to a credential-ready release candidate. Production Apple Developer ID signing, installer signing, notarization, stapling, and public GitHub Release publication require Apple/GitHub credentials. Formal clinical validation approval still requires organization review and signoff.
+The repository can now drive the Phase 3 path up to credential-ready macOS and Windows release candidates. Production Apple Developer ID signing/notarization, Windows code signing, and public GitHub Release publication require credentials. Formal clinical validation approval still requires organization review and signoff.
 
 Credential-free local release candidate:
 
 ```sh
 npm run build:release-local
+npm run build:release-windows-local
 ```
 
 Credential-backed release candidate:
@@ -99,6 +101,9 @@ Credential-backed release candidate:
 npm run phase3:preflight
 npm run tauri:build:app
 npm run phase3:package
+npm run phase3:preflight:windows
+npm run tauri:build:windows
+npm run phase3:package:windows
 npm run phase3:release-draft
 ```
 
@@ -112,6 +117,7 @@ See:
 - `docs/generated/verification-procedure.md`
 - `docs/verification.md`
 - `docs/manual-clean-macos-checklist.md`
+- `docs/manual-clean-windows-checklist.md`
 - `docs/release-template.md`
 - `docs/phase3-distribution.md`
 - `docs/validation-approval-template.md`

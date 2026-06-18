@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { spawn } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 
 import { appendAudit, exists, readConfig, reportsRoot, rootDir } from "./harness-core.mjs";
@@ -32,6 +33,26 @@ const runCapture = (command, args, options = {}) =>
 
 const present = (name) => Boolean(process.env[name]);
 
+const parseOptions = (values) => {
+  const options = { _: [] };
+  for (let index = 0; index < values.length; index += 1) {
+    const value = values[index];
+    if (!value.startsWith("--")) {
+      options._.push(value);
+      continue;
+    }
+    const key = value.slice(2);
+    const next = values[index + 1];
+    if (!next || next.startsWith("--")) {
+      options[key] = true;
+    } else {
+      options[key] = next;
+      index += 1;
+    }
+  }
+  return options;
+};
+
 const redactOutput = (value) =>
   value
     .replace(/(Token:\s*)\S+/gi, "$1<redacted>")
@@ -52,7 +73,106 @@ const extractIdentities = (securityOutput) =>
     .map((line) => line.match(/\)\s+[A-F0-9]{40}\s+"([^"]+)"/)?.[1])
     .filter(Boolean);
 
+const options = parseOptions(process.argv.slice(2));
+const targetPlatform =
+  options.platform ??
+  process.env.HARNESS_TARGET_PLATFORM ??
+  (process.platform === "win32" ? "windows" : process.platform === "darwin" ? "macos" : process.platform);
 const config = await readConfig();
+
+if (targetPlatform === "windows") {
+  const windows = {
+    certificatePfx: present("WINDOWS_CERTIFICATE"),
+    certificatePassword: present("WINDOWS_CERTIFICATE_PASSWORD"),
+    certificateThumbprint: present("WINDOWS_CERTIFICATE_THUMBPRINT"),
+    signCommand: present("WINDOWS_SIGN_COMMAND"),
+    timestampUrl: present("WINDOWS_TIMESTAMP_URL"),
+  };
+  const commands = {
+    powershell: summarizeCommand(await runCapture("powershell", ["-NoProfile", "-Command", "$PSVersionTable.PSVersion.ToString()"])),
+    signtool: summarizeCommand(await runCapture("where", ["signtool"])),
+    ghAuth: summarizeCommand(await runCapture("gh", ["auth", "status"])),
+  };
+  const signingReady =
+    windows.signCommand ||
+    windows.certificateThumbprint ||
+    (windows.certificatePfx && windows.certificatePassword);
+  const githubReady = commands.ghAuth.ok || present("GITHUB_TOKEN");
+  const toolingReady = commands.powershell.ok;
+  const issues = [];
+
+  if (config.phase3.signingRequired && !signingReady) {
+    issues.push("Missing Windows signing input: set WINDOWS_CERTIFICATE + WINDOWS_CERTIFICATE_PASSWORD, WINDOWS_CERTIFICATE_THUMBPRINT, or WINDOWS_SIGN_COMMAND.");
+  }
+  if (signingReady && !commands.signtool.ok && !windows.signCommand) {
+    issues.push("Windows signing is configured but signtool was not found. Install Windows SDK or provide WINDOWS_SIGN_COMMAND.");
+  }
+  if (!githubReady) {
+    issues.push("GitHub release automation is not ready: gh auth status failed and GITHUB_TOKEN is absent.");
+  }
+  if (!toolingReady) {
+    issues.push("Windows package tooling is incomplete. Check PowerShell availability.");
+  }
+
+  const report = {
+    schemaVersion: 1,
+    platform: "windows",
+    ok: issues.length === 0,
+    checkedAt: new Date().toISOString(),
+    project: config.project,
+    distribution: config.distribution,
+    phase3: config.phase3,
+    signingReady,
+    notarizationReady: null,
+    githubReady,
+    toolingReady,
+    windowsEnvironment: windows,
+    commands,
+    issues,
+  };
+
+  await mkdir(reportsRoot, { recursive: true });
+  await writeFile(path.join(reportsRoot, "phase3-preflight.json"), `${JSON.stringify(report, null, 2)}\n`);
+  await mkdir(path.join(rootDir, "docs", "generated"), { recursive: true });
+  await writeFile(
+    path.join(rootDir, "docs", "generated", "phase3-readiness.md"),
+    [
+      "# Phase 3 Readiness",
+      "",
+      `Platform: Windows`,
+      `Checked: ${report.checkedAt}`,
+      `Host: ${os.hostname()}`,
+      "",
+      "| Area | Ready |",
+      "| --- | --- |",
+      `| Signing | ${signingReady} |`,
+      "| Notarization | n/a |",
+      `| GitHub release | ${githubReady} |`,
+      `| Windows tooling | ${toolingReady} |`,
+      "",
+      "## Issues",
+      "",
+      ...(issues.length > 0 ? issues.map((issue) => `- ${issue}`) : ["- None"]),
+      "",
+    ].join("\n"),
+  );
+  await appendAudit("phase3-preflight", report.ok ? "ok" : "blocked", {
+    platform: "windows",
+    signingReady,
+    githubReady,
+    toolingReady,
+    issueCount: issues.length,
+  });
+
+  if (!report.ok && !options["allow-missing-credentials"]) {
+    console.error(issues.join("\n"));
+    process.exit(1);
+  }
+
+  console.log(JSON.stringify(report, null, 2));
+  process.exit(0);
+}
+
 const apiKeyPathExists = present("APPLE_API_KEY_PATH")
   ? await exists(process.env.APPLE_API_KEY_PATH)
   : false;
@@ -115,6 +235,7 @@ if (!toolingReady) {
 
 const report = {
   schemaVersion: 1,
+  platform: "macos",
   ok: issues.length === 0,
   checkedAt: new Date().toISOString(),
   project: config.project,
@@ -138,6 +259,7 @@ await writeFile(
   [
     "# Phase 3 Readiness",
     "",
+    "Platform: macOS",
     `Checked: ${report.checkedAt}`,
     "",
     "| Area | Ready |",
@@ -165,7 +287,7 @@ await appendAudit("phase3-preflight", report.ok ? "ok" : "blocked", {
   issueCount: issues.length,
 });
 
-if (!report.ok && !process.argv.includes("--allow-missing-credentials")) {
+if (!report.ok && !options["allow-missing-credentials"]) {
   console.error(issues.join("\n"));
   process.exit(1);
 }

@@ -24,7 +24,7 @@
     },
     "distribution": {
       "type": "object",
-      "required": ["artifactName", "releaseChannel", "releaseDraft", "requireOffline", "macBundles", "githubRepo"],
+      "required": ["artifactName", "releaseChannel", "releaseDraft", "requireOffline", "macBundles", "windowsBundles", "githubRepo"],
       "additionalProperties": false,
       "properties": {
         "artifactName": {
@@ -38,6 +38,11 @@
           "type": "array",
           "minItems": 1,
           "items": { "enum": ["app", "dmg", "pkg"] }
+        },
+        "windowsBundles": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "enum": ["nsis", "msi"] }
         },
         "githubRepo": {
           "type": "string",

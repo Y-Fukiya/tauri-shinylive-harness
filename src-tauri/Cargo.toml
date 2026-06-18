@@ -1,6 +1,6 @@
 [package]
 name = "tauri-shinylive-harness"
-version = "0.8.0"
+version = "0.9.0"
 description = "Tauri Shinylive localhost harness"
 authors = ["Codex"]
 edition = "2021"

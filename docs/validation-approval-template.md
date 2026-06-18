@@ -22,6 +22,7 @@
 - `release/SHA256SUMS`
 - `release/validation-pack/evidence-index.json`
 - `release/validation-pack/manual-clean-macos-checklist.md`
+- `release/validation-pack/manual-clean-windows-checklist.md`
 
 ## Required Review
 
@@ -31,9 +32,10 @@
 - External request audit contains zero non-local HTTP(S) requests.
 - Static bundle hashes, runtime bundle integrity, and release checksums match.
 - SBOM/license inventory reviewed.
-- Apple signing identity is expected for external release.
-- Notarization and stapling are complete for external release.
-- Offline launch procedure passes on a clean macOS machine.
+- Apple signing identity is expected for external macOS release.
+- Notarization and stapling are complete for external macOS release.
+- Windows code-signing identity or signing command is expected for external Windows release.
+- Offline launch procedure passes on clean macOS and clean Windows machines.
 
 ## Decision
 

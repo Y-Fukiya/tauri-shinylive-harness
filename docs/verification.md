@@ -113,6 +113,21 @@ Expected:
 - Launching the `.app` starts a `127.0.0.1` listener.
 - `/__harness/health`, `/manifest.json`, app boot JS, and `R.wasm` are served from bundled resources.
 
+## Packaged Windows Build
+
+```sh
+npm run tauri:build:windows:no-sign
+npm run phase3:package:windows
+```
+
+Expected on Windows:
+
+- Full Phase 2 verification passes.
+- Tauri creates a Windows NSIS setup executable under `src-tauri/target/release/bundle/nsis/`.
+- `phase3:package:windows` collects the installer, optional portable executable, optional MSI, checksums, and validation pack into `release/`.
+- Launching the installed app starts a `127.0.0.1` listener.
+- `/__harness/health`, `/__harness/integrity`, `/manifest.json`, app boot JS, and `R.wasm` are served from bundled resources.
+
 ## Manual Offline Procedure
 
 1. Run `npm run build:harness`.
@@ -125,21 +140,26 @@ Expected:
 8. Confirm diagnostics report `Reported SAB = true`.
 9. Confirm there are no requests to CDNs, GitHub, Netlify, Posit CDN, `repo.r-wasm.org`, or r-universe.
 
+For Windows, use `docs/manual-clean-windows-checklist.md`.
+
 ## Phase 3 Release Candidate Verification
 
 ```sh
 npm run phase3:preflight
 npm run tauri:build:app:no-sign
 npm run phase3:package
+npm run phase3:preflight:windows
+npm run tauri:build:windows:no-sign
+npm run phase3:package:windows
 ```
 
 Expected:
 
 - `reports/phase3-preflight.json` is written.
 - Missing credentials are reported as readiness issues, not as leaked secret values.
-- Tauri creates the macOS app, and Phase 3 packaging creates the DMG/pkg for internal review.
+- Tauri creates the macOS app and Windows NSIS installer, and Phase 3 packaging creates platform release evidence.
 - `release/SHA256SUMS` covers every generated release file.
-- `release/validation-pack/` and `release/validation-pack.zip` contain verification evidence, config validation, runtime integrity, data validation report, data dictionary, screenshots, manifest, SBOM/license inventory, manual clean macOS checklist, and checksums.
+- `release/validation-pack/` and `release/validation-pack.zip` contain verification evidence, config validation, runtime integrity, data validation report, data dictionary, screenshots, manifest, SBOM/license inventory, platform manual clean checklist, and checksums.
 
 With Apple credentials configured, replace `npm run tauri:build:app:no-sign` with:
 
@@ -148,3 +168,4 @@ npm run tauri:build:app
 ```
 
 External release remains gated on successful notarization/stapling and organization approval.
+Windows external release remains gated on code signing, SmartScreen expectations, clean Windows verification, and organization approval.

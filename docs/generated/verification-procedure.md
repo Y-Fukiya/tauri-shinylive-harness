@@ -19,7 +19,11 @@ This procedure is generated from `harness.toml` and covers Phase 2 verification 
 2. `npm run tauri:build:app:no-sign` for an unsigned internal release candidate.
 3. `npm run tauri:build:app` after Apple signing and notarization credentials are configured.
 4. `npm run phase3:package`
-5. `npm run phase3:release-draft` after the release has been reviewed.
+5. `npm run phase3:preflight:windows`
+6. `npm run tauri:build:windows:no-sign` for an unsigned internal Windows release candidate.
+7. `npm run tauri:build:windows` after Windows signing credentials or a signing command are configured.
+8. `npm run phase3:package:windows`
+9. `npm run phase3:release-draft` after the release has been reviewed.
 
 ## Acceptance Criteria
 
@@ -38,8 +42,9 @@ This procedure is generated from `harness.toml` and covers Phase 2 verification 
 - `dist/checksums/SHA256SUMS` is generated.
 - `dist/reports/sbom.json` and `dist/reports/licenses.md` are generated.
 - `reports/phase3-preflight.json` records signing, notarization, GitHub, and tooling readiness.
-- `release/` contains an app archive, optional DMG, release notes, checksums, and validation pack.
-- Public release publication is held until Apple credentials and organization approval are present.
+- `release/` contains platform release artifacts, release notes, checksums, and validation pack.
+- Windows NSIS installer artifacts are generated on Windows when `windows_bundles` includes `nsis`.
+- Public release publication is held until platform signing credentials and organization approval are present.
 
 ## Apps
 
