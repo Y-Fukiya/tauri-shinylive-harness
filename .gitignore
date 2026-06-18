@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.r-lib/
+.shinylive-cache/
+target/
+src-tauri/target/
+crates/*/target/
+*.log
+.DS_Store

@@ -1,0 +1,40 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Clinical Shinylive Desktop Portal",
+  "version": "0.1.0",
+  "identifier": "com.example.clinical-shinylive-desktop-portal",
+  "build": {
+    "beforeDevCommand": "npm run build:all && npm run dev",
+    "beforeBuildCommand": "npm run build:all",
+    "devUrl": "http://127.0.0.1:1420",
+    "frontendDist": "../dist/portal"
+  },
+  "app": {
+    "security": {
+      "capabilities": ["main-capability"],
+      "csp": "default-src 'self' http://127.0.0.1:* http://localhost:*; script-src 'self' 'wasm-unsafe-eval' http://127.0.0.1:* http://localhost:*; worker-src 'self' blob: http://127.0.0.1:* http://localhost:*; connect-src 'self' ipc: http://ipc.localhost http://127.0.0.1:* http://localhost:*; img-src 'self' data: blob: http://127.0.0.1:* http://localhost:*; style-src 'self' 'unsafe-inline' http://127.0.0.1:* http://localhost:*; font-src 'self' data: http://127.0.0.1:* http://localhost:*; frame-src 'self' http://127.0.0.1:* http://localhost:*; object-src 'none'; base-uri 'self';",
+      "headers": {
+        "Cross-Origin-Opener-Policy": "same-origin",
+        "Cross-Origin-Embedder-Policy": "require-corp",
+        "Cross-Origin-Resource-Policy": "same-origin",
+        "Service-Worker-Allowed": "/",
+        "X-Content-Type-Options": "nosniff"
+      }
+    },
+    "windows": [
+      {
+        "label": "main",
+        "title": "Clinical Shinylive Desktop Portal",
+        "width": 1280,
+        "height": 900,
+        "resizable": true,
+        "visible": false
+      }
+    ]
+  },
+  "bundle": {
+    "active": true,
+    "icon": ["icons/icon.png"],
+    "resources": ["../dist"]
+  }
+}

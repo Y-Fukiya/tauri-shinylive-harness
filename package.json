@@ -1,0 +1,31 @@
+{
+  "name": "tauri-shinylive-harness",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 1420",
+    "build:portal": "vite build",
+    "prepare:dist": "node scripts/prepare-dist.mjs",
+    "build:all": "npm run build:portal && npm run prepare:dist",
+    "check": "tsc --noEmit",
+    "test:rust": "cargo test --manifest-path crates/harness-server/Cargo.toml",
+    "verify": "npm run check && npm run build:all && npm run test:rust",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build --bundles app"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.11.1",
+    "lucide-react": "^1.20.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.11.2",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^4.7.0",
+    "typescript": "^5.9.3",
+    "vite": "^6.4.1"
+  }
+}

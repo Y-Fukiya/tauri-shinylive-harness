@@ -1,0 +1,9 @@
+{
+  "id": "subject-safety-mini",
+  "title": "Subject Safety Mini Dashboard",
+  "path": "/apps/subject-safety-mini/index.html",
+  "description": "Clinical smoke app for validating Shinylive/webR runtime requirements.",
+  "kind": "shinylive-r",
+  "offlineRequired": true
+}
+

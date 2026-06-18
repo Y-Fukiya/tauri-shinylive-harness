@@ -1,0 +1,7 @@
+subject_id,arm,sex,age,ae_count,serious_ae_count,last_visit_day
+SUBJ-001,Active,F,62,1,0,28
+SUBJ-002,Active,M,58,0,0,28
+SUBJ-003,Control,F,71,2,1,21
+SUBJ-004,Control,M,66,1,0,28
+SUBJ-005,Active,F,54,0,0,14
+SUBJ-006,Control,F,69,3,1,28
