@@ -10,9 +10,10 @@ This procedure is generated from `harness.toml` and covers Phase 2 verification 
 4. `node scripts/harness.mjs export`
 5. `node scripts/harness.mjs export-reports`
 6. `node scripts/harness.mjs prepare`
-7. `node scripts/harness.mjs verify-static`
-8. `node scripts/e2e-verify.mjs`
-9. `npm run tauri:build`
+7. `npm run test:unit`
+8. `node scripts/harness.mjs verify-static`
+9. `node scripts/e2e-verify.mjs`
+10. `npm run tauri:build`
 
 ## Phase 3 Commands
 
@@ -41,6 +42,7 @@ This procedure is generated from `harness.toml` and covers Phase 2 verification 
 - Configured report templates export HTML report evidence under `reports/exported/`.
 - Exported reports include data pack hash, generated timestamp, app version, clinical-use limitation, and reviewer sign-off fields.
 - `reports/review-workflow.json` records review status, reviewer, reviewed_at, decision, and notes fields.
+- Unit tests cover TOML quoted arrays, location-independent data pack hashes, controlled terminology, and visit-reference validation.
 - Playwright screenshot evidence is generated for the portal and verified apps.
 - E2E network audit observes no external HTTP(S) requests.
 - `dist/harness-bundle-manifest.json` hashes match bundled files.

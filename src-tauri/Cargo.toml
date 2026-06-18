@@ -14,10 +14,10 @@ name = "tauri-shinylive-harness"
 path = "src/main.rs"
 
 [build-dependencies]
-tauri-build = { version = "2.5.3", features = [] }
+tauri-build = { version = "2.6.3", features = [] }
 
 [dependencies]
 harness-server = { path = "../crates/harness-server" }
-tauri = { version = "2.9.5", features = [] }
+tauri = { version = "2.11.3", features = [] }
 tokio = { version = "1.48.0", features = ["fs", "net", "rt-multi-thread"] }
 url = "2.5.7"

@@ -1,5 +1,17 @@
 # Quickstart
 
+## Prerequisites
+
+- Node.js and npm; run `npm ci` before harness commands.
+- Rust/Cargo via rustup for `harness-server`, Tauri checks, and desktop builds.
+- R with `Rscript`; the first export installs or reuses the `shinylive` R package under `.r-lib`.
+- Playwright Chromium for E2E: `npx playwright install chromium`.
+- Tauri OS prerequisites:
+  - macOS: Xcode Command Line Tools.
+  - Windows: WebView2 and MSVC Build Tools.
+  - Linux: webkit2gtk, librsvg, and related Tauri system packages.
+- First Shinylive export may need network access to download Shinylive web assets into `.shinylive-cache`.
+
 ## Use This Repository
 
 ```sh

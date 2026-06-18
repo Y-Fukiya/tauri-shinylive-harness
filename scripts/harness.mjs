@@ -1,6 +1,8 @@
 #!/usr/bin/env node
+import { execFile } from "node:child_process";
 import { cp, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { promisify } from "node:util";
 
 import {
   clinicalDomains,
@@ -10,18 +12,22 @@ import {
 import {
   appendAudit,
   appToManifest,
+  commandForPlatform,
   configPath,
   exists,
   prepareDist,
   readConfig,
+  reportsRoot,
   rootDir,
   runCommand,
+  toPosix,
   validateHarnessConfig,
   verifyBundleArtifacts,
   writeJson,
 } from "./harness-core.mjs";
 import { exportReports } from "./report-exporter.mjs";
 
+const execFileAsync = promisify(execFile);
 const command = process.argv[2] ?? "help";
 const args = process.argv.slice(3);
 
@@ -80,6 +86,21 @@ const titleize = (value) =>
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 
 const jsonFile = async (targetPath) => JSON.parse(await readFile(targetPath, "utf8"));
+
+const repoRelative = (targetPath) => toPosix(path.relative(rootDir, targetPath));
+
+const printJson = (value) => {
+  console.log(JSON.stringify(value, null, 2));
+};
+
+const commandAvailable = async (commandName, commandArgs = ["--version"]) => {
+  try {
+    await execFileAsync(commandForPlatform(commandName), commandArgs, { cwd: rootDir });
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 const writeJsonFile = async (targetPath, value) => {
   await writeFile(targetPath, `${JSON.stringify(value, null, 2)}\n`);
@@ -655,18 +676,12 @@ const addDataPack = async (values) => {
 
 const validateConfig = async () => {
   const result = await validateHarnessConfig();
-  console.log(
-    JSON.stringify(
-      {
-        ok: result.ok,
-        report: "reports/harness-config-validation.json",
-        errors: result.summary.errorCount,
-        warnings: result.summary.warningCount,
-      },
-      null,
-      2,
-    ),
-  );
+  printJson({
+    ok: result.ok,
+    report: "reports/harness-config-validation.json",
+    errors: result.summary.errorCount,
+    warnings: result.summary.warningCount,
+  });
   await appendAudit("validate-config", result.ok ? "ok" : "failed", result);
   if (!result.ok) {
     throw new Error("Harness config validation failed.");
@@ -676,8 +691,12 @@ const validateConfig = async () => {
 const validateData = async (values) => {
   const options = parseOptions(values);
   const appId = options.app ?? options._[0] ?? null;
-  const reportPath = options.report ? path.resolve(options.report) : undefined;
-  const dictionaryPath = options.dictionary ? path.resolve(options.dictionary) : undefined;
+  const reportPath = options.report
+    ? path.resolve(options.report)
+    : path.join(reportsRoot, "clinical-data-pack-validation.json");
+  const dictionaryPath = options.dictionary
+    ? path.resolve(options.dictionary)
+    : path.join(rootDir, "docs", "generated", "clinical-data-dictionary.md");
 
   let result;
   if (options["data-dir"]) {
@@ -696,6 +715,22 @@ const validateData = async (values) => {
   }
 
   await appendAudit("validate-data", result.ok ? "ok" : "failed", result);
+  const results = result.results ?? [result];
+  printJson({
+    ok: result.ok,
+    report: repoRelative(reportPath),
+    dictionary: repoRelative(dictionaryPath),
+    resultCount: results.length,
+    errors: results.reduce((total, item) => total + (item.summary?.errorCount ?? 0), 0),
+    warnings: results.reduce((total, item) => total + (item.summary?.warningCount ?? 0), 0),
+    dataPacks: results.map((item) => ({
+      id: item.dataPack?.id,
+      appId: item.appId ?? null,
+      subjects: item.summary?.subjectCount ?? 0,
+      domains: item.summary?.domainCount ?? 0,
+      sha256: item.dataPack?.sha256,
+    })),
+  });
 };
 
 const listApps = async () => {
@@ -721,6 +756,10 @@ const doctor = async () => {
   await pushCheck("schemas/clinical-data-pack.schema.json", await exists(path.join(rootDir, "schemas", "clinical-data-pack.schema.json")), "clinical data contract");
   await pushCheck("templates/apps/subject-profile-reference", await exists(path.join(rootDir, "templates", "apps", "subject-profile-reference")), "subject profile template");
   await pushCheck("templates/reports", await exists(path.join(rootDir, "templates", "reports")), "report template registry");
+  await pushCheck("prereq:node-modules", await exists(path.join(rootDir, "node_modules")), "run npm ci before verify");
+  await pushCheck("prereq:@playwright/test", await exists(path.join(rootDir, "node_modules", "@playwright", "test")), "Playwright package for E2E");
+  await pushCheck("prereq:Rscript", await commandAvailable("Rscript", ["--version"]), "required by Shinylive export and verify");
+  await pushCheck("prereq:cargo", await commandAvailable("cargo", ["--version"]), "required by harness-server tests and E2E");
   await pushCheck("configured apps", config.apps.length > 0, `${config.apps.length} app(s)`);
 
   const ids = new Set();
@@ -822,6 +861,7 @@ const verifyAll = async (values = []) => {
   await exportApps();
   await exportReports({ appId });
   await buildPortalAndPrepare();
+  await runCommand("npm", ["run", "test:unit"]);
   await runCommand("npm", ["run", "check"]);
   await runCommand("cargo", ["test", "--manifest-path", "crates/harness-server/Cargo.toml"]);
   await verifyBundleArtifacts();
@@ -862,10 +902,17 @@ try {
       break;
     case "export-reports": {
       const options = parseOptions(args);
-      await exportReports({
+      const result = await exportReports({
         appId: options.app ?? options._[0] ?? null,
         subjectId: options.subject ?? null,
         allSubjects: Boolean(options["all-subjects"]),
+      });
+      printJson({
+        ok: true,
+        report: "reports/report-export-manifest.json",
+        index: "reports/exported/index.html",
+        apps: result.appResults.length,
+        reports: result.appResults.reduce((total, item) => total + item.reports.length, 0),
       });
       break;
     }
@@ -873,7 +920,16 @@ try {
       await buildPortalAndPrepare();
       break;
     case "verify-static":
-      await verifyBundleArtifacts();
+      {
+        const result = await verifyBundleArtifacts();
+        printJson({
+          ok: result.ok,
+          report: "reports/static-verification.json",
+          apps: result.appCount,
+          assets: result.assetCount,
+          issues: result.issues.length,
+        });
+      }
       break;
     case "verify":
       await verifyAll(args);

@@ -4,6 +4,8 @@ The harness validates synthetic clinical data packs before export, verification,
 
 Synthetic data packs are for technical evaluation and verification only. They are not for clinical decision making without organization-specific validation and approval.
 
+This contract is intentionally a compact, non-CDISC demo schema. It is useful for exercising the harness, report export, and validation evidence flow, but it is not an SDTM/ADaM submission contract. If the harness is used in a regulated clinical workflow, replace or map these domains through an organization-approved CDISC/controlled terminology process.
+
 ## Files
 
 Required metadata:
@@ -56,11 +58,15 @@ The validator checks:
 - required columns for all required domains
 - duplicate or blank demographics `subject_id`
 - subject ID references from visits, labs, vitals, AEs, medications, and exposure
+- visit-level references from labs and vitals to `visits.csv`
+- controlled terminology for key demo fields such as AE severity, seriousness, relatedness, lab flags, visit status, and exposure dose status
 - ISO dates for demographics and visits
 - visit day numeric values
 - AE start/end day ordering
 - medication and exposure start/end day ordering
 - per-file SHA-256 and aggregate data pack SHA-256
+
+The aggregate data pack hash is computed from each file's logical path inside the pack plus file size and SHA-256, so the same data pack produces the same aggregate hash whether it is stored under `data-packs/<id>/` or materialized into an app source directory.
 
 ## Outputs
 

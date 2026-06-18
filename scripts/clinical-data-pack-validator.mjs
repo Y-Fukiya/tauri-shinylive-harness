@@ -88,6 +88,32 @@ export const clinicalDomains = {
 
 const metadataFile = "clinical-demo-data-pack.json";
 
+const controlledTerminology = {
+  demographics: {
+    sex: ["F", "M"],
+    study_status: ["On study", "Discontinued", "Completed"],
+  },
+  visits: {
+    visit_status: ["Completed", "Missed", "Planned"],
+    disposition: ["Eligible", "Dosed", "On treatment", "Discontinued", "Completed"],
+  },
+  labs: {
+    flag: ["Low", "Normal", "High"],
+  },
+  adverse_events: {
+    severity: ["Mild", "Moderate", "Severe"],
+    serious: ["Y", "N"],
+    related: ["Unrelated", "Unlikely", "Possible", "Probable", "Related"],
+    outcome: ["Resolved", "Resolving", "Ongoing", "Discontinued", "Fatal"],
+  },
+  concomitant_meds: {
+    ongoing: ["Y", "N"],
+  },
+  exposure: {
+    dose_status: ["Completed", "Control", "Dose reduced", "Interrupted", "Not dosed"],
+  },
+};
+
 const parseOptions = (values) => {
   const options = { _: [] };
   for (let index = 0; index < values.length; index += 1) {
@@ -139,13 +165,62 @@ const parseCsvLine = (line) => {
   return values;
 };
 
+const parseCsvRows = (text) => {
+  const rows = [];
+  let row = [];
+  let current = "";
+  let inQuotes = false;
+
+  const source = text.replace(/^\uFEFF/, "");
+  for (let index = 0; index < source.length; index += 1) {
+    const char = source[index];
+    const next = source[index + 1];
+
+    if (char === '"' && inQuotes && next === '"') {
+      current += '"';
+      index += 1;
+      continue;
+    }
+    if (char === '"') {
+      inQuotes = !inQuotes;
+      continue;
+    }
+    if (char === "," && !inQuotes) {
+      row.push(current);
+      current = "";
+      continue;
+    }
+    if ((char === "\n" || char === "\r") && !inQuotes) {
+      if (char === "\r" && next === "\n") {
+        index += 1;
+      }
+      row.push(current);
+      if (!(row.length === 1 && row[0] === "")) {
+        rows.push(row);
+      }
+      row = [];
+      current = "";
+      continue;
+    }
+    current += char;
+  }
+
+  if (inQuotes) {
+    throw new Error("CSV contains an unterminated quoted field.");
+  }
+  if (current !== "" || row.length > 0) {
+    row.push(current);
+    if (!(row.length === 1 && row[0] === "")) {
+      rows.push(row);
+    }
+  }
+
+  return rows;
+};
+
 const readCsv = async (targetPath) => {
   const text = await readFile(targetPath, "utf8");
-  const rows = text
-    .replace(/^\uFEFF/, "")
-    .split(/\r?\n/)
-    .filter((line) => line.length > 0)
-    .map(parseCsvLine);
+  const rows = parseCsvRows(text);
   const headers = rows[0] ?? [];
   const records = rows.slice(1).map((row, rowIndex) => {
     const record = { __row: rowIndex + 2 };
@@ -207,6 +282,25 @@ const addIssue = (issues, severity, code, message, details = {}) => {
   issues.push({ severity, code, message, details });
 };
 
+const validateControlledTerminology = (issues, domainName, records) => {
+  const domainTerms = controlledTerminology[domainName] ?? {};
+  for (const [column, values] of Object.entries(domainTerms)) {
+    const allowed = new Set(values);
+    for (const record of records) {
+      if (!isBlank(record[column]) && !allowed.has(record[column])) {
+        addIssue(issues, "error", "invalid-controlled-term", `${domainName}.${column} has an unsupported value.`, {
+          domain: domainName,
+          column,
+          row: record.__row,
+          subject_id: record.subject_id,
+          value: record[column],
+          allowed: values,
+        });
+      }
+    }
+  }
+};
+
 const getDataDirForApp = (app) => {
   const manifestPath = app.dataPaths.find((candidate) => candidate.endsWith(metadataFile));
   if (manifestPath) {
@@ -216,6 +310,9 @@ const getDataDirForApp = (app) => {
 };
 
 const relativeToRoot = (targetPath) => toPosix(path.relative(rootDir, targetPath));
+const logicalDataPackPath = (targetPath, dataDir) => toPosix(path.relative(dataDir, targetPath));
+
+const visitKey = (record) => `${record.subject_id}\0${record.visit}\0${record.visit_day}`;
 
 const createDataDictionaryMarkdown = (result) => {
   const lines = [
@@ -230,6 +327,7 @@ const createDataDictionaryMarkdown = (result) => {
   for (const domain of result.domains) {
     lines.push(`## ${domain.name}`, "");
     lines.push(`File: \`${domain.file.path}\``);
+    lines.push(`Logical path: \`${domain.file.logicalPath ?? domain.file.path}\``);
     lines.push(`Rows: ${domain.rowCount}`);
     lines.push("");
     lines.push("| Column | Required | Inferred Type | Non-blank | Missing |");
@@ -326,7 +424,17 @@ export const validateClinicalDataPack = async ({
       continue;
     }
 
-    const csv = await readCsv(filePath);
+    let csv;
+    try {
+      csv = await readCsv(filePath);
+    } catch (error) {
+      addIssue(issues, "error", "invalid-csv", `${domainSpec.file} could not be parsed as CSV.`, {
+        domain: domainName,
+        path: relativeToRoot(filePath),
+        message: error instanceof Error ? error.message : String(error),
+      });
+      continue;
+    }
     csvByDomain.set(domainName, csv);
     for (const column of domainSpec.requiredColumns) {
       if (!csv.headers.includes(column)) {
@@ -343,6 +451,7 @@ export const validateClinicalDataPack = async ({
       rowCount: csv.records.length,
       file: {
         path: relativeToRoot(filePath),
+        logicalPath: logicalDataPackPath(filePath, resolvedDataDir),
         size: metadataStat.size,
         sha256: await sha256File(filePath),
       },
@@ -357,6 +466,7 @@ export const validateClinicalDataPack = async ({
         };
       }),
     });
+    validateControlledTerminology(issues, domainName, csv.records);
   }
 
   const demographics = csvByDomain.get("demographics")?.records ?? [];
@@ -428,13 +538,30 @@ export const validateClinicalDataPack = async ({
     }
   }
 
+  const visitKeys = new Set();
+  const visitNamesBySubject = new Map();
   for (const record of csvByDomain.get("visits")?.records ?? []) {
-    if (asNumber(record.visit_day) === null) {
+    const visitDay = asNumber(record.visit_day);
+    if (visitDay === null) {
       addIssue(issues, "error", "invalid-visit-day", "visits.visit_day must be numeric.", {
         row: record.__row,
         subject_id: record.subject_id,
         value: record.visit_day,
       });
+    } else if (!isBlank(record.subject_id) && !isBlank(record.visit)) {
+      const key = visitKey(record);
+      if (visitKeys.has(key)) {
+        addIssue(issues, "error", "duplicate-visit-reference", "visits contains duplicate subject_id + visit + visit_day.", {
+          row: record.__row,
+          subject_id: record.subject_id,
+          visit: record.visit,
+          visit_day: record.visit_day,
+        });
+      }
+      visitKeys.add(key);
+      const subjectVisits = visitNamesBySubject.get(record.subject_id) ?? new Set();
+      subjectVisits.add(record.visit);
+      visitNamesBySubject.set(record.subject_id, subjectVisits);
     }
     if (!isIsoDate(record.visit_date)) {
       addIssue(issues, "error", "invalid-visit-date", "visits.visit_date must be YYYY-MM-DD.", {
@@ -447,13 +574,34 @@ export const validateClinicalDataPack = async ({
 
   for (const domainName of ["labs", "vitals"]) {
     for (const record of csvByDomain.get(domainName)?.records ?? []) {
-      if (asNumber(record.visit_day) === null) {
+      const visitDay = asNumber(record.visit_day);
+      if (visitDay === null) {
         addIssue(issues, "error", "invalid-visit-day", `${domainName}.visit_day must be numeric.`, {
           domain: domainName,
           row: record.__row,
           subject_id: record.subject_id,
           value: record.visit_day,
         });
+        continue;
+      }
+      if (!isBlank(record.subject_id) && !isBlank(record.visit)) {
+        const subjectVisits = visitNamesBySubject.get(record.subject_id) ?? new Set();
+        if (!subjectVisits.has(record.visit)) {
+          addIssue(issues, "error", "unknown-visit-reference", `${domainName} references a visit not present in visits.csv.`, {
+            domain: domainName,
+            row: record.__row,
+            subject_id: record.subject_id,
+            visit: record.visit,
+          });
+        } else if (!visitKeys.has(visitKey(record))) {
+          addIssue(issues, "error", "visit-day-reference-mismatch", `${domainName} visit_day does not match visits.csv for the referenced visit.`, {
+            domain: domainName,
+            row: record.__row,
+            subject_id: record.subject_id,
+            visit: record.visit,
+            visit_day: record.visit_day,
+          });
+        }
       }
     }
   }
@@ -518,6 +666,7 @@ export const validateClinicalDataPack = async ({
     const metadataStat = await stat(metadataPath);
     files.push({
       path: relativeToRoot(metadataPath),
+      logicalPath: metadataFile,
       size: metadataStat.size,
       sha256: await sha256File(metadataPath),
     });
@@ -527,7 +676,8 @@ export const validateClinicalDataPack = async ({
   }
 
   const aggregateSource = files
-    .map((file) => `${file.path}\0${file.size}\0${file.sha256}`)
+    .map((file) => `${file.logicalPath ?? file.path}\0${file.size}\0${file.sha256}`)
+    .sort()
     .join("\n");
   const aggregateHash = createHash("sha256").update(aggregateSource).digest("hex");
   const errorCount = issues.filter((issue) => issue.severity === "error").length;

@@ -78,7 +78,7 @@ data_pack_source = "data-packs/clinical-demo-subject-profile-v1"
 data_paths = ["shinylive-src/subject-profile-reference/data/demographics.csv"]
 ```
 
-During export, the harness writes a `dataPack` object into `harness-app.json` with per-file SHA-256 hashes, an aggregate pack hash, and the configured source registry path. `dist/manifest.json` carries the same object for portal diagnostics and validation evidence.
+During export, the harness writes a `dataPack` object into `harness-app.json` with per-file SHA-256 hashes, logical pack-relative paths, an aggregate pack hash, and the configured source registry path. `dist/manifest.json` carries the same object for portal diagnostics and validation evidence.
 
 `harness validate-config` checks the normalized `harness.toml` contract and writes `reports/harness-config-validation.json`.
 
@@ -86,7 +86,8 @@ During export, the harness writes a `dataPack` object into `harness-app.json` wi
 
 - metadata contract in `clinical-demo-data-pack.json`
 - required columns for demographics, visits, labs, vitals, adverse events, concomitant meds, and exposure
-- subject ID referential integrity
+- subject ID and lab/vital visit-level referential integrity
+- key controlled terminology for demo clinical fields
 - date and study-day ordering checks for visits, AEs, meds, and exposure
 - hash-linked `reports/clinical-data-pack-validation.json`
 - generated `docs/generated/clinical-data-dictionary.md`

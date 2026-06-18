@@ -6,6 +6,8 @@ Reusable Tauri + Shinylive harness for generating, validating, packaging, and pr
 
 This harness and its bundled synthetic demo apps are for technical evaluation only. They are not validated medical devices and are not for clinical decision making unless an organization completes its own regulated validation and approval.
 
+The bundled clinical demo data contract is a synthetic, non-CDISC schema for harness verification and product demonstrations. It is not an SDTM/ADaM submission model. Organizations that need submission-oriented evidence should map or replace the demo domains with their own validated CDISC/controlled terminology workflow.
+
 The harness is now config-driven:
 
 - `harness.toml` is the app catalog and distribution source of truth.
@@ -25,12 +27,25 @@ The harness is now config-driven:
 
 ## Commands
 
+Prerequisites for the full local verification path:
+
+- Node.js and npm dependencies installed with `npm ci`
+- Rust/Cargo via rustup for the embedded localhost server and Tauri shell
+- R with `Rscript`; first export installs or reuses the `shinylive` R package under `.r-lib`
+- Playwright Chromium installed with `npx playwright install chromium`
+- Tauri OS prerequisites:
+  - macOS: Xcode Command Line Tools
+  - Windows: WebView2 and MSVC Build Tools
+  - Linux: webkit2gtk, librsvg, and related Tauri system packages
+- First Shinylive export may need network access to install R packages or download Shinylive web assets into `.shinylive-cache`
+
 Fast path for this repository:
 
 ```sh
 npm ci
 npm run validate:config
 npm run doctor
+npm run test:unit
 npm run validate:data
 npm run export:reports
 npm run smoke:multi-app

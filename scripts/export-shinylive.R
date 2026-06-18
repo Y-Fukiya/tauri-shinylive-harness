@@ -179,7 +179,11 @@ harness_boot_js <- c(
 
 patched_index_html <- sub(default_boot_script, harness_boot_script, index_html, fixed = TRUE)
 if (identical(index_html, patched_index_html)) {
-  stop("Could not patch exported Shinylive boot script in ", index_path)
+  boot_script_pattern <- '<script\\s+type="module"[^>]*>[\\s\\S]*?runExportedApp[\\s\\S]*?</script>'
+  patched_index_html <- sub(boot_script_pattern, harness_boot_script, index_html, perl = TRUE)
+}
+if (identical(index_html, patched_index_html)) {
+  stop("Could not patch exported Shinylive boot script in ", index_path, ". No module script containing runExportedApp was found.")
 }
 writeLines(strsplit(patched_index_html, "\n", fixed = TRUE)[[1]], index_path)
 writeLines(harness_boot_js, file.path(output_dir, "harness-boot.js"))

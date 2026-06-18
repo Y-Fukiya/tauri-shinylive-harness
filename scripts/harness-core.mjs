@@ -64,6 +64,68 @@ const stripComment = (line) => {
   return line;
 };
 
+const splitTomlArrayItems = (inner) => {
+  const items = [];
+  let current = "";
+  let inString = false;
+  let escaped = false;
+
+  for (let index = 0; index < inner.length; index += 1) {
+    const char = inner[index];
+
+    if (escaped) {
+      current += char;
+      escaped = false;
+      continue;
+    }
+    if (char === "\\" && inString) {
+      current += char;
+      escaped = true;
+      continue;
+    }
+    if (char === '"') {
+      current += char;
+      inString = !inString;
+      continue;
+    }
+    if (char === "," && !inString) {
+      const item = current.trim();
+      if (!item) {
+        throw new Error("Invalid TOML array: empty array item.");
+      }
+      items.push(item);
+      current = "";
+      continue;
+    }
+    current += char;
+  }
+
+  if (inString) {
+    throw new Error("Invalid TOML array: unterminated string.");
+  }
+
+  const item = current.trim();
+  if (item) {
+    items.push(item);
+  }
+
+  return items;
+};
+
+const unescapeTomlString = (value) =>
+  value.replace(/\\(["\\nrtbf])/g, (_match, char) => {
+    const escapes = {
+      '"': '"',
+      "\\": "\\",
+      n: "\n",
+      r: "\r",
+      t: "\t",
+      b: "\b",
+      f: "\f",
+    };
+    return escapes[char];
+  });
+
 const parseTomlValue = (rawValue) => {
   const value = rawValue.trim();
 
@@ -72,18 +134,11 @@ const parseTomlValue = (rawValue) => {
     if (!inner) {
       return [];
     }
-    return inner
-      .split(",")
-      .map((item) => parseTomlValue(item.trim()))
-      .filter((item) => item !== "");
+    return splitTomlArrayItems(inner).map((item) => parseTomlValue(item));
   }
 
   if (value.startsWith('"') && value.endsWith('"')) {
-    return value
-      .slice(1, -1)
-      .replace(/\\"/g, '"')
-      .replace(/\\n/g, "\n")
-      .replace(/\\\\/g, "\\");
+    return unescapeTomlString(value.slice(1, -1));
   }
 
   if (value === "true") {
@@ -97,6 +152,16 @@ const parseTomlValue = (rawValue) => {
   }
 
   return value;
+};
+
+const logicalDataPackPath = (app, relativePath) => {
+  const normalizedPath = toPosix(relativePath);
+  const metadataPath = app.dataPaths.find((candidate) => candidate.endsWith("clinical-demo-data-pack.json"));
+  const dataRoot = metadataPath
+    ? toPosix(path.posix.dirname(toPosix(metadataPath)))
+    : toPosix(path.posix.dirname(normalizedPath));
+  const prefix = `${dataRoot}/`;
+  return normalizedPath.startsWith(prefix) ? normalizedPath.slice(prefix.length) : path.posix.basename(normalizedPath);
 };
 
 export const parseHarnessToml = (contents) => {
@@ -451,13 +516,15 @@ const createDataPackManifest = async (app) => {
     const metadata = await stat(targetPath);
     files.push({
       path: toPosix(relativePath),
+      logicalPath: logicalDataPackPath(app, relativePath),
       size: metadata.size,
       sha256: await sha256File(targetPath),
     });
   }
 
   const fingerprint = files
-    .map((file) => `${file.path}\0${file.size}\0${file.sha256}`)
+    .map((file) => `${file.logicalPath}\0${file.size}\0${file.sha256}`)
+    .sort()
     .join("\n");
 
   return {
@@ -882,9 +949,10 @@ export const writeVerificationProcedure = async (config) => {
     "4. `node scripts/harness.mjs export`",
     "5. `node scripts/harness.mjs export-reports`",
     "6. `node scripts/harness.mjs prepare`",
-    "7. `node scripts/harness.mjs verify-static`",
-    "8. `node scripts/e2e-verify.mjs`",
-    "9. `npm run tauri:build`",
+    "7. `npm run test:unit`",
+    "8. `node scripts/harness.mjs verify-static`",
+    "9. `node scripts/e2e-verify.mjs`",
+    "10. `npm run tauri:build`",
     "",
     "## Phase 3 Commands",
     "",
@@ -913,6 +981,7 @@ export const writeVerificationProcedure = async (config) => {
     "- Configured report templates export HTML report evidence under `reports/exported/`.",
     "- Exported reports include data pack hash, generated timestamp, app version, clinical-use limitation, and reviewer sign-off fields.",
     "- `reports/review-workflow.json` records review status, reviewer, reviewed_at, decision, and notes fields.",
+    "- Unit tests cover TOML quoted arrays, location-independent data pack hashes, controlled terminology, and visit-reference validation.",
     "- Playwright screenshot evidence is generated for the portal and verified apps.",
     "- E2E network audit observes no external HTTP(S) requests.",
     "- `dist/harness-bundle-manifest.json` hashes match bundled files.",
@@ -932,7 +1001,6 @@ export const writeVerificationProcedure = async (config) => {
     ...config.apps.map(
       (app) => `| ${app.id} | ${app.kind} | ${app.dataPack || "n/a"} | ${(app.reportTemplates ?? []).join("<br>") || "n/a"} | ${app.smokeText.join("<br>")} |`,
     ),
-    "",
   ];
 
   await mkdir(path.join(rootDir, "docs", "generated"), { recursive: true });

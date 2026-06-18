@@ -48,7 +48,7 @@ data_pack_source = "data-packs/clinical-demo-subject-profile-v1"
 data_paths = ["..."]
 ```
 
-During `npm run export`, the harness computes per-file SHA-256 hashes and an aggregate data pack hash from the materialized app data. The app manifest also records the reusable `data_pack_source` registry path. Those values are written into:
+During `npm run export`, the harness computes per-file SHA-256 hashes and an aggregate data pack hash from the materialized app data. The aggregate hash uses each file's logical path inside the pack, not the repository location, so registry copies and materialized app copies remain traceable to the same content identity. The app manifest also records the reusable `data_pack_source` registry path. Those values are written into:
 
 - `apps/subject-profile-reference/harness-app.json`
 - `dist/manifest.json`
@@ -60,7 +60,7 @@ During `npm run export`, the harness computes per-file SHA-256 hashes and an agg
 - `reports/clinical-data-pack-validation.json`
 - `docs/generated/clinical-data-dictionary.md`
 
-The validator checks metadata, required columns, subject ID references, visit dates, AE start/end days, medication intervals, exposure intervals, and the aggregate data pack hash.
+The validator checks metadata, required columns, subject ID references, lab/vital visit references, key controlled terminology, visit dates, AE start/end days, medication intervals, exposure intervals, and the aggregate data pack hash.
 
 ## Reference Checks
 

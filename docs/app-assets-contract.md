@@ -52,6 +52,7 @@ apps/<app-id>/
     "files": [
       {
         "path": "shinylive-src/subject-profile-reference/data/demographics.csv",
+        "logicalPath": "demographics.csv",
         "size": 901,
         "sha256": "<file sha256>"
       }
@@ -62,7 +63,7 @@ apps/<app-id>/
 
 The portal manifest references app paths from the localhost server root. At runtime, `/apps/subject-safety-mini/index.html` resolves to `http://127.0.0.1:<port>/apps/subject-safety-mini/index.html`.
 
-`dataPack` is optional. When an app declares `data_pack`, `data_pack_source`, and `data_paths` in `harness.toml`, the harness computes file hashes from the materialized app data and carries the source registry path into both `harness-app.json` and `dist/manifest.json`.
+`dataPack` is optional. When an app declares `data_pack`, `data_pack_source`, and `data_paths` in `harness.toml`, the harness computes file hashes from the materialized app data and carries the source registry path into both `harness-app.json` and `dist/manifest.json`. The aggregate hash uses `logicalPath`, size, and file SHA-256 so the same pack has a stable identity when copied from `data-packs/<id>/` into an app source directory.
 
 `domProbes` is optional. When present, Playwright E2E waits for those selectors inside the nested Shinylive app iframe after smoke text is visible. The Subject Profile reference app uses DOM probes for the lab trend, exposure/AE timeline, and resolved in-app data pack hash.
 

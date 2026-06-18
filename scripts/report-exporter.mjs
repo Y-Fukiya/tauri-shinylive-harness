@@ -535,7 +535,6 @@ const markdownIndex = ({ config, generatedAt, appResults }) => [
   "| Reviewed at |  |",
   "| Decision |  |",
   "| Notes |  |",
-  "",
 ].join("\n");
 
 export const exportReports = async ({ appId = null, subjectId = null, allSubjects = false } = {}) => {
