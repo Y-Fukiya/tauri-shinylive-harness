@@ -82,6 +82,11 @@ const writeReport = async (report) => {
   await writeFile(path.join(reportsRoot, "e2e-diagnostics.json"), `${JSON.stringify(report, null, 2)}\n`);
 };
 
+const writeBundleIntegrityReport = async (integrity) => {
+  await mkdir(reportsRoot, { recursive: true });
+  await writeFile(path.join(reportsRoot, "bundle-integrity.json"), `${JSON.stringify(integrity, null, 2)}\n`);
+};
+
 const waitForDomProbe = async (appFrame, domProbe) => {
   const locator = appFrame.locator(domProbe);
   try {
@@ -131,9 +136,16 @@ try {
   await page.waitForFunction(() => document.body.innerText.includes("Diagnostics"), null, {
     timeout: 20000,
   });
+  await page.waitForFunction(() => document.body.innerText.includes("Bundle Integrity"), null, {
+    timeout: 20000,
+  });
   await page.waitForFunction(() => document.body.innerText.includes("Reported SAB"), null, {
     timeout: 20000,
   });
+
+  const integrityResponse = await page.request.get(new URL("/__harness/integrity", portalUrl).toString());
+  const bundleIntegrity = await integrityResponse.json();
+  await writeBundleIntegrityReport(bundleIntegrity);
 
   await mkdir(path.join(reportsRoot, "screenshots"), { recursive: true });
   const portalScreenshot = path.join(reportsRoot, "screenshots", "portal.png");
@@ -168,10 +180,11 @@ try {
 
   const report = {
     schemaVersion: 1,
-    ok: externalRequests.length === 0 && appResults.every((result) => result.ok),
+    ok: externalRequests.length === 0 && appResults.every((result) => result.ok) && bundleIntegrity.ok === true,
     portalUrl,
     checkedAt: new Date().toISOString(),
     appFilter: appId,
+    bundleIntegrity,
     appResults,
     externalRequests,
     screenshots,

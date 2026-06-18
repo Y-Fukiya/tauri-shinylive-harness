@@ -46,6 +46,7 @@ apps/<app-id>/
   ],
   "dataPack": {
     "id": "clinical-demo-subject-profile-v1",
+    "sourcePath": "data-packs/clinical-demo-subject-profile-v1",
     "sha256": "<aggregate data pack sha256>",
     "fileCount": 8,
     "files": [
@@ -61,7 +62,7 @@ apps/<app-id>/
 
 The portal manifest references app paths from the localhost server root. At runtime, `/apps/subject-safety-mini/index.html` resolves to `http://127.0.0.1:<port>/apps/subject-safety-mini/index.html`.
 
-`dataPack` is optional. When an app declares `data_pack` and `data_paths` in `harness.toml`, the harness computes file hashes from the source data and carries them into both `harness-app.json` and `dist/manifest.json`.
+`dataPack` is optional. When an app declares `data_pack`, `data_pack_source`, and `data_paths` in `harness.toml`, the harness computes file hashes from the materialized app data and carries the source registry path into both `harness-app.json` and `dist/manifest.json`.
 
 `domProbes` is optional. When present, Playwright E2E waits for those selectors inside the nested Shinylive app iframe after smoke text is visible. The Subject Profile reference app uses DOM probes for the lab trend, exposure/AE timeline, and resolved in-app data pack hash.
 
@@ -70,6 +71,8 @@ Clinical apps that declare a data pack should pass `node scripts/harness.mjs val
 For a real Shinylive export, keep the app under its own directory and ensure all webR, WASM, package, and data assets are local to the exported tree. Do not overwrite Shinylive's own `app.json`; the harness portal reads `harness-app.json` instead.
 
 Runtime must not depend on external CDNs or package repositories. `node scripts/e2e-verify.mjs` fails if non-local HTTP(S) requests are observed.
+
+Runtime bundle integrity is exposed at `/__harness/integrity`. It reads `dist/harness-bundle-manifest.json`, checks each listed file under the static root, and reports missing or mismatched size/SHA-256 values.
 
 By default, `scripts/export-shinylive.R` disables Shinylive's extra webR package download path with `wasm_packages = FALSE`. Apps that require additional R packages must opt in deliberately with `HARNESS_WASM_PACKAGES=true` and then commit or otherwise preserve the resulting local assets before release verification.
 

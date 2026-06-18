@@ -1,6 +1,6 @@
 {
   "name": "tauri-shinylive-harness",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "private": true,
   "type": "module",
   "bin": {
@@ -14,6 +14,7 @@
     "build:all": "npm run build:portal && npm run prepare:dist",
     "check": "tsc --noEmit",
     "doctor": "node scripts/harness.mjs doctor",
+    "validate:config": "node scripts/harness.mjs validate-config",
     "validate:data": "node scripts/harness.mjs validate-data",
     "test:rust": "cargo test --manifest-path crates/harness-server/Cargo.toml",
     "smoke:multi-app": "node scripts/multi-app-smoke.mjs",

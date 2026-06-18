@@ -13,10 +13,12 @@ Phase 3 automates release-candidate evidence and credential-ready macOS distribu
 - App catalog: `[[apps]]` entries in `harness.toml`.
 - App metadata: each exported app writes `apps/<id>/harness-app.json`.
 - Data pack traceability: app manifests may include a `dataPack` object with per-file SHA-256 hashes and an aggregate pack hash.
+- Data pack source registry: reusable packs live under `data-packs/*`, and `data_pack_source` links apps back to their source pack.
+- Harness config contract: `schemas/harness.schema.json` and `harness validate-config` catch config errors before export/package.
 - Clinical data contract: `schemas/clinical-data-pack.schema.json` and `harness validate-data` verify synthetic data packs before export/release.
 - DOM probes: `dom_probes` entries in `harness.toml` let Playwright verify rendered app-specific UI, such as plots.
 - Portal manifest: `dist/manifest.json`, generated from `harness.toml` and app manifests.
-- Bundle integrity: `dist/harness-bundle-manifest.json` plus `dist/checksums/SHA256SUMS`.
+- Bundle integrity: `dist/harness-bundle-manifest.json`, `dist/checksums/SHA256SUMS`, and runtime `GET /__harness/integrity`.
 - Verification: TypeScript check, Rust tests, static hash verification, and Playwright E2E.
 - Network posture: E2E fails if non-local HTTP(S) requests are observed.
 - Distribution proof: unsigned macOS `.app`, DMG, and pkg build.
@@ -39,7 +41,8 @@ The v2 profile app includes a subject selector, lab test selector, AE severity/r
 ```text
 harness new <directory>
 harness add-app <id> [--title "Title"] [--template basic|subject-profile]
-harness add-data-pack <app-id> <data-dir> [--id data-pack-id]
+harness add-data-pack <app-id> <data-dir> [--id data-pack-id] [--copy]
+harness validate-config
 harness validate-data [app-id]
 harness list
 harness doctor
@@ -73,7 +76,7 @@ npm run build:release-local
 - Generated projects include Tauri, React portal, Rust server, harness scripts, CI/release workflows, and one sample Shinylive source app.
 - `harness add-app` can add a second app to the generated project.
 - `harness add-app --template subject-profile` can generate a reusable subject profile app from the registry.
-- `harness add-data-pack` can attach and validate an external synthetic data pack.
+- `harness add-data-pack --copy` can register, attach, materialize, and validate an external synthetic data pack.
 - `npm run smoke:multi-app` verifies the generated template, basic app path, subject-profile template path, and data validation path in a temporary directory.
 
 ## Runtime Architecture
@@ -83,7 +86,7 @@ Tauri app starts
   -> Rust setup resolves bundled dist/
   -> Rust loopback server binds 127.0.0.1:0
   -> main WebView navigates to http://127.0.0.1:<port>/portal/index.html
-  -> portal fetches /manifest.json and /__harness/health
+  -> portal fetches /manifest.json, /__harness/health, and /__harness/integrity
   -> user selects an app from the manifest
   -> portal displays selected /apps/<id>/index.html in a same-origin iframe
   -> Shinylive creates its own nested app iframe
@@ -120,6 +123,12 @@ release/
   SHA256SUMS
   validation-pack/
   validation-pack.zip
+
+data-packs/
+  <data-pack-id>/
+    clinical-demo-data-pack.json
+    demographics.csv
+    ...
 ```
 
 ## Required Response Headers
@@ -157,6 +166,7 @@ The portal must show:
 - Retry, same-window open, and diagnostics JSON download actions.
 - Browser isolation, SharedArrayBuffer, ServiceWorker, and server health diagnostics.
 - Header probes for portal HTML and selected app probes.
+- Runtime bundle integrity status.
 - iframe-reported diagnostics by app id.
 
 ## Server Requirements
@@ -171,12 +181,14 @@ The Rust server must:
 - Return required security headers and MIME types.
 - Provide `GET /__harness/health`.
 - Provide `GET /__harness/headers?path=/...`.
+- Provide `GET /__harness/integrity`.
 
 ## Acceptance Criteria
 
 - `npm run export` generates configured app output.
-- `npm run build:all` creates portal, app dist, aggregated manifest, bundle manifest, checksums, SBOM seed, license report, and generated verification procedure.
+- `npm run build:all` creates portal, app dist, aggregated manifest, bundle manifest, checksums, SBOM/license report, config validation report, and generated verification procedure.
 - `npm run verify` passes TypeScript check, Rust tests, static hash verification, and Playwright E2E.
+- `npm run verify` runs harness config validation before data validation/export.
 - `npm run verify` runs clinical data pack validation before export.
 - Playwright E2E confirms smoke text for each configured app.
 - Playwright E2E confirms configured DOM probes, including the Subject Profile ALT trend image, exposure/AE timeline image, and resolved in-app data pack hash.
@@ -184,6 +196,8 @@ The Rust server must:
 - Playwright E2E records zero external HTTP(S) requests.
 - `reports/clinical-data-pack-validation.json` and `docs/generated/clinical-data-dictionary.md` are generated for configured data packs.
 - `harness-app.json` and `dist/manifest.json` include data pack hashes for apps that declare `data_pack` and `data_paths`.
+- `harness-app.json` and `dist/manifest.json` include `dataPack.sourcePath` for apps that declare `data_pack_source`.
+- Runtime `/__harness/integrity` reports OK for the prepared bundle.
 - `npm run build:harness` produces the unsigned macOS `.app`.
 - Packaged `.app` health endpoint serves `dist` from bundled resources.
 - `npm run build:release-local` produces an unsigned app archive, DMG/pkg, release checksums, release notes, and validation pack.

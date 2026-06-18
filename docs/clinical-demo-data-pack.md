@@ -6,6 +6,7 @@
 
 ```text
 shinylive-src/subject-profile-reference/data/
+data-packs/clinical-demo-subject-profile-v1/
 ```
 
 ## Domains
@@ -25,10 +26,11 @@ The `subject-profile-reference` app declares:
 
 ```toml
 data_pack = "clinical-demo-subject-profile-v1"
+data_pack_source = "data-packs/clinical-demo-subject-profile-v1"
 data_paths = ["..."]
 ```
 
-During `npm run export`, the harness computes per-file SHA-256 hashes and an aggregate data pack hash. Those values are written into:
+During `npm run export`, the harness computes per-file SHA-256 hashes and an aggregate data pack hash from the materialized app data. The app manifest also records the reusable `data_pack_source` registry path. Those values are written into:
 
 - `apps/subject-profile-reference/harness-app.json`
 - `dist/manifest.json`

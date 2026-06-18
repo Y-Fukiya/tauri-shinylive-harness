@@ -1,0 +1,10 @@
+subject_id,ae_id,ae_term,system_organ_class,start_day,end_day,severity,serious,related,outcome
+SUBJ-001,AE-001,Headache,Nervous system disorders,9,11,Mild,N,Possible,Resolved
+SUBJ-001,AE-002,Nausea,Gastrointestinal disorders,18,22,Moderate,N,Probable,Resolved
+SUBJ-001,AE-003,Alanine aminotransferase increased,Investigations,30,60,Moderate,N,Possible,Resolving
+SUBJ-002,AE-004,Fatigue,General disorders,20,24,Mild,N,Unrelated,Resolved
+SUBJ-003,AE-005,Alanine aminotransferase increased,Investigations,31,57,Severe,Y,Probable,Discontinued
+SUBJ-003,AE-006,Rash,Skin disorders,12,19,Moderate,N,Possible,Resolved
+SUBJ-004,AE-007,Hypertension,Vascular disorders,45,,Moderate,N,Unrelated,Ongoing
+SUBJ-006,AE-008,Dizziness,Nervous system disorders,17,18,Mild,N,Possible,Resolved
+SUBJ-006,AE-009,Alanine aminotransferase increased,Investigations,34,82,Moderate,N,Possible,Resolved

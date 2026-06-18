@@ -5,7 +5,8 @@
 ```text
 harness new <directory>
 harness add-app <id> [--template basic|subject-profile]
-harness add-data-pack <app-id> <data-dir> [--id data-pack-id]
+harness add-data-pack <app-id> <data-dir> [--id data-pack-id] [--copy]
+harness validate-config
 harness validate-data [app-id]
 harness list
 harness doctor
@@ -37,6 +38,9 @@ tauri-shinylive-harness <command>
 - `src-tauri/tauri.conf.json`
 - generated project README
 - sample `shinylive-src/subject-safety-mini/app.R`
+- `AGENTS.md`
+- `schemas/harness.schema.json`
+- reusable `data-packs/*` registry assets
 
 Generated projects intentionally do not copy `dist/`, `release/`, `reports/`, `node_modules/`, `.r-lib/`, or Tauri/Cargo target directories.
 
@@ -67,10 +71,13 @@ Apps can declare data pack traceability:
 
 ```toml
 data_pack = "clinical-demo-subject-profile-v1"
+data_pack_source = "data-packs/clinical-demo-subject-profile-v1"
 data_paths = ["shinylive-src/subject-profile-reference/data/demographics.csv"]
 ```
 
-During export, the harness writes a `dataPack` object into `harness-app.json` with per-file SHA-256 hashes and an aggregate pack hash. `dist/manifest.json` carries the same object for portal diagnostics and validation evidence.
+During export, the harness writes a `dataPack` object into `harness-app.json` with per-file SHA-256 hashes, an aggregate pack hash, and the configured source registry path. `dist/manifest.json` carries the same object for portal diagnostics and validation evidence.
+
+`harness validate-config` checks the normalized `harness.toml` contract and writes `reports/harness-config-validation.json`.
 
 `harness validate-data` checks:
 
@@ -85,6 +92,12 @@ Attach an external synthetic pack to an app with:
 
 ```sh
 npm run harness -- add-data-pack subject-profile-copy ./data-pack --id clinical-demo-copy-v1
+```
+
+Use `--copy` to register the pack under `data-packs/<pack-id>` and then materialize it into the app source:
+
+```sh
+npm run harness -- add-data-pack subject-profile-copy ./data-pack --id clinical-demo-copy-v1 --copy
 ```
 
 Apps can also declare rendered UI probes:

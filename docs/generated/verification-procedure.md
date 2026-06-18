@@ -5,12 +5,13 @@ This procedure is generated from `harness.toml` and covers Phase 2 verification 
 ## Phase 2 Commands
 
 1. `npm ci`
-2. `node scripts/harness.mjs validate-data`
-3. `node scripts/harness.mjs export`
-4. `node scripts/harness.mjs prepare`
-5. `node scripts/harness.mjs verify-static`
-6. `node scripts/e2e-verify.mjs`
-7. `npm run tauri:build`
+2. `node scripts/harness.mjs validate-config`
+3. `node scripts/harness.mjs validate-data`
+4. `node scripts/harness.mjs export`
+5. `node scripts/harness.mjs prepare`
+6. `node scripts/harness.mjs verify-static`
+7. `node scripts/e2e-verify.mjs`
+8. `npm run tauri:build`
 
 ## Phase 3 Commands
 
@@ -23,6 +24,7 @@ This procedure is generated from `harness.toml` and covers Phase 2 verification 
 ## Acceptance Criteria
 
 - Portal manifest lists every app from `harness.toml`.
+- `reports/harness-config-validation.json` passes with zero errors.
 - COOP, COEP, CORP, Service-Worker-Allowed, and MIME headers pass for configured probes.
 - The browser reports SharedArrayBuffer availability and cross-origin isolation.
 - Each app exposes its configured smoke text in a same-origin iframe.
@@ -32,6 +34,7 @@ This procedure is generated from `harness.toml` and covers Phase 2 verification 
 - Playwright screenshot evidence is generated for the portal and verified apps.
 - E2E network audit observes no external HTTP(S) requests.
 - `dist/harness-bundle-manifest.json` hashes match bundled files.
+- Runtime `/__harness/integrity` reports bundled asset hashes as OK.
 - `dist/checksums/SHA256SUMS` is generated.
 - `dist/reports/sbom.json` and `dist/reports/licenses.md` are generated.
 - `reports/phase3-preflight.json` records signing, notarization, GitHub, and tooling readiness.

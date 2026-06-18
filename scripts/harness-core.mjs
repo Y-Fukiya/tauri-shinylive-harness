@@ -10,11 +10,13 @@ import {
   stat,
   writeFile,
 } from "node:fs/promises";
+import { homedir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 export const configPath = path.join(rootDir, "harness.toml");
+export const configSchemaPath = path.join(rootDir, "schemas", "harness.schema.json");
 export const distRoot = path.join(rootDir, "dist");
 export const reportsRoot = path.join(rootDir, "reports");
 
@@ -162,6 +164,7 @@ const normalizeConfig = (config) => {
     headerProbes: Array.isArray(app.header_probes) ? app.header_probes : ["index.html"],
     domProbes: Array.isArray(app.dom_probes) ? app.dom_probes : [],
     dataPack: app.data_pack ?? "",
+    dataPackSource: app.data_pack_source ?? "",
     dataPaths: Array.isArray(app.data_paths) ? app.data_paths : [],
   }));
 
@@ -182,6 +185,217 @@ const normalizeConfig = (config) => {
 export const readConfig = async () => parseHarnessToml(await readFile(configPath, "utf8"));
 
 const sha256Text = (value) => createHash("sha256").update(value).digest("hex");
+
+const issue = (issues, severity, code, message, details = {}) => {
+  issues.push({ severity, code, message, details });
+};
+
+const isNonEmptyString = (value) => typeof value === "string" && value.trim().length > 0;
+
+const validateStringField = (issues, field, value) => {
+  if (!isNonEmptyString(value)) {
+    issue(issues, "error", "required-string", `${field} must be a non-empty string.`, { field });
+  }
+};
+
+const validateRelativePath = (issues, field, value, { prefix = null } = {}) => {
+  validateStringField(issues, field, value);
+  if (!isNonEmptyString(value)) {
+    return;
+  }
+  if (path.isAbsolute(value) || value.includes("..") || value.includes("\0") || value.includes("\\")) {
+    issue(issues, "error", "invalid-relative-path", `${field} must be a repository-relative POSIX path.`, {
+      field,
+      value,
+    });
+  }
+  if (prefix && !value.startsWith(prefix)) {
+    issue(issues, "warning", "unexpected-path-prefix", `${field} should normally start with ${prefix}.`, {
+      field,
+      value,
+      prefix,
+    });
+  }
+};
+
+const validateStringArray = (issues, field, value, { minLength = 0 } = {}) => {
+  if (!Array.isArray(value)) {
+    issue(issues, "error", "array-required", `${field} must be an array.`, { field });
+    return;
+  }
+  if (value.length < minLength) {
+    issue(issues, "error", "array-too-short", `${field} must include at least ${minLength} item(s).`, {
+      field,
+      minLength,
+    });
+  }
+  for (const [index, item] of value.entries()) {
+    if (!isNonEmptyString(item)) {
+      issue(issues, "error", "array-item-string-required", `${field}[${index}] must be a non-empty string.`, {
+        field,
+        index,
+      });
+    }
+  }
+};
+
+export const validateHarnessConfig = async (
+  config = null,
+  { reportPath = path.join(reportsRoot, "harness-config-validation.json"), writeOutputs = true } = {},
+) => {
+  const nextConfig = config ?? (await readConfig());
+  const issues = [];
+
+  validateStringField(issues, "project.name", nextConfig.project.name);
+  validateStringField(issues, "project.portalTitle", nextConfig.project.portalTitle);
+  validateStringField(issues, "project.bundleName", nextConfig.project.bundleName);
+  if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/.test(nextConfig.project.version)) {
+    issue(issues, "error", "invalid-version", "project.version must be semantic-version-like.", {
+      version: nextConfig.project.version,
+    });
+  }
+
+  validateStringField(issues, "distribution.artifactName", nextConfig.distribution.artifactName);
+  if (!/^[a-z0-9][a-z0-9._-]*$/.test(nextConfig.distribution.artifactName)) {
+    issue(
+      issues,
+      "error",
+      "invalid-artifact-name",
+      "distribution.artifactName must use lowercase letters, numbers, dots, underscores, or hyphens.",
+      { artifactName: nextConfig.distribution.artifactName },
+    );
+  }
+  validateStringField(issues, "distribution.releaseChannel", nextConfig.distribution.releaseChannel);
+  validateStringArray(issues, "distribution.macBundles", nextConfig.distribution.macBundles, { minLength: 1 });
+  for (const bundle of nextConfig.distribution.macBundles) {
+    if (!["app", "dmg", "pkg"].includes(bundle)) {
+      issue(issues, "error", "unsupported-mac-bundle", "distribution.macBundles may contain only app, dmg, or pkg.", {
+        bundle,
+      });
+    }
+  }
+  if (
+    nextConfig.distribution.githubRepo &&
+    !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(nextConfig.distribution.githubRepo)
+  ) {
+    issue(issues, "error", "invalid-github-repo", "distribution.githubRepo must look like owner/repo.", {
+      githubRepo: nextConfig.distribution.githubRepo,
+    });
+  }
+
+  if (nextConfig.apps.length === 0) {
+    issue(issues, "error", "no-apps", "harness.toml must configure at least one app.");
+  }
+
+  const ids = new Set();
+  for (const app of nextConfig.apps) {
+    const prefix = `apps.${app.id || "<missing>"}`;
+    if (!/^[a-z0-9][a-z0-9._-]*$/.test(app.id ?? "")) {
+      issue(issues, "error", "invalid-app-id", "App id must use lowercase letters, numbers, dots, underscores, or hyphens.", {
+        appId: app.id,
+      });
+    }
+    if (ids.has(app.id)) {
+      issue(issues, "error", "duplicate-app-id", "App ids must be unique.", { appId: app.id });
+    }
+    ids.add(app.id);
+
+    validateStringField(issues, `${prefix}.title`, app.title);
+    validateStringField(issues, `${prefix}.kind`, app.kind);
+    if (!["shinylive-r", "shinylive-python"].includes(app.kind)) {
+      issue(issues, "warning", "unknown-app-kind", "App kind is not one of the built-in kinds.", {
+        appId: app.id,
+        kind: app.kind,
+      });
+    }
+    validateRelativePath(issues, `${prefix}.source`, app.source, { prefix: "shinylive-src/" });
+    validateRelativePath(issues, `${prefix}.output`, app.output, { prefix: "apps/" });
+    if (!app.path.startsWith(`/apps/${app.id}/`) || !app.path.endsWith("/index.html")) {
+      issue(issues, "error", "invalid-app-path", "App path must be /apps/<id>/index.html.", {
+        appId: app.id,
+        path: app.path,
+      });
+    }
+
+    validateStringArray(issues, `${prefix}.smokeText`, app.smokeText, { minLength: 1 });
+    validateStringArray(issues, `${prefix}.headerProbes`, app.headerProbes, { minLength: 1 });
+    validateStringArray(issues, `${prefix}.domProbes`, app.domProbes);
+    validateStringArray(issues, `${prefix}.dataPaths`, app.dataPaths);
+
+    if (!(await exists(path.join(rootDir, app.source)))) {
+      issue(issues, "error", "missing-app-source", "Configured app source directory does not exist.", {
+        appId: app.id,
+        source: app.source,
+      });
+    }
+    if (!(await exists(path.join(rootDir, app.source, "app.R")))) {
+      issue(issues, "error", "missing-app-r", "Configured Shinylive R app is missing app.R.", {
+        appId: app.id,
+        appR: `${app.source}/app.R`,
+      });
+    }
+    if (app.output && !(await exists(path.join(rootDir, app.output)))) {
+      issue(issues, "warning", "missing-app-output", "Configured app output is missing; run harness export.", {
+        appId: app.id,
+        output: app.output,
+      });
+    }
+
+    if (app.dataPack) {
+      if (!/^[a-z0-9][a-z0-9._-]*$/.test(app.dataPack)) {
+        issue(issues, "error", "invalid-data-pack-id", "dataPack must use lowercase letters, numbers, dots, underscores, or hyphens.", {
+          appId: app.id,
+          dataPack: app.dataPack,
+        });
+      }
+      if (app.dataPaths.length === 0) {
+        issue(issues, "error", "missing-data-paths", "Apps with dataPack must list dataPaths.", { appId: app.id });
+      }
+    }
+
+    if (app.dataPackSource) {
+      validateRelativePath(issues, `${prefix}.dataPackSource`, app.dataPackSource, { prefix: "data-packs/" });
+      if (!(await exists(path.join(rootDir, app.dataPackSource)))) {
+        issue(issues, "error", "missing-data-pack-source", "Configured data pack source directory does not exist.", {
+          appId: app.id,
+          dataPackSource: app.dataPackSource,
+        });
+      }
+    }
+
+    for (const dataPath of app.dataPaths) {
+      validateRelativePath(issues, `${prefix}.dataPaths[]`, dataPath);
+      if (!(await exists(path.join(rootDir, dataPath)))) {
+        issue(issues, "error", "missing-data-path", "Configured data path does not exist.", {
+          appId: app.id,
+          dataPath,
+        });
+      }
+    }
+  }
+
+  const errorCount = issues.filter((item) => item.severity === "error").length;
+  const warningCount = issues.filter((item) => item.severity === "warning").length;
+  const result = {
+    schemaVersion: 1,
+    ok: errorCount === 0,
+    checkedAt: new Date().toISOString(),
+    schema: toPosix(path.relative(rootDir, configSchemaPath)),
+    project: nextConfig.project,
+    summary: {
+      appCount: nextConfig.apps.length,
+      errorCount,
+      warningCount,
+    },
+    issues,
+  };
+
+  if (writeOutputs) {
+    await writeJson(reportPath, result);
+  }
+
+  return result;
+};
 
 const createDataPackManifest = async (app) => {
   if (!app.dataPack && app.dataPaths.length === 0) {
@@ -205,6 +419,7 @@ const createDataPackManifest = async (app) => {
 
   return {
     id: app.dataPack || `${app.id}-data`,
+    sourcePath: app.dataPackSource || null,
     sha256: sha256Text(fingerprint),
     fileCount: files.length,
     files,
@@ -295,6 +510,11 @@ export const prepareDist = async (config = null) => {
   const portalDist = path.join(distRoot, "portal");
   const appManifests = [];
 
+  const configValidation = await validateHarnessConfig(nextConfig);
+  if (!configValidation.ok) {
+    throw new Error("Harness config validation failed. See reports/harness-config-validation.json.");
+  }
+
   await mkdir(distRoot, { recursive: true });
   await rm(appsDist, { recursive: true, force: true });
   await copyFiltered(appsSource, appsDist);
@@ -376,23 +596,56 @@ export const writeBundleArtifacts = async (config, manifest) => {
     path.join(distRoot, "checksums", "SHA256SUMS"),
     `${assets.map((asset) => `${asset.sha256}  ${asset.path}`).join("\n")}\n`,
   );
-  await writeJson(path.join(distRoot, "reports", "sbom.json"), createSbom(config, assets));
+  await writeJson(path.join(distRoot, "reports", "sbom.json"), await createSbom(config, assets));
   await writeFile(path.join(distRoot, "reports", "licenses.md"), await createLicenseReport(config));
 
   return bundleManifest;
 };
 
-const createSbom = (config, assets) => ({
-  schemaVersion: 1,
-  generatedBy: "tauri-shinylive-harness",
-  project: config.project,
-  components: assets.map((asset) => ({
-    type: "file",
-    name: asset.path,
-    hashes: [{ alg: "SHA-256", content: asset.sha256 }],
-    size: asset.size,
-  })),
-});
+const createSbom = async (config, assets) => {
+  const npm = await npmPackages();
+  const tauriCargo = await cargoPackages(path.join(rootDir, "src-tauri", "Cargo.lock"));
+  const serverCargo = await cargoPackages(path.join(rootDir, "crates", "harness-server", "Cargo.lock"));
+
+  return {
+    schemaVersion: 2,
+    bomFormat: "tauri-shinylive-harness-sbom",
+    generatedAt: new Date().toISOString(),
+    generatedBy: "tauri-shinylive-harness",
+    project: config.project,
+    components: [
+      ...assets.map((asset) => ({
+        type: "file",
+        name: asset.path,
+        hashes: [{ alg: "SHA-256", content: asset.sha256 }],
+        size: asset.size,
+      })),
+      ...npm.map((pkg) => ({
+        type: "library",
+        ecosystem: "npm",
+        name: pkg.name,
+        version: pkg.version,
+        licenses: [{ license: { id: pkg.license } }],
+      })),
+      ...tauriCargo.map((pkg) => ({
+        type: "library",
+        ecosystem: "cargo",
+        scope: "tauri-shell",
+        name: pkg.name,
+        version: pkg.version,
+        licenses: [{ license: { id: pkg.license } }],
+      })),
+      ...serverCargo.map((pkg) => ({
+        type: "library",
+        ecosystem: "cargo",
+        scope: "harness-server",
+        name: pkg.name,
+        version: pkg.version,
+        licenses: [{ license: { id: pkg.license } }],
+      })),
+    ],
+  };
+};
 
 const npmPackages = async () => {
   const packageLock = await readJson(path.join(rootDir, "package-lock.json"));
@@ -404,6 +657,47 @@ const npmPackages = async () => {
       license: metadata.license ?? "unknown",
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
+};
+
+const cargoRegistryRoots = async () => {
+  const registryRoot = path.join(process.env.CARGO_HOME ?? path.join(homedir(), ".cargo"), "registry", "src");
+  if (!(await exists(registryRoot))) {
+    return [];
+  }
+  return (await readdir(registryRoot)).map((entry) => path.join(registryRoot, entry));
+};
+
+const cargoLicenseCache = new Map();
+
+const cargoLicenseFor = async (pkg) => {
+  const cacheKey = `${pkg.name}@${pkg.version}`;
+  if (cargoLicenseCache.has(cacheKey)) {
+    return cargoLicenseCache.get(cacheKey);
+  }
+
+  for (const registryRoot of await cargoRegistryRoots()) {
+    const manifestPath = path.join(registryRoot, `${pkg.name}-${pkg.version}`, "Cargo.toml");
+    if (!(await exists(manifestPath))) {
+      continue;
+    }
+    const text = await readFile(manifestPath, "utf8");
+    for (const line of text.split(/\r?\n/)) {
+      const trimmed = stripComment(line).trim();
+      if (trimmed.startsWith("license = ")) {
+        const license = parseTomlValue(trimmed.replace("license = ", "")) || "unknown";
+        cargoLicenseCache.set(cacheKey, license);
+        return license;
+      }
+      if (trimmed.startsWith("license-file = ")) {
+        const license = `license-file:${parseTomlValue(trimmed.replace("license-file = ", ""))}`;
+        cargoLicenseCache.set(cacheKey, license);
+        return license;
+      }
+    }
+  }
+
+  cargoLicenseCache.set(cacheKey, "unknown");
+  return "unknown";
 };
 
 const cargoPackages = async (lockPath) => {
@@ -427,10 +721,16 @@ const cargoPackages = async (lockPath) => {
     packages.push(current);
   }
 
-  return packages
+  const parsedPackages = packages
     .filter((pkg) => pkg.name && pkg.version)
-    .map((pkg) => ({ ...pkg, license: "unknown" }))
     .sort((a, b) => a.name.localeCompare(b.name));
+
+  return Promise.all(
+    parsedPackages.map(async (pkg) => ({
+      ...pkg,
+      license: await cargoLicenseFor(pkg),
+    })),
+  );
 };
 
 const createLicenseReport = async (config) => {
@@ -443,7 +743,7 @@ const createLicenseReport = async (config) => {
     "",
     `Project: ${config.project.name} ${config.project.version}`,
     "",
-    "This inventory is generated from lockfiles. Cargo package licenses are listed as unknown until a dedicated cargo-license step is added.",
+    "This inventory is generated from lockfiles. Cargo package licenses are resolved from the local Cargo registry cache when available; unresolved packages remain `unknown`.",
     "",
     "## npm",
     "",
@@ -533,12 +833,13 @@ export const writeVerificationProcedure = async (config) => {
     "## Phase 2 Commands",
     "",
     "1. `npm ci`",
-    "2. `node scripts/harness.mjs validate-data`",
-    "3. `node scripts/harness.mjs export`",
-    "4. `node scripts/harness.mjs prepare`",
-    "5. `node scripts/harness.mjs verify-static`",
-    "6. `node scripts/e2e-verify.mjs`",
-    "7. `npm run tauri:build`",
+    "2. `node scripts/harness.mjs validate-config`",
+    "3. `node scripts/harness.mjs validate-data`",
+    "4. `node scripts/harness.mjs export`",
+    "5. `node scripts/harness.mjs prepare`",
+    "6. `node scripts/harness.mjs verify-static`",
+    "7. `node scripts/e2e-verify.mjs`",
+    "8. `npm run tauri:build`",
     "",
     "## Phase 3 Commands",
     "",
@@ -551,6 +852,7 @@ export const writeVerificationProcedure = async (config) => {
     "## Acceptance Criteria",
     "",
     "- Portal manifest lists every app from `harness.toml`.",
+    "- `reports/harness-config-validation.json` passes with zero errors.",
     "- COOP, COEP, CORP, Service-Worker-Allowed, and MIME headers pass for configured probes.",
     "- The browser reports SharedArrayBuffer availability and cross-origin isolation.",
     "- Each app exposes its configured smoke text in a same-origin iframe.",
@@ -560,6 +862,7 @@ export const writeVerificationProcedure = async (config) => {
     "- Playwright screenshot evidence is generated for the portal and verified apps.",
     "- E2E network audit observes no external HTTP(S) requests.",
     "- `dist/harness-bundle-manifest.json` hashes match bundled files.",
+    "- Runtime `/__harness/integrity` reports bundled asset hashes as OK.",
     "- `dist/checksums/SHA256SUMS` is generated.",
     "- `dist/reports/sbom.json` and `dist/reports/licenses.md` are generated.",
     "- `reports/phase3-preflight.json` records signing, notarization, GitHub, and tooling readiness.",

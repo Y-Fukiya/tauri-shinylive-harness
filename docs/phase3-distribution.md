@@ -73,6 +73,8 @@ The stable packaging path asks Tauri to create the `.app` bundle only. `phase3:p
 - `SHA256SUMS`
 - bundle manifest and dist checksums
 - SBOM seed and license inventory
+- harness config validation and runtime bundle integrity evidence
+- manual clean macOS checklist
 - `validation-pack/`
 - `validation-pack.zip`
 
@@ -91,4 +93,5 @@ The harness can assemble evidence and automate the signed build path, but it can
 - Apple Developer account ownership and valid Developer ID certificate
 - successful notarization and stapling
 - organization review of the validation pack
+- clean macOS manual verification
 - release approval recorded in the organization's quality system

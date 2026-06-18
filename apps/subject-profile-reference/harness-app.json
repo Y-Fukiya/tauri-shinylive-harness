@@ -24,6 +24,7 @@
   ],
   "dataPack": {
     "id": "clinical-demo-subject-profile-v1",
+    "sourcePath": "data-packs/clinical-demo-subject-profile-v1",
     "sha256": "7e90126cbf948183ca7dbf0f27ab640c001fe279da18ba19496986b8324f5ebe",
     "fileCount": 8,
     "files": [

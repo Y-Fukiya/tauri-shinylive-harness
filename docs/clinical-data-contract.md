@@ -41,8 +41,10 @@ npm run harness -- validate-data subject-profile-reference
 Attach and validate an external synthetic data pack:
 
 ```sh
-npm run harness -- add-data-pack subject-profile-copy ./data-pack --id clinical-demo-copy-v1
+npm run harness -- add-data-pack subject-profile-copy ./data-pack --id clinical-demo-copy-v1 --copy
 ```
+
+Use `--copy` to register the reusable source pack under `data-packs/<pack-id>` and to materialize the same data into `shinylive-src/<app-id>/data` for Shinylive export.
 
 ## Checks
 

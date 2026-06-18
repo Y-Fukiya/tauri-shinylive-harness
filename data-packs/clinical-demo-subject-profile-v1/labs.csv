@@ -1,0 +1,32 @@
+subject_id,visit,visit_day,lab_test,lab_value,unit,low,high,flag
+SUBJ-001,Baseline,1,ALT,28,U/L,0,45,Normal
+SUBJ-001,Week 2,15,ALT,34,U/L,0,45,Normal
+SUBJ-001,Week 4,29,ALT,52,U/L,0,45,High
+SUBJ-001,Week 8,57,ALT,47,U/L,0,45,High
+SUBJ-001,Week 12,85,ALT,39,U/L,0,45,Normal
+SUBJ-001,Baseline,1,HGB,13.4,g/dL,12,16,Normal
+SUBJ-001,Week 2,15,HGB,13.1,g/dL,12,16,Normal
+SUBJ-001,Week 4,29,HGB,12.8,g/dL,12,16,Normal
+SUBJ-001,Week 8,57,HGB,12.6,g/dL,12,16,Normal
+SUBJ-001,Week 12,85,HGB,12.9,g/dL,12,16,Normal
+SUBJ-001,Baseline,1,PLT,242,10^9/L,150,400,Normal
+SUBJ-001,Week 4,29,PLT,228,10^9/L,150,400,Normal
+SUBJ-001,Week 8,57,PLT,216,10^9/L,150,400,Normal
+SUBJ-002,Baseline,1,ALT,24,U/L,0,45,Normal
+SUBJ-002,Week 4,29,ALT,25,U/L,0,45,Normal
+SUBJ-002,Week 8,57,ALT,27,U/L,0,45,Normal
+SUBJ-002,Week 12,85,ALT,26,U/L,0,45,Normal
+SUBJ-003,Baseline,1,ALT,31,U/L,0,45,Normal
+SUBJ-003,Week 4,29,ALT,61,U/L,0,45,High
+SUBJ-003,Week 8,57,ALT,74,U/L,0,45,High
+SUBJ-004,Baseline,1,ALT,37,U/L,0,45,Normal
+SUBJ-004,Week 4,29,ALT,42,U/L,0,45,Normal
+SUBJ-004,Week 8,57,ALT,40,U/L,0,45,Normal
+SUBJ-004,Week 12,85,ALT,38,U/L,0,45,Normal
+SUBJ-005,Baseline,1,ALT,19,U/L,0,45,Normal
+SUBJ-005,Week 4,29,ALT,23,U/L,0,45,Normal
+SUBJ-005,Week 8,57,ALT,22,U/L,0,45,Normal
+SUBJ-006,Baseline,1,ALT,33,U/L,0,45,Normal
+SUBJ-006,Week 4,29,ALT,49,U/L,0,45,High
+SUBJ-006,Week 8,57,ALT,46,U/L,0,45,High
+SUBJ-006,Week 12,85,ALT,41,U/L,0,45,Normal

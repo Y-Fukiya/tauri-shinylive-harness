@@ -17,7 +17,9 @@
 - `dist/checksums/SHA256SUMS`
 - `dist/reports/sbom.json`
 - `dist/reports/licenses.md`
+- `reports/harness-config-validation.json`
 - `reports/static-verification.json`
+- `reports/bundle-integrity.json`
 - `reports/e2e-diagnostics.json`
 - `reports/clinical-data-pack-validation.json`
 - `reports/screenshots/`
@@ -25,6 +27,7 @@
 - `reports/phase3-preflight.json`
 - `release/validation-pack.zip`
 - `release/validation-pack/evidence-index.json`
+- `release/validation-pack/manual-clean-macos-checklist.md`
 
 ## Verification
 
@@ -37,6 +40,8 @@
 - Configured DOM probes are visible
 - External request audit has zero entries
 - Static asset hashes match `dist/harness-bundle-manifest.json`
+- Runtime `/__harness/integrity` reports OK
+- Harness config validation has zero errors
 - Clinical data validation has zero errors
 - Data dictionary generated for validated data packs
 - Data pack hashes are present in app manifests for apps that declare `data_pack`
@@ -57,6 +62,7 @@
 
 - Validation pack reviewed
 - Offline launch procedure completed on clean macOS
+- Reviewer sign-off completed in validation summary
 - Release notes reviewed
 - Draft GitHub Release reviewed before publish
 - Organization quality approval recorded

@@ -24,6 +24,7 @@ type HarnessApp = {
   domProbes?: string[];
   dataPack?: {
     id: string;
+    sourcePath?: string | null;
     sha256: string;
     fileCount: number;
     files: Array<{
@@ -71,6 +72,24 @@ type HeaderProbe = {
   contentType: string | null;
   headers: Record<string, string>;
   error?: string;
+};
+
+type BundleIntegrity = {
+  ok: boolean;
+  checkedAtUnixMs: number;
+  manifestPath: string;
+  assetCount: number;
+  checkedCount: number;
+  missing: string[];
+  mismatched: Array<{
+    path: string;
+    expectedSize: number;
+    actualSize: number | null;
+    expectedSha256: string;
+    actualSha256: string | null;
+    message: string;
+  }>;
+  errors: string[];
 };
 
 type FrameDiagnostics = {
@@ -161,6 +180,7 @@ export const App = () => {
   const [manifest, setManifest] = useState<HarnessManifest | null>(null);
   const [health, setHealth] = useState<HarnessHealth | null>(null);
   const [headerProbes, setHeaderProbes] = useState<HeaderProbe[]>([]);
+  const [bundleIntegrity, setBundleIntegrity] = useState<BundleIntegrity | null>(null);
   const [browserDiagnostics, setBrowserDiagnostics] = useState<BrowserDiagnostics | null>(null);
   const [frameDiagnosticsByApp, setFrameDiagnosticsByApp] = useState<Record<string, FrameDiagnostics>>(
     {}
@@ -196,9 +216,10 @@ export const App = () => {
       setLastError(null);
 
       try {
-        const [nextManifest, nextHealth, nextBrowserDiagnostics] = await Promise.all([
+        const [nextManifest, nextHealth, nextBundleIntegrity, nextBrowserDiagnostics] = await Promise.all([
           fetchJson<HarnessManifest>("/manifest.json"),
           fetchJson<HarnessHealth>("/__harness/health"),
+          fetchJson<BundleIntegrity>("/__harness/integrity"),
           getBrowserDiagnostics()
         ]);
         const nextSelected =
@@ -215,6 +236,7 @@ export const App = () => {
 
         setManifest(nextManifest);
         setHealth(nextHealth);
+        setBundleIntegrity(nextBundleIntegrity);
         setBrowserDiagnostics(nextBrowserDiagnostics);
         setHeaderProbes(nextHeaderProbes);
         setSelectedAppId((current) => current ?? nextSelected?.id ?? null);
@@ -300,6 +322,7 @@ export const App = () => {
       selectedApp,
       selectedUrl,
       browserDiagnostics,
+      bundleIntegrity,
       health,
       headerProbes,
       iframeState,
@@ -309,6 +332,7 @@ export const App = () => {
     }),
     [
       browserDiagnostics,
+      bundleIntegrity,
       frameDiagnosticsByApp,
       headerProbes,
       health,
@@ -395,6 +419,7 @@ export const App = () => {
           <Field label="Offline required" value={selectedApp?.offlineRequired} />
           <Field label="App URL" value={selectedApp?.path} />
           <Field label="Data pack" value={selectedDataPack?.id} />
+          <Field label="Data source" value={selectedDataPack?.sourcePath} />
           <Field
             label="Data hash"
             value={selectedDataPack?.sha256 ? selectedDataPack.sha256.slice(0, 16) : null}
@@ -487,6 +512,17 @@ export const App = () => {
         </section>
 
         <section className="panel">
+          <h3>Bundle Integrity</h3>
+          <Field label="OK" value={bundleIntegrity?.ok} />
+          <Field label="Manifest" value={bundleIntegrity?.manifestPath} />
+          <Field label="Assets" value={bundleIntegrity?.assetCount} />
+          <Field label="Checked" value={bundleIntegrity?.checkedCount} />
+          <Field label="Missing" value={bundleIntegrity?.missing.length} />
+          <Field label="Mismatched" value={bundleIntegrity?.mismatched.length} />
+          <Field label="Errors" value={bundleIntegrity?.errors.length} />
+        </section>
+
+        <section className="panel">
           <h3>Headers</h3>
           <div className="probe-list">
             {headerProbes.map((probe) => (
@@ -522,6 +558,7 @@ export const App = () => {
         <section className="panel">
           <h3>Data Pack</h3>
           <Field label="ID" value={selectedDataPack?.id} />
+          <Field label="Source" value={selectedDataPack?.sourcePath} />
           <Field label="Files" value={selectedDataPack?.fileCount} />
           <Field label="SHA-256" value={selectedDataPack?.sha256} />
           <Field label="Runtime SHA-256" value={frameDiagnostics?.dataPackSha256} />

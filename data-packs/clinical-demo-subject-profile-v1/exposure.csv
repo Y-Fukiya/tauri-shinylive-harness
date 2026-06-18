@@ -1,0 +1,17 @@
+subject_id,cycle,start_day,end_day,dose_mg,dose_status,dose_intensity_pct
+SUBJ-001,1,1,28,100,Completed,100
+SUBJ-001,2,29,56,100,Completed,94
+SUBJ-001,3,57,84,100,Completed,100
+SUBJ-002,1,1,28,0,Control,100
+SUBJ-002,2,29,56,0,Control,100
+SUBJ-002,3,57,84,0,Control,100
+SUBJ-003,1,1,28,100,Completed,100
+SUBJ-003,2,29,56,75,Dose reduced,78
+SUBJ-004,1,1,28,100,Completed,100
+SUBJ-004,2,29,56,100,Completed,100
+SUBJ-004,3,57,84,100,Completed,96
+SUBJ-005,1,1,28,0,Control,100
+SUBJ-005,2,29,56,0,Control,88
+SUBJ-006,1,1,28,100,Completed,100
+SUBJ-006,2,29,56,100,Completed,92
+SUBJ-006,3,57,84,100,Completed,100

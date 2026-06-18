@@ -9,6 +9,7 @@ npm run verify
 
 `npm run verify` performs:
 
+- `node scripts/harness.mjs validate-config`
 - `node scripts/harness.mjs validate-data`
 - `node scripts/harness.mjs export`
 - Vite portal build
@@ -16,6 +17,20 @@ npm run verify
 - Rust unit tests for the harness server
 - static bundle/hash verification
 - Playwright E2E verification
+
+## Harness Config Validation
+
+```sh
+npm run validate:config
+```
+
+Expected:
+
+- `schemas/harness.schema.json` records the normalized configuration contract.
+- Project, distribution, Phase 3, app, probe, and data pack fields are present and well formed.
+- Configured app source directories and `app.R` files exist.
+- Configured data paths and `data_pack_source` directories exist.
+- `reports/harness-config-validation.json` records errors and warnings.
 
 To verify one app while still preparing the full portal manifest:
 
@@ -52,6 +67,20 @@ Expected:
 - Every SHA-256 hash matches current bundled content.
 - `reports/static-verification.json` is written.
 
+## Runtime Bundle Integrity
+
+```sh
+node scripts/e2e-verify.mjs
+```
+
+Expected:
+
+- `/__harness/integrity` reads `dist/harness-bundle-manifest.json`.
+- Every listed bundled asset exists under the static root.
+- Every asset size and SHA-256 matches the manifest.
+- The diagnostics portal displays `Bundle Integrity`.
+- `reports/bundle-integrity.json` is written.
+
 ## E2E Verification
 
 ```sh
@@ -62,6 +91,7 @@ Expected:
 
 - A Rust localhost server starts against `dist/`.
 - Portal diagnostics load.
+- Runtime bundle integrity reports OK.
 - Each configured app can be selected in the portal.
 - Each app's configured smoke text is visible through the Shinylive iframe.
 - Each configured DOM probe is visible through the Shinylive iframe.
@@ -109,7 +139,7 @@ Expected:
 - Missing credentials are reported as readiness issues, not as leaked secret values.
 - Tauri creates the macOS app, and Phase 3 packaging creates the DMG/pkg for internal review.
 - `release/SHA256SUMS` covers every generated release file.
-- `release/validation-pack/` and `release/validation-pack.zip` contain verification evidence, data validation report, data dictionary, screenshots, manifest, SBOM/license inventory, and checksums.
+- `release/validation-pack/` and `release/validation-pack.zip` contain verification evidence, config validation, runtime integrity, data validation report, data dictionary, screenshots, manifest, SBOM/license inventory, manual clean macOS checklist, and checksums.
 
 With Apple credentials configured, replace `npm run tauri:build:app:no-sign` with:
 

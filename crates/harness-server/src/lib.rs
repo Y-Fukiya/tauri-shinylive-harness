@@ -3,6 +3,7 @@ use std::{
     net::{Ipv4Addr, SocketAddr},
     path::{Path, PathBuf},
     sync::Arc,
+    time::{SystemTime, UNIX_EPOCH},
 };
 
 use axum::{
@@ -17,7 +18,8 @@ use axum::{
     Json, Router,
 };
 use percent_encoding::percent_decode_str;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use tokio::{fs, net::TcpListener};
 
 pub const CSP: &str = "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:; connect-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; frame-src 'self'; object-src 'none'; base-uri 'self';";
@@ -97,6 +99,18 @@ struct HeaderQuery {
     path: String,
 }
 
+#[derive(Debug, Deserialize)]
+struct BundleManifest {
+    assets: Vec<BundleAsset>,
+}
+
+#[derive(Debug, Deserialize)]
+struct BundleAsset {
+    path: String,
+    size: u64,
+    sha256: String,
+}
+
 #[derive(Debug, Serialize)]
 struct HeaderProbeResponse {
     ok: bool,
@@ -108,6 +122,36 @@ struct HeaderProbeResponse {
     content_type: Option<&'static str>,
     headers: BTreeMap<String, String>,
     error: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct IntegrityMismatch {
+    path: String,
+    #[serde(rename = "expectedSize")]
+    expected_size: u64,
+    #[serde(rename = "actualSize")]
+    actual_size: Option<u64>,
+    #[serde(rename = "expectedSha256")]
+    expected_sha256: String,
+    #[serde(rename = "actualSha256")]
+    actual_sha256: Option<String>,
+    message: String,
+}
+
+#[derive(Debug, Serialize)]
+struct IntegrityResponse {
+    ok: bool,
+    #[serde(rename = "checkedAtUnixMs")]
+    checked_at_unix_ms: u128,
+    #[serde(rename = "manifestPath")]
+    manifest_path: String,
+    #[serde(rename = "assetCount")]
+    asset_count: usize,
+    #[serde(rename = "checkedCount")]
+    checked_count: usize,
+    missing: Vec<String>,
+    mismatched: Vec<IntegrityMismatch>,
+    errors: Vec<String>,
 }
 
 pub fn content_type_for_path(path: &Path) -> &'static str {
@@ -242,6 +286,7 @@ fn router(state: AppState) -> Router {
     Router::new()
         .route("/__harness/health", get(health))
         .route("/__harness/headers", get(header_probe))
+        .route("/__harness/integrity", get(integrity))
         .fallback(static_file)
         .with_state(Arc::new(state))
 }
@@ -292,6 +337,128 @@ async fn header_probe(
         content_type: Some(content_type),
         headers: headers_to_map(&security_headers_for(content_type)),
         error: None,
+    })
+}
+
+async fn integrity(State(state): State<Arc<AppState>>) -> Json<IntegrityResponse> {
+    let manifest_path = state.asset_root.join("harness-bundle-manifest.json");
+    let checked_at_unix_ms = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_millis())
+        .unwrap_or_default();
+
+    let manifest_text = match fs::read_to_string(&manifest_path).await {
+        Ok(text) => text,
+        Err(error) => {
+            return Json(IntegrityResponse {
+                ok: false,
+                checked_at_unix_ms,
+                manifest_path: "harness-bundle-manifest.json".to_string(),
+                asset_count: 0,
+                checked_count: 0,
+                missing: vec!["harness-bundle-manifest.json".to_string()],
+                mismatched: Vec::new(),
+                errors: vec![format!("manifest read failed: {error}")],
+            });
+        }
+    };
+
+    let manifest: BundleManifest = match serde_json::from_str(&manifest_text) {
+        Ok(manifest) => manifest,
+        Err(error) => {
+            return Json(IntegrityResponse {
+                ok: false,
+                checked_at_unix_ms,
+                manifest_path: "harness-bundle-manifest.json".to_string(),
+                asset_count: 0,
+                checked_count: 0,
+                missing: Vec::new(),
+                mismatched: Vec::new(),
+                errors: vec![format!("manifest parse failed: {error}")],
+            });
+        }
+    };
+
+    let mut checked_count = 0usize;
+    let mut missing = Vec::new();
+    let mut mismatched = Vec::new();
+    let mut errors = Vec::new();
+
+    for asset in &manifest.assets {
+        let request_path = format!("/{}", asset.path.trim_start_matches('/'));
+        let normalized = match normalize_request_path(&request_path) {
+            Ok(path) => path,
+            Err(error) => {
+                errors.push(format!("{}: invalid manifest path: {error:?}", asset.path));
+                continue;
+            }
+        };
+
+        let full_path = state.asset_root.join(&normalized);
+        let canonical = match fs::canonicalize(&full_path).await {
+            Ok(path) => path,
+            Err(_) => {
+                missing.push(asset.path.clone());
+                continue;
+            }
+        };
+
+        if !canonical.starts_with(&state.canonical_root) {
+            errors.push(format!("{}: resolved outside asset root", asset.path));
+            continue;
+        }
+
+        let metadata = match fs::metadata(&canonical).await {
+            Ok(metadata) => metadata,
+            Err(error) => {
+                errors.push(format!("{}: metadata read failed: {error}", asset.path));
+                continue;
+            }
+        };
+
+        if !metadata.is_file() {
+            missing.push(asset.path.clone());
+            continue;
+        }
+
+        let actual_sha256 = match sha256_file(&canonical).await {
+            Ok(hash) => hash,
+            Err(error) => {
+                errors.push(format!("{}: hash read failed: {error}", asset.path));
+                continue;
+            }
+        };
+        checked_count += 1;
+
+        let actual_size = metadata.len();
+        if actual_size != asset.size || actual_sha256 != asset.sha256 {
+            let message = if actual_size != asset.size && actual_sha256 != asset.sha256 {
+                "size and sha256 mismatch"
+            } else if actual_size != asset.size {
+                "size mismatch"
+            } else {
+                "sha256 mismatch"
+            };
+            mismatched.push(IntegrityMismatch {
+                path: asset.path.clone(),
+                expected_size: asset.size,
+                actual_size: Some(actual_size),
+                expected_sha256: asset.sha256.clone(),
+                actual_sha256: Some(actual_sha256),
+                message: message.to_string(),
+            });
+        }
+    }
+
+    Json(IntegrityResponse {
+        ok: missing.is_empty() && mismatched.is_empty() && errors.is_empty(),
+        checked_at_unix_ms,
+        manifest_path: "harness-bundle-manifest.json".to_string(),
+        asset_count: manifest.assets.len(),
+        checked_count,
+        missing,
+        mismatched,
+        errors,
     })
 }
 
@@ -349,6 +516,16 @@ fn headers_to_map(headers: &HeaderMap) -> BTreeMap<String, String> {
         .collect()
 }
 
+async fn sha256_file(path: &Path) -> Result<String, std::io::Error> {
+    let bytes = fs::read(path).await?;
+    let digest = Sha256::digest(&bytes);
+
+    Ok(digest
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect::<String>())
+}
+
 async fn count_manifest_apps(asset_root: &Path) -> Result<usize, std::io::Error> {
     let manifest = fs::read_to_string(asset_root.join("manifest.json")).await?;
     let parsed: serde_json::Value = serde_json::from_str(&manifest).unwrap_or_default();
@@ -366,7 +543,8 @@ mod tests {
     use http::header::{CONTENT_SECURITY_POLICY, CONTENT_TYPE};
 
     use super::{
-        content_type_for_path, normalize_request_path, security_headers_for, StaticPathError,
+        content_type_for_path, normalize_request_path, security_headers_for, sha256_file,
+        StaticPathError,
     };
 
     #[test]
@@ -457,5 +635,23 @@ mod tests {
             Some("application/wasm")
         );
         assert!(headers.get(CONTENT_SECURITY_POLICY).is_none());
+    }
+
+    #[tokio::test]
+    async fn computes_sha256_for_integrity_checks() {
+        let dir = std::env::temp_dir().join(format!(
+            "harness-server-sha-test-{}",
+            std::process::id()
+        ));
+        tokio::fs::create_dir_all(&dir).await.unwrap();
+        let file = dir.join("sample.txt");
+        tokio::fs::write(&file, b"abc").await.unwrap();
+
+        assert_eq!(
+            sha256_file(&file).await.unwrap(),
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        );
+
+        let _ = tokio::fs::remove_dir_all(&dir).await;
     }
 }

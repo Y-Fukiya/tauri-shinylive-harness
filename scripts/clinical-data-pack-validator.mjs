@@ -546,6 +546,7 @@ export const validateClinicalDataPack = async ({
       version: metadata.version ?? null,
       synthetic: metadata.synthetic === true,
       primarySubject: metadata.primarySubject ?? null,
+      sourcePath: app?.dataPackSource ?? null,
       sha256: aggregateHash,
       fileCount: files.length,
       files,

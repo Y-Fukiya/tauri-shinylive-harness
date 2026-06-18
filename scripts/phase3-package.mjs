@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 import { createHash } from "node:crypto";
+import { execFile } from "node:child_process";
 import { cp, mkdir, readdir, readFile, rm, stat, symlink, writeFile } from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
+import { promisify } from "node:util";
 
 import {
   appendAudit,
@@ -19,6 +22,7 @@ import {
 const releaseRoot = path.join(rootDir, "release");
 const macosBundleRoot = path.join(rootDir, "src-tauri", "target", "release", "bundle", "macos");
 const dmgRoot = path.join(rootDir, "src-tauri", "target", "release", "bundle", "dmg");
+const execFileAsync = promisify(execFile);
 
 const findFirst = async (directory, predicate) => {
   if (!(await exists(directory))) {
@@ -35,6 +39,25 @@ const findFirst = async (directory, predicate) => {
 
 const sha256Text = (value) => createHash("sha256").update(value).digest("hex");
 
+const gitValue = async (args) => {
+  try {
+    const { stdout } = await execFileAsync("git", args, { cwd: rootDir });
+    return stdout.trim() || "not available";
+  } catch {
+    return "not available";
+  }
+};
+
+const releaseContext = async (config) => ({
+  releaseTag: process.env.RELEASE_TAG ?? `v${config.project.version}`,
+  gitCommit: process.env.GITHUB_SHA ?? (await gitValue(["rev-parse", "HEAD"])),
+  gitExactTag: await gitValue(["describe", "--tags", "--exact-match"]),
+  gitBranch: process.env.GITHUB_REF_NAME ?? (await gitValue(["branch", "--show-current"])),
+  generatedBy: process.env.GITHUB_ACTOR ?? os.userInfo().username,
+  host: os.hostname(),
+  platform: `${os.platform()} ${os.release()} ${os.arch()}`,
+});
+
 const writeReleaseNotes = async (config, assets) => {
   const staticReportPath = path.join(reportsRoot, "static-verification.json");
   const e2eReportPath = path.join(reportsRoot, "e2e-diagnostics.json");
@@ -48,6 +71,14 @@ const writeReleaseNotes = async (config, assets) => {
   const dataValidationReport = (await exists(dataValidationPath))
     ? JSON.parse(await readFile(dataValidationPath, "utf8"))
     : null;
+  const configValidationPath = path.join(reportsRoot, "harness-config-validation.json");
+  const configValidationReport = (await exists(configValidationPath))
+    ? JSON.parse(await readFile(configValidationPath, "utf8"))
+    : null;
+  const bundleIntegrityPath = path.join(reportsRoot, "bundle-integrity.json");
+  const bundleIntegrityReport = (await exists(bundleIntegrityPath))
+    ? JSON.parse(await readFile(bundleIntegrityPath, "utf8"))
+    : null;
 
   const notes = [
     `# ${config.project.bundleName} ${config.project.version}`,
@@ -57,6 +88,8 @@ const writeReleaseNotes = async (config, assets) => {
     "## Verification",
     "",
     `- Static verification: ${staticReport?.ok ?? "not available"}`,
+    `- Harness config validation: ${configValidationReport?.ok ?? "not available"}`,
+    `- Runtime bundle integrity: ${bundleIntegrityReport?.ok ?? e2eReport?.bundleIntegrity?.ok ?? "not available"}`,
     `- E2E verification: ${e2eReport?.ok ?? "not available"}`,
     `- Clinical data validation: ${dataValidationReport?.ok ?? "not available"}`,
     `- External HTTP(S) requests observed: ${e2eReport?.externalRequests?.length ?? "not available"}`,
@@ -161,9 +194,12 @@ const createDmgFromAppBundle = async (config, appBundle, destination) => {
 const createValidationPack = async (config, assets) => {
   const validationRoot = path.join(releaseRoot, "validation-pack");
   const evidenceRoot = path.join(validationRoot, "evidence");
+  const context = await releaseContext(config);
   await mkdir(evidenceRoot, { recursive: true });
 
+  await copyIfExists(path.join(reportsRoot, "harness-config-validation.json"), path.join(evidenceRoot, "harness-config-validation.json"));
   await copyIfExists(path.join(reportsRoot, "static-verification.json"), path.join(evidenceRoot, "static-verification.json"));
+  await copyIfExists(path.join(reportsRoot, "bundle-integrity.json"), path.join(evidenceRoot, "bundle-integrity.json"));
   await copyIfExists(path.join(reportsRoot, "e2e-diagnostics.json"), path.join(evidenceRoot, "e2e-diagnostics.json"));
   await copyIfExists(path.join(reportsRoot, "clinical-data-pack-validation.json"), path.join(evidenceRoot, "clinical-data-pack-validation.json"));
   await copyIfExists(path.join(reportsRoot, "screenshots"), path.join(evidenceRoot, "screenshots"));
@@ -178,6 +214,7 @@ const createValidationPack = async (config, assets) => {
   await copyIfExists(path.join(rootDir, "docs", "generated", "phase3-readiness.md"), path.join(evidenceRoot, "phase3-readiness.md"));
   await copyIfExists(path.join(rootDir, "docs", "phase3-distribution.md"), path.join(evidenceRoot, "phase3-distribution.md"));
   await copyIfExists(path.join(rootDir, "docs", "validation-approval-template.md"), path.join(evidenceRoot, "validation-approval-template.md"));
+  await copyIfExists(path.join(rootDir, "docs", "manual-clean-macos-checklist.md"), path.join(validationRoot, "manual-clean-macos-checklist.md"));
 
   const evidenceFiles = (await listFiles(validationRoot)).sort();
   const evidence = [];
@@ -199,6 +236,7 @@ const createValidationPack = async (config, assets) => {
         generatedAt: new Date().toISOString(),
         project: config.project,
         distribution: config.distribution,
+        context,
         evidence,
       },
       null,
@@ -212,6 +250,12 @@ const createValidationPack = async (config, assets) => {
       "",
       `Version: ${config.project.version}`,
       `Generated: ${new Date().toISOString()}`,
+      `Release tag: ${context.releaseTag}`,
+      `Current Git exact tag: ${context.gitExactTag}`,
+      `Git commit: ${context.gitCommit}`,
+      `Git branch/ref: ${context.gitBranch}`,
+      `Generated by: ${context.generatedBy}`,
+      `Environment: ${context.platform} on ${context.host}`,
       "",
       "## Scope",
       "",
@@ -219,11 +263,24 @@ const createValidationPack = async (config, assets) => {
       "",
       "## Automated Checks",
       "",
+      "- Harness configuration validation",
       "- Static bundle hash verification",
+      "- Runtime bundle integrity endpoint verification",
       "- Playwright portal/app verification with external HTTP(S) request audit",
       "- Clinical data pack validation with data dictionary",
       "- Screenshot evidence for the portal and verified apps",
       "- Release asset checksum inventory",
+      "- Manual clean macOS checklist included",
+      "",
+      "## Reviewer Sign-Off",
+      "",
+      "| Field | Value |",
+      "| --- | --- |",
+      "| Reviewer |  |",
+      "| Role |  |",
+      "| Review date |  |",
+      "| Decision |  |",
+      "| Notes |  |",
       "",
       "## Included Evidence",
       "",
