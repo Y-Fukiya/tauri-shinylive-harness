@@ -20,7 +20,7 @@ if (!(await exists(releaseRoot))) {
 const entries = await readdir(releaseRoot);
 const assets = entries
   .filter((entry) =>
-    [".zip", ".dmg", ".json", ".md", "SHA256SUMS"].some((suffix) => entry.endsWith(suffix) || entry === suffix),
+    [".zip", ".dmg", ".pkg", ".json", ".md", "SHA256SUMS"].some((suffix) => entry.endsWith(suffix) || entry === suffix),
   )
   .filter((entry) => entry !== "validation-pack")
   .map((entry) => path.join("release", entry));
