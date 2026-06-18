@@ -26,6 +26,11 @@ json_array <- function(raw_value) {
   }
 }
 
+env_flag <- function(name, default = FALSE) {
+  value <- tolower(get_env(name, if (default) "true" else "false"))
+  value %in% c("true", "1", "yes")
+}
+
 local_lib <- normalizePath(".r-lib", mustWork = FALSE)
 dir.create(local_lib, recursive = TRUE, showWarnings = FALSE)
 .libPaths(c(local_lib, .libPaths()))
@@ -48,6 +53,8 @@ app_path <- get_env("HARNESS_APP_PATH", paste0("/apps/", app_id, "/index.html"))
 offline_required <- get_env("HARNESS_APP_OFFLINE_REQUIRED", "true")
 smoke_text <- get_env("HARNESS_APP_SMOKE_TEXT", "[]")
 header_probes <- get_env("HARNESS_APP_HEADER_PROBES", "[]")
+wasm_packages <- env_flag("HARNESS_WASM_PACKAGES", FALSE)
+package_cache <- env_flag("HARNESS_PACKAGE_CACHE", FALSE)
 
 assets_version <- shinylive::assets_version()
 assets_dir <- normalizePath(".shinylive-cache", mustWork = FALSE)
@@ -69,7 +76,13 @@ if (dir.exists(output_dir)) {
   unlink(output_dir, recursive = TRUE)
 }
 
-shinylive::export(source_dir, output_dir, template_dir = template_dir)
+shinylive::export(
+  source_dir,
+  output_dir,
+  template_dir = template_dir,
+  wasm_packages = wasm_packages,
+  package_cache = package_cache
+)
 
 app_manifest <- paste0(
   "{\n",

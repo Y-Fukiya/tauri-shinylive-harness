@@ -35,6 +35,22 @@
   "bundle": {
     "active": true,
     "icon": ["icons/icon.png"],
-    "resources": ["../dist"]
+    "resources": ["../dist"],
+    "macOS": {
+      "dmg": {
+        "windowSize": {
+          "width": 660,
+          "height": 400
+        },
+        "appPosition": {
+          "x": 180,
+          "y": 220
+        },
+        "applicationFolderPosition": {
+          "x": 480,
+          "y": 220
+        }
+      }
+    }
   }
 }

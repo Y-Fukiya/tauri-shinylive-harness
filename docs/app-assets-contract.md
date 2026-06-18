@@ -48,4 +48,6 @@ For a real Shinylive export, keep the app under its own directory and ensure all
 
 Runtime must not depend on external CDNs or package repositories. `node scripts/e2e-verify.mjs` fails if non-local HTTP(S) requests are observed.
 
+By default, `scripts/export-shinylive.R` disables Shinylive's extra webR package download path with `wasm_packages = FALSE`. Apps that require additional R packages must opt in deliberately with `HARNESS_WASM_PACKAGES=true` and then commit or otherwise preserve the resulting local assets before release verification.
+
 The current committed app is generated with `shinylive::export()` and includes local webR/WASM assets. It validates the key runtime path: local HTTP serving, COOP/COEP, WASM MIME, `R.wasm` loading, and minimal R execution.

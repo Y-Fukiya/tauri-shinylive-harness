@@ -10,6 +10,14 @@ artifact_name = "clinical-shinylive-desktop-portal"
 release_channel = "internal"
 release_draft = true
 require_offline = true
+mac_bundles = ["app", "dmg"]
+github_repo = "Y-Fukiya/tauri-shinylive-harness"
+
+[phase3]
+signing_required = true
+notarization_required = true
+validation_pack_required = true
+release_draft_default = true
 
 [[apps]]
 id = "subject-safety-mini"

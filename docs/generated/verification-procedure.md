@@ -1,8 +1,8 @@
 # Verification Procedure
 
-This procedure is generated from `harness.toml` and covers Phase 2 local verification.
+This procedure is generated from `harness.toml` and covers Phase 2 verification plus Phase 3 release readiness.
 
-## Commands
+## Phase 2 Commands
 
 1. `npm ci`
 2. `node scripts/harness.mjs export`
@@ -10,6 +10,14 @@ This procedure is generated from `harness.toml` and covers Phase 2 local verific
 4. `node scripts/harness.mjs verify-static`
 5. `node scripts/e2e-verify.mjs`
 6. `npm run tauri:build`
+
+## Phase 3 Commands
+
+1. `npm run phase3:preflight`
+2. `npm run tauri:build:dmg:no-sign` for an unsigned internal release candidate.
+3. `npm run tauri:build:dmg` after Apple signing and notarization credentials are configured.
+4. `npm run phase3:package`
+5. `npm run phase3:release-draft` after the release has been reviewed.
 
 ## Acceptance Criteria
 
@@ -21,6 +29,9 @@ This procedure is generated from `harness.toml` and covers Phase 2 local verific
 - `dist/harness-bundle-manifest.json` hashes match bundled files.
 - `dist/checksums/SHA256SUMS` is generated.
 - `dist/reports/sbom.json` and `dist/reports/licenses.md` are generated.
+- `reports/phase3-preflight.json` records signing, notarization, GitHub, and tooling readiness.
+- `release/` contains an app archive, optional DMG, release notes, checksums, and validation pack.
+- Public release publication is held until Apple credentials and organization approval are present.
 
 ## Apps
 

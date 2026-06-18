@@ -70,10 +70,26 @@ Expected:
 8. Confirm diagnostics report `Reported SAB = true`.
 9. Confirm there are no requests to CDNs, GitHub, Netlify, Posit CDN, `repo.r-wasm.org`, or r-universe.
 
-## Phase 3 Deferred Checks
+## Phase 3 Release Candidate Verification
 
-- Developer ID signing.
-- Notarization and stapling.
-- DMG/pkg packaging.
-- Published GitHub Release.
-- Organization-specific clinical validation approval.
+```sh
+npm run phase3:preflight
+npm run tauri:build:dmg:no-sign
+npm run phase3:package
+```
+
+Expected:
+
+- `reports/phase3-preflight.json` is written.
+- Missing credentials are reported as readiness issues, not as leaked secret values.
+- Tauri creates the macOS app archive and DMG for internal review.
+- `release/SHA256SUMS` covers every generated release file.
+- `release/validation-pack/` and `release/validation-pack.zip` contain verification evidence.
+
+With Apple credentials configured, replace `npm run tauri:build:dmg:no-sign` with:
+
+```sh
+npm run tauri:build:dmg
+```
+
+External release remains gated on successful notarization/stapling and organization approval.
