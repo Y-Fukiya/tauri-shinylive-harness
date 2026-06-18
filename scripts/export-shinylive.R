@@ -84,6 +84,8 @@ shinylive::export(
   package_cache = package_cache
 )
 
+unlink(file.path(output_dir, "shinylive", "webr", "tests"), recursive = TRUE)
+
 app_manifest <- paste0(
   "{\n",
   "  \"id\": ", json_escape(app_id), ",\n",
