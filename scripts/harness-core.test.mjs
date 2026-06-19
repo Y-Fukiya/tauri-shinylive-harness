@@ -10,6 +10,10 @@ import { buildReleaseSmokePlan, renderReleaseSmokeMarkdown } from "./release-smo
 import { verifyReleaseArtifacts } from "./release-verifier.mjs";
 import { auditTauriSecurity } from "./tauri-security-audit.mjs";
 import { createReproducibilityReport } from "./reproducibility-report.mjs";
+import { runCdiscPreflight } from "./cdisc-preflight.mjs";
+import { exportReportPdfs } from "./pdf-report-exporter.mjs";
+import { generateEvidenceIndex, writeReviewSignoff } from "./review-evidence.mjs";
+import { createTemplatePackage } from "./template-package.mjs";
 
 test("parseHarnessToml preserves quoted commas and hashes inside arrays", () => {
   const config = parseHarnessToml(`
@@ -206,6 +210,11 @@ test("verifyReleaseArtifacts validates checksums and required validation-pack ev
       ["validation-pack/evidence/harness-config-validation.json", "{}\n"],
       ["validation-pack/evidence/clinical-data-pack-validation.json", "{}\n"],
       ["validation-pack/evidence/clinical-data-dictionary.md", "# Dictionary\n"],
+      ["validation-pack/evidence/cdisc-bridge-preflight.json", "{}\n"],
+      ["validation-pack/evidence/pdf-report-export-manifest.json", "{}\n"],
+      ["validation-pack/evidence/review-signoff.json", "{}\n"],
+      ["validation-pack/evidence/review-signoff-history.jsonl", "{}\n"],
+      ["validation-pack/evidence/evidence-index.html", "<!doctype html>\n"],
       ["validation-pack/evidence/portal-manifest.json", "{}\n"],
       ["validation-pack/evidence/harness-bundle-manifest.json", "{}\n"],
     ]);
@@ -256,4 +265,137 @@ test("createReproducibilityReport records pinned runtimes and source hashes", as
   assert.equal(result.pins.node, "24");
   assert.equal(result.pins.rustToolchain.channel, "1.93.1");
   assert.equal(result.files.some((file) => file.path === "package-lock.json" && file.sha256), true);
+});
+
+test("CDISC preflight covers the synthetic schema without claiming submission readiness", async () => {
+  const result = await runCdiscPreflight({ writeOutputs: false, pinnacleCli: null });
+  const errorCount = result.issues.filter((issue) => issue.severity === "error").length;
+  const codes = new Set(result.issues.map((issue) => issue.code));
+
+  assert.equal(result.ok, true);
+  assert.equal(errorCount, 0);
+  assert.equal(result.submissionReady, false);
+  assert.equal(result.coverage.missingDomains.length, 0);
+  assert.equal(codes.has("demo-bridge-not-submission-ready"), true);
+});
+
+test("PDF report exporter creates companion PDFs from exported HTML manifest", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "harness-pdf-export-test-"));
+
+  try {
+    const htmlPath = path.join(tempRoot, "subject-snapshot.html");
+    const manifestPath = path.join(tempRoot, "report-export-manifest.json");
+    const outputRoot = path.join(tempRoot, "pdf");
+    await writeFile(
+      htmlPath,
+      "<!doctype html><html><body><h1>Subject Snapshot</h1><p>Not for clinical decision making.</p><table><tr><td>SUBJ-001</td></tr></table></body></html>",
+    );
+    await writeFile(
+      manifestPath,
+      JSON.stringify(
+        {
+          schemaVersion: 1,
+          generatedAt: "2026-01-01T00:00:00.000Z",
+          project: { name: "demo", version: "1.0.0" },
+          clinicalUseLimitation: "Synthetic demo only.",
+          appResults: [
+            {
+              appId: "subject-profile-reference",
+              reports: [
+                {
+                  templateId: "subject-snapshot",
+                  title: "Subject Snapshot",
+                  subjectId: "SUBJ-001",
+                  path: htmlPath,
+                  sha256: "source-hash",
+                },
+              ],
+            },
+          ],
+        },
+        null,
+        2,
+      ),
+    );
+
+    const result = await exportReportPdfs({
+      reportManifestPath: manifestPath,
+      outputRoot,
+      reportPath: path.join(tempRoot, "pdf-report-export-manifest.json"),
+      markdownPath: path.join(tempRoot, "pdf-report-index.md"),
+      writeOutputs: true,
+    });
+    const pdfPath = result.appResults[0].reports[0].absolutePath;
+    const pdf = await readFile(pdfPath, "utf8");
+
+    assert.equal(result.ok, true);
+    assert.equal(result.summary.pdfCount, 1);
+    assert.match(pdf, /^%PDF-1\.4/);
+    assert.equal(result.appResults[0].reports[0].path.endsWith(".pdf"), true);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("review signoff and evidence index persist reviewer workflow evidence", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "harness-review-evidence-test-"));
+
+  try {
+    const evidenceFile = path.join(tempRoot, "clinical-data-pack-validation.json");
+    await writeFile(evidenceFile, "{}\n");
+    const signoff = await writeReviewSignoff({
+      status: "approved",
+      reviewer: "QA Reviewer",
+      role: "Validation",
+      decision: "approved-for-demo",
+      notes: "Synthetic demo evidence reviewed.",
+      reportPath: path.join(tempRoot, "review-signoff.json"),
+      historyPath: path.join(tempRoot, "review-signoff-history.jsonl"),
+      appendHistory: true,
+    });
+    const index = await generateEvidenceIndex({
+      signoffPath: path.join(tempRoot, "review-signoff.json"),
+      jsonPath: path.join(tempRoot, "evidence-index.json"),
+      htmlPath: path.join(tempRoot, "evidence-index.html"),
+      markdownPath: path.join(tempRoot, "evidence-index.md"),
+      sources: [
+        {
+          id: "clinical-data",
+          label: "Clinical data validation",
+          category: "validation",
+          path: evidenceFile,
+          required: true,
+        },
+      ],
+    });
+    const history = await readFile(path.join(tempRoot, "review-signoff-history.jsonl"), "utf8");
+
+    assert.equal(signoff.current.status, "approved");
+    assert.match(history, /QA Reviewer/);
+    assert.equal(index.ok, true);
+    assert.equal(index.summary.presentRequiredCount, 1);
+    assert.equal(index.evidence[0].sha256.length, 64);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("template package creates a reusable starter manifest", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "harness-template-package-test-"));
+
+  try {
+    const result = await createTemplatePackage({
+      outputRoot: tempRoot,
+      includePaths: ["package.json", "harness.toml", "schemas/cdisc-mapping.schema.json"],
+      reportPath: path.join(tempRoot, "template-package-manifest.json"),
+      writeReport: true,
+    });
+
+    assert.equal(result.ok, true);
+    assert.equal(result.summary.includedFileCount, 4);
+    assert.equal(result.files.some((file) => file.path === "package.json"), true);
+    assert.equal(result.npmPackage.bin, "tauri-shinylive-harness");
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
 });

@@ -29,6 +29,10 @@ import { exportReports } from "./report-exporter.mjs";
 import { verifyReleaseArtifacts } from "./release-verifier.mjs";
 import { auditTauriSecurity } from "./tauri-security-audit.mjs";
 import { createReproducibilityReport } from "./reproducibility-report.mjs";
+import { runCdiscPreflight } from "./cdisc-preflight.mjs";
+import { exportReportPdfs } from "./pdf-report-exporter.mjs";
+import { generateEvidenceIndex, writeReviewSignoff } from "./review-evidence.mjs";
+import { createTemplatePackage } from "./template-package.mjs";
 
 const execFileAsync = promisify(execFile);
 const command = process.argv[2] ?? "help";
@@ -44,6 +48,11 @@ const usage = `Usage:
   node scripts/harness.mjs doctor
   node scripts/harness.mjs export [app-id]
   node scripts/harness.mjs export-reports [--app app-id] [--subject subject-id] [--all-subjects]
+  node scripts/harness.mjs export-report-pdfs [--manifest reports/report-export-manifest.json] [--output reports/exported-pdf]
+  node scripts/harness.mjs cdisc-preflight [--mapping mappings/cdisc-demo-mapping.json] [--pinnacle21-cli path]
+  node scripts/harness.mjs review-signoff [--status pending-review] [--reviewer name] [--decision decision] [--notes text]
+  node scripts/harness.mjs evidence-index
+  node scripts/harness.mjs package-template [--output dist/starter-template] [--zip]
   node scripts/harness.mjs prepare
   node scripts/harness.mjs audit-tauri-security [--report reports/tauri-security-audit.json]
   node scripts/harness.mjs reproducibility [--report reports/reproducibility.json]
@@ -882,6 +891,8 @@ const verifyAll = async (values = []) => {
   }
   await exportApps();
   await exportReports({ appId });
+  await exportReportPdfs();
+  await runCdiscPreflight();
   await buildPortalAndPrepare();
   await auditTauriSecurity();
   await createReproducibilityReport();
@@ -890,6 +901,8 @@ const verifyAll = async (values = []) => {
   await runCommand("cargo", ["test", "--manifest-path", "crates/harness-server/Cargo.toml"]);
   await verifyBundleArtifacts();
   await runCommand("node", ["scripts/e2e-verify.mjs", ...(appId ? ["--app", appId] : [])]);
+  await writeReviewSignoff({ appendHistory: false, force: false });
+  await generateEvidenceIndex();
   await appendAudit("verify", "ok", { appId });
 };
 
@@ -937,6 +950,93 @@ try {
         index: "reports/exported/index.html",
         apps: result.appResults.length,
         reports: result.appResults.reduce((total, item) => total + item.reports.length, 0),
+      });
+      break;
+    }
+    case "export-report-pdfs": {
+      const options = parseOptions(args);
+      const result = await exportReportPdfs({
+        reportManifestPath: options.manifest ? path.resolve(options.manifest) : undefined,
+        outputRoot: options.output ? path.resolve(options.output) : undefined,
+        reportPath: options.report ? path.resolve(options.report) : undefined,
+        markdownPath: options.markdown ? path.resolve(options.markdown) : undefined,
+      });
+      printJson({
+        ok: result.ok,
+        report: "reports/pdf-report-export-manifest.json",
+        pdfs: result.summary.pdfCount,
+      });
+      break;
+    }
+    case "cdisc-preflight": {
+      const options = parseOptions(args);
+      const result = await runCdiscPreflight({
+        mappingPath: options.mapping ? path.resolve(options.mapping) : undefined,
+        schemaPath: options.schema ? path.resolve(options.schema) : undefined,
+        reportPath: options.report ? path.resolve(options.report) : undefined,
+        markdownPath: options.markdown ? path.resolve(options.markdown) : undefined,
+        pinnacleCli: options["pinnacle21-cli"] === true ? undefined : options["pinnacle21-cli"],
+        pinnacleConfig: options["pinnacle21-config"] === true ? undefined : options["pinnacle21-config"],
+      });
+      printJson({
+        ok: result.ok,
+        submissionReady: result.submissionReady,
+        report: "reports/cdisc-bridge-preflight.json",
+        errors: result.summary.bySeverity.error ?? 0,
+        warnings: result.summary.bySeverity.warning ?? 0,
+      });
+      if (!result.ok) {
+        throw new Error("CDISC bridge preflight failed.");
+      }
+      break;
+    }
+    case "review-signoff": {
+      const options = parseOptions(args);
+      const result = await writeReviewSignoff({
+        status: options.status === true ? "pending-review" : options.status ?? "pending-review",
+        reviewer: options.reviewer === true ? undefined : options.reviewer,
+        role: options.role === true ? "" : options.role ?? "",
+        decision: options.decision === true ? "not-reviewed" : options.decision ?? "not-reviewed",
+        notes: options.notes === true ? "" : options.notes ?? "",
+        releaseTag: options["release-tag"] === true ? "" : options["release-tag"] ?? process.env.RELEASE_TAG ?? "",
+        appendHistory: !options["no-history"],
+        force: true,
+      });
+      await generateEvidenceIndex();
+      printJson({
+        ok: true,
+        report: "reports/review-signoff.json",
+        history: "reports/review-signoff-history.jsonl",
+        status: result.current.status,
+      });
+      break;
+    }
+    case "evidence-index": {
+      const result = await generateEvidenceIndex();
+      printJson({
+        ok: result.ok,
+        report: "reports/evidence-index.json",
+        html: "reports/evidence-index.html",
+        missingRequired: result.summary.missingRequiredCount,
+      });
+      if (!result.ok) {
+        throw new Error("Evidence index has missing required evidence.");
+      }
+      break;
+    }
+    case "package-template": {
+      const options = parseOptions(args);
+      const result = await createTemplatePackage({
+        outputRoot: options.output ? path.resolve(options.output) : undefined,
+        reportPath: options.report ? path.resolve(options.report) : undefined,
+        zip: Boolean(options.zip),
+      });
+      printJson({
+        ok: result.ok,
+        output: result.output,
+        report: "reports/template-package-manifest.json",
+        files: result.summary.includedFileCount,
+        zip: result.zipArtifact?.path ?? null,
       });
       break;
     }

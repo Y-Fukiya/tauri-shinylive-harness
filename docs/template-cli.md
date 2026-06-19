@@ -12,6 +12,11 @@ harness list
 harness doctor
 harness export [app-id]
 harness export-reports [--app app-id] [--subject subject-id] [--all-subjects]
+harness export-report-pdfs [--manifest reports/report-export-manifest.json]
+harness cdisc-preflight [--pinnacle21-cli path]
+harness review-signoff [--status pending-review] [--reviewer name] [--decision decision]
+harness evidence-index
+harness package-template [--output dist/starter-template] [--zip]
 harness prepare
 harness verify-static
 harness verify [--app app-id]
@@ -126,10 +131,12 @@ report_templates = ["subject-snapshot", "safety-review", "data-listing"]
 
 Templates are registered under `templates/reports/<template-id>/template.json`.
 The `export-reports` command renders configured HTML reports to `reports/exported/<app-id>/`.
+The `export-report-pdfs` command renders companion PDFs to `reports/exported-pdf/<app-id>/`.
 
 ```sh
 npm run harness -- export-reports --app subject-profile-reference
 npm run harness -- export-reports --app subject-profile-reference --all-subjects
+npm run harness -- export-report-pdfs
 ```
 
 Generated reports include:
@@ -142,3 +149,49 @@ Generated reports include:
 - reviewer sign-off fields
 
 `npm run verify` runs report export automatically so Phase 3 packaging can include the latest report evidence.
+
+## Clinical Bridge And Review Workflow
+
+The synthetic schema can be checked against the demo CDISC bridge mapping:
+
+```sh
+npm run harness -- cdisc-preflight
+```
+
+This writes `reports/cdisc-bridge-preflight.json` and `docs/generated/cdisc-bridge-preflight.md`. The command checks bridge coverage and Pinnacle 21 handoff readiness, but it keeps `submissionReady: false` because the harness does not generate regulated SDTM/ADaM packages.
+
+Reviewer workflow state can be persisted separately from the report HTML:
+
+```sh
+npm run harness -- review-signoff \
+  --status pending-review \
+  --reviewer "Reviewer Name" \
+  --decision not-reviewed \
+  --notes "Initial validation packet generated"
+npm run harness -- evidence-index
+```
+
+Outputs:
+
+- `reports/review-signoff.json`
+- `reports/review-signoff-history.jsonl`
+- `reports/evidence-index.json`
+- `reports/evidence-index.html`
+- `docs/generated/evidence-index.md`
+
+## Starter Template Packaging
+
+Use `package-template` to cut a reusable starter artifact without generated app, dist, report, release, or build output:
+
+```sh
+npm run harness -- package-template
+npm run harness -- package-template --zip
+```
+
+Outputs:
+
+- `dist/starter-template/<artifact-name>-starter/`
+- `reports/template-package-manifest.json`
+- optional `dist/starter-template/<artifact-name>-starter.zip`
+
+The starter is package-shaped and includes the `tauri-shinylive-harness` bin entry, but publishing to npm is intentionally separate because it requires package naming, ownership, release policy, and credentials.

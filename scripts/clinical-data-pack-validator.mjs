@@ -88,7 +88,7 @@ export const clinicalDomains = {
 
 const metadataFile = "clinical-demo-data-pack.json";
 
-const controlledTerminology = {
+export const controlledTerminology = {
   demographics: {
     sex: ["F", "M"],
     study_status: ["On study", "Discontinued", "Completed"],

@@ -23,9 +23,15 @@ The resulting `release/validation-pack/` directory should contain:
 | `evidence/e2e-diagnostics.json` | Portal/app E2E, screenshots, range/cache, and external request evidence. |
 | `evidence/clinical-data-pack-validation.json` | Synthetic clinical data validation evidence with summaries. |
 | `evidence/clinical-data-dictionary.md` | Generated data dictionary. |
+| `evidence/cdisc-bridge-preflight.json` | Synthetic-to-SDTM bridge coverage and Pinnacle 21 handoff readiness with `submissionReady: false`. |
+| `evidence/pdf-report-export-manifest.json` | Companion PDF report manifest. |
+| `evidence/review-signoff.json` | Current persisted reviewer workflow state. |
+| `evidence/review-signoff-history.jsonl` | Append-only reviewer workflow history. |
+| `evidence/evidence-index.html` | Human-readable evidence index for reviewers. |
 | `evidence/tauri-security-audit.json` | Tauri hardening audit for capabilities, CSP, navigation, resources, and localhost binding. |
 | `evidence/reproducibility.json` | Runtime pins, observed tool versions, lockfile hashes, and bundled asset hashes. |
 | `evidence/reports/` | Exported subject reports listed by `report-export-manifest.json`. |
+| `evidence/reports-pdf/` | Companion PDF reports generated from HTML reports. |
 | `evidence/screenshots/` | Playwright screenshots for portal and verified apps. |
 
 External publication remains gated on:

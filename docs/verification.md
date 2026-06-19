@@ -161,10 +161,13 @@ npm run verify:release
 Expected:
 
 - `reports/phase3-preflight.json` is written.
+- `reports/cdisc-bridge-preflight.json` is written with synthetic bridge coverage, controlled terminology gaps, Pinnacle 21 handoff readiness, and `submissionReady: false`.
+- `reports/pdf-report-export-manifest.json` and `reports/exported-pdf/` are written from the latest HTML report export.
+- `reports/review-signoff.json`, `reports/review-signoff-history.jsonl`, and `reports/evidence-index.html` are written for reviewer workflow evidence.
 - Missing credentials are reported as readiness issues, not as leaked secret values.
 - Tauri creates the macOS app and Windows NSIS installer, and Phase 3 packaging creates platform release evidence.
 - `release/SHA256SUMS` covers every generated release file.
-- `release/validation-pack/` and `release/validation-pack.zip` contain verification evidence, config validation, runtime integrity, data validation report, data dictionary, screenshots, manifest, SBOM/license inventory, platform manual clean checklist, release smoke test plan, and checksums.
+- `release/validation-pack/` and `release/validation-pack.zip` contain verification evidence, config validation, runtime integrity, data validation report, data dictionary, CDISC bridge preflight, HTML/PDF report evidence, review sign-off evidence, screenshots, manifest, SBOM/license inventory, platform manual clean checklist, release smoke test plan, and checksums.
 - `reports/release-artifact-verification.json` confirms release checksums, `validation-pack.zip`, `release-smoke-plan.json`, and required evidence files.
 - `reports/tauri-security-audit.json` records Tauri capability, CSP, navigation, resource, and localhost bind checks.
 - `reports/reproducibility.json` records pinned Node, Rust, R, lockfile hashes, and bundled asset hashes.

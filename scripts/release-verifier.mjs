@@ -20,6 +20,11 @@ export const requiredReleaseFiles = [
   "validation-pack/evidence/harness-config-validation.json",
   "validation-pack/evidence/clinical-data-pack-validation.json",
   "validation-pack/evidence/clinical-data-dictionary.md",
+  "validation-pack/evidence/cdisc-bridge-preflight.json",
+  "validation-pack/evidence/pdf-report-export-manifest.json",
+  "validation-pack/evidence/review-signoff.json",
+  "validation-pack/evidence/review-signoff-history.jsonl",
+  "validation-pack/evidence/evidence-index.html",
   "validation-pack/evidence/portal-manifest.json",
   "validation-pack/evidence/harness-bundle-manifest.json",
 ];

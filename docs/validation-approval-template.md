@@ -17,9 +17,15 @@
 - `reports/static-verification.json`
 - `reports/bundle-integrity.json`
 - `reports/e2e-diagnostics.json`
+- `reports/cdisc-bridge-preflight.json`
 - `reports/report-export-manifest.json`
+- `reports/pdf-report-export-manifest.json`
 - `reports/review-workflow.json`
+- `reports/review-signoff.json`
+- `reports/review-signoff-history.jsonl`
+- `reports/evidence-index.html`
 - `reports/exported/`
+- `reports/exported-pdf/`
 - `reports/phase3-preflight.json`
 - `reports/local-release-audit.json`
 - `reports/local-release-audit-<platform>.json`
@@ -31,7 +37,13 @@
 - `release/validation-pack/release-smoke-test.md`
 - `release/validation-pack/evidence/tauri-security-audit.json`
 - `release/validation-pack/evidence/reproducibility.json`
+- `release/validation-pack/evidence/cdisc-bridge-preflight.json`
+- `release/validation-pack/evidence/pdf-report-export-manifest.json`
+- `release/validation-pack/evidence/review-signoff.json`
+- `release/validation-pack/evidence/review-signoff-history.jsonl`
+- `release/validation-pack/evidence/evidence-index.html`
 - `release/validation-pack/evidence/reports/`
+- `release/validation-pack/evidence/reports-pdf/`
 - `release/validation-pack/manual-clean-macos-checklist.md`
 - `release/validation-pack/manual-clean-windows-checklist.md`
 
@@ -41,7 +53,11 @@
 - Harness config validation has zero errors.
 - Smoke text passes for every configured app.
 - Configured report exports are present and include data pack hash, generation timestamp, app version, clinical-use limitation, and reviewer sign-off fields.
+- PDF companion reports are present when the validation pack is intended for demo or audit review.
+- CDISC bridge preflight has zero errors and explicitly states `submissionReady: false` until a regulated CDISC layer is approved.
 - Review workflow status, reviewer, reviewed_at, decision, and notes fields are present.
+- Review sign-off state and JSONL history are present and match the approval decision.
+- Human-readable evidence index is present and all required evidence is marked present.
 - External request audit contains zero non-local HTTP(S) requests.
 - Static bundle hashes, runtime bundle integrity, and release checksums match.
 - Tauri security audit and reproducibility evidence have zero blocking issues.

@@ -17,9 +17,11 @@
         "age": { "target": "AGE", "relationship": "direct" },
         "race": { "target": "RACE", "relationship": "controlled-term" },
         "ethnicity": { "target": "ETHNIC", "relationship": "controlled-term" },
+        "region": { "target": "SUPPDM.REGION", "relationship": "not-mapped", "notes": "Synthetic regional grouping is not emitted to a generated SDTM domain." },
         "consent_date": { "target": "RFICDTC", "relationship": "direct" },
         "first_dose_date": { "target": "RFXSTDTC", "relationship": "direct" },
-        "last_contact_date": { "target": "RFPENDTC", "relationship": "direct" }
+        "last_contact_date": { "target": "RFPENDTC", "relationship": "direct" },
+        "study_status": { "target": "DSDECOD", "relationship": "not-mapped", "notes": "Would require a disposition domain that the demo bridge does not generate." }
       }
     },
     "visits": {
@@ -29,7 +31,8 @@
         "visit": { "target": "VISIT", "relationship": "direct" },
         "visit_day": { "target": "VISITDY", "relationship": "direct" },
         "visit_date": { "target": "SVSTDTC", "relationship": "direct" },
-        "visit_status": { "target": "SVSTAT", "relationship": "derived" }
+        "visit_status": { "target": "SVSTAT", "relationship": "derived" },
+        "disposition": { "target": "SVUPDES", "relationship": "controlled-term", "notes": "Synthetic visit disposition is reviewer context, not a complete SDTM disposition implementation." }
       }
     },
     "labs": {

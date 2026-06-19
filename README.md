@@ -11,12 +11,14 @@ The bundled clinical demo data contract is a synthetic, non-CDISC schema for har
 The harness is now config-driven:
 
 - `harness.toml` is the app catalog and distribution source of truth.
-- `node scripts/harness.mjs` provides `new`, `add-app`, `add-data-pack`, `validate-config`, `validate-data`, `list`, `doctor`, `export`, `export-reports`, `prepare`, `audit-tauri-security`, `reproducibility`, `verify-static`, `verify-release`, `verify`, and `build`.
+- `node scripts/harness.mjs` provides `new`, `add-app`, `add-data-pack`, `validate-config`, `validate-data`, `list`, `doctor`, `export`, `export-reports`, `export-report-pdfs`, `cdisc-preflight`, `review-signoff`, `evidence-index`, `package-template`, `prepare`, `audit-tauri-security`, `reproducibility`, `verify-static`, `verify-release`, `verify`, and `build`.
 - `schemas/harness.schema.json` and `reports/harness-config-validation.json` define and record harness config validation.
 - The portal supports multiple configured apps with search, selection, same-origin iframe loading, diagnostics, and JSON report download.
 - `dist/manifest.json` aggregates `apps/*/harness-app.json`.
 - App manifests can include `dataPack` file hashes, clinical data validation evidence, and DOM probes for richer verification.
 - Apps can declare `report_templates`, and `export-reports` writes HTML report evidence with data pack hash, generated timestamp, app version, clinical-use limitation, and reviewer sign-off fields.
+- `export-report-pdfs` writes companion PDF evidence from exported HTML reports, and `review-signoff` / `evidence-index` persist review workflow state for validation packs.
+- `cdisc-preflight` checks the synthetic-to-SDTM bridge coverage, controlled terminology gaps, and Pinnacle 21 handoff readiness while explicitly keeping `submissionReady: false` until a regulated CDISC layer exists.
 - `data-packs/*` stores reusable synthetic clinical data packs; `data_pack_source` links apps back to the pack that generated/validated them.
 - `dist/harness-bundle-manifest.json` records file-level SHA-256 hashes, and `/__harness/integrity` verifies those hashes at runtime.
 - `dist/checksums/SHA256SUMS`, `dist/reports/sbom.json`, and `dist/reports/licenses.md` are generated during prepare.
@@ -48,10 +50,13 @@ npm run doctor
 npm run test:unit
 npm run validate:data
 npm run export:reports
+npm run export:report-pdfs
+npm run clinical:cdisc-preflight
 npm run smoke:multi-app
 npm run export
 npm run build:all
 npm run verify
+npm run package:template
 npm run build:harness
 npm run build:release-local
 npm run verify:release
@@ -80,6 +85,11 @@ node scripts/harness.mjs list
 node scripts/harness.mjs doctor
 node scripts/harness.mjs export safety-summary
 node scripts/harness.mjs export-reports --app subject-profile-reference
+node scripts/harness.mjs export-report-pdfs
+node scripts/harness.mjs cdisc-preflight
+node scripts/harness.mjs review-signoff --status pending-review --decision not-reviewed
+node scripts/harness.mjs evidence-index
+node scripts/harness.mjs package-template
 node scripts/harness.mjs verify --app subject-profile-reference
 node scripts/harness.mjs audit-tauri-security
 node scripts/harness.mjs reproducibility
@@ -101,13 +111,13 @@ npm run phase3:release-draft
 - Clinical demo data packs with synthetic demographics, visits, labs, vitals, AEs, concomitant meds, and exposure. The main Subject Profile pack has 30 subjects, with additional oncology, vaccine, and chronic-disease scenario packs under `data-packs/*`.
 - Data-pack registry under `data-packs/*` with app-level `data_pack_source` traceability.
 - Clinical data pack schema and validator with required column, referential integrity, cross-domain timeline, controlled terminology, reviewer-friendly issue summaries, data dictionary, and hash report checks.
-- CDISC bridge mapping schema and demo mapping under `schemas/cdisc-mapping.schema.json` and `mappings/cdisc-demo-mapping.json`.
+- CDISC bridge mapping schema, demo mapping, and preflight report under `schemas/cdisc-mapping.schema.json`, `mappings/cdisc-demo-mapping.json`, and `reports/cdisc-bridge-preflight.json`.
 - Data pack SHA-256 traceability in `harness-app.json` and `dist/manifest.json`.
 - Subject Profile Reference App v2 with subject selector, lab selector, AE severity/relatedness/seriousness summaries, exposure/AE timeline, and in-app data pack hash display.
 - Subject Profile Reference App reports: Subject Snapshot, Safety Review, and Data Listing.
-- Report Template Registry under `templates/reports/*`, plus generated HTML reports under `reports/exported/*`.
-- Review workflow evidence under `reports/review-workflow.json`, `docs/generated/report-export-index.md`, and the Phase 3 validation pack.
-- App template registry for generating subject profile apps from `--template subject-profile`.
+- Report Template Registry under `templates/reports/*`, generated HTML reports under `reports/exported/*`, and companion PDF reports under `reports/exported-pdf/*`.
+- Review workflow evidence under `reports/review-workflow.json`, `reports/review-signoff.json`, `reports/review-signoff-history.jsonl`, `reports/evidence-index.html`, generated docs, and the Phase 3 validation pack.
+- App template registry for generating subject profile apps from `--template subject-profile`, plus `package-template` for cutting a reusable starter-template artifact.
 - Multi-app-ready diagnostics portal.
 - Multi-app scaffold smoke test through `npm run smoke:multi-app`.
 - Embedded Rust loopback static server with COOP/COEP/CORP, CSP, MIME mapping, byte-range serving, cache headers, and path traversal protection.

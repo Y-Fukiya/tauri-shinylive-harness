@@ -9,13 +9,17 @@ This procedure is generated from `harness.toml` and covers Phase 2 verification 
 3. `node scripts/harness.mjs validate-data`
 4. `node scripts/harness.mjs export`
 5. `node scripts/harness.mjs export-reports`
-6. `node scripts/harness.mjs prepare`
-7. `npm run test:unit`
-8. `node scripts/harness.mjs audit-tauri-security`
-9. `node scripts/harness.mjs reproducibility`
-10. `node scripts/harness.mjs verify-static`
-11. `node scripts/e2e-verify.mjs`
-12. `npm run tauri:build`
+6. `node scripts/harness.mjs export-report-pdfs`
+7. `node scripts/harness.mjs cdisc-preflight`
+8. `node scripts/harness.mjs prepare`
+9. `npm run test:unit`
+10. `node scripts/harness.mjs audit-tauri-security`
+11. `node scripts/harness.mjs reproducibility`
+12. `node scripts/harness.mjs verify-static`
+13. `node scripts/e2e-verify.mjs`
+14. `node scripts/harness.mjs review-signoff --status pending-review --decision not-reviewed`
+15. `node scripts/harness.mjs evidence-index`
+16. `npm run tauri:build`
 
 ## Phase 3 Commands
 
@@ -30,6 +34,7 @@ This procedure is generated from `harness.toml` and covers Phase 2 verification 
 9. `npm run local:audit:macos` or `npm run local:audit:windows`
 10. `npm run phase3:release-draft` after the release has been reviewed.
 11. `node scripts/harness.mjs verify-release --release release/` before publishing release artifacts.
+12. `node scripts/harness.mjs package-template` when publishing a reusable starter artifact.
 
 ## Acceptance Criteria
 
@@ -44,9 +49,12 @@ This procedure is generated from `harness.toml` and covers Phase 2 verification 
 - Clinical validation covers treatment-related AE exposure context, lab-linked AE support, medication indication alignment, and exposure interval overlap.
 - Clinical data validation summary groups issues by severity, rule code, subject, and domain.
 - `reports/clinical-data-pack-validation.json` and `docs/generated/clinical-data-dictionary.md` are generated.
+- `reports/cdisc-bridge-preflight.json` records synthetic-to-SDTM bridge coverage, controlled terminology gaps, Pinnacle 21 handoff readiness, and `submissionReady: false` until a regulated layer exists.
 - Configured report templates export HTML report evidence under `reports/exported/`.
+- `reports/pdf-report-export-manifest.json` and `reports/exported-pdf/` contain companion PDF evidence generated from the HTML reports.
 - Exported reports include data pack hash, generated timestamp, app version, clinical-use limitation, and reviewer sign-off fields.
 - `reports/review-workflow.json` records review status, reviewer, reviewed_at, decision, and notes fields.
+- `reports/review-signoff.json`, `reports/review-signoff-history.jsonl`, and `reports/evidence-index.html` persist reviewer workflow state and human-readable evidence navigation.
 - Unit tests cover TOML quoted arrays, location-independent data pack hashes, controlled terminology, and visit-reference validation.
 - Playwright screenshot evidence is generated for the portal and verified apps.
 - E2E network audit observes no external HTTP(S) requests.
@@ -62,6 +70,7 @@ This procedure is generated from `harness.toml` and covers Phase 2 verification 
 - `reports/local-release-audit-<platform>.json` records artifact, checksum, disclaimer, signing, and clean-install status.
 - `release/` contains platform release artifacts, release notes, checksums, release smoke test plan, and validation pack.
 - `reports/release-artifact-verification.json` confirms release checksums and required validation-pack evidence files.
+- `reports/template-package-manifest.json` records reusable starter-template contents when `package-template` is run.
 - Windows NSIS installer artifacts are generated on Windows when `windows_bundles` includes `nsis`.
 - Public release publication is held until platform signing credentials and organization approval are present.
 

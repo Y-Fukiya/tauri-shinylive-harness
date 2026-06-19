@@ -288,8 +288,15 @@ const createValidationPack = async (config, assets, platform = "macos") => {
   await copyIfExists(path.join(reportsRoot, "reproducibility.json"), path.join(evidenceRoot, "reproducibility.json"));
   await copyIfExists(path.join(reportsRoot, "e2e-diagnostics.json"), path.join(evidenceRoot, "e2e-diagnostics.json"));
   await copyIfExists(path.join(reportsRoot, "clinical-data-pack-validation.json"), path.join(evidenceRoot, "clinical-data-pack-validation.json"));
+  await copyIfExists(path.join(reportsRoot, "cdisc-bridge-preflight.json"), path.join(evidenceRoot, "cdisc-bridge-preflight.json"));
   await copyIfExists(path.join(reportsRoot, "report-export-manifest.json"), path.join(evidenceRoot, "report-export-manifest.json"));
+  await copyIfExists(path.join(reportsRoot, "pdf-report-export-manifest.json"), path.join(evidenceRoot, "pdf-report-export-manifest.json"));
   await copyIfExists(path.join(reportsRoot, "review-workflow.json"), path.join(evidenceRoot, "review-workflow.json"));
+  await copyIfExists(path.join(reportsRoot, "review-signoff.json"), path.join(evidenceRoot, "review-signoff.json"));
+  await copyIfExists(path.join(reportsRoot, "review-signoff-history.jsonl"), path.join(evidenceRoot, "review-signoff-history.jsonl"));
+  await copyIfExists(path.join(reportsRoot, "evidence-index.json"), path.join(evidenceRoot, "evidence-index.json"));
+  await copyIfExists(path.join(reportsRoot, "evidence-index.html"), path.join(evidenceRoot, "evidence-index.html"));
+  await copyIfExists(path.join(reportsRoot, "exported-pdf"), path.join(evidenceRoot, "reports-pdf"));
   await copyReportEvidence(evidenceRoot);
   await copyIfExists(path.join(reportsRoot, "screenshots"), path.join(evidenceRoot, "screenshots"));
   await copyIfExists(path.join(reportsRoot, "phase3-preflight.json"), path.join(evidenceRoot, "phase3-preflight.json"));
@@ -301,6 +308,9 @@ const createValidationPack = async (config, assets, platform = "macos") => {
   await copyIfExists(path.join(rootDir, "docs", "generated", "clinical-data-dictionary.md"), path.join(evidenceRoot, "clinical-data-dictionary.md"));
   await copyIfExists(path.join(rootDir, "docs", "generated", "verification-procedure.md"), path.join(evidenceRoot, "verification-procedure.md"));
   await copyIfExists(path.join(rootDir, "docs", "generated", "report-export-index.md"), path.join(evidenceRoot, "report-export-index.md"));
+  await copyIfExists(path.join(rootDir, "docs", "generated", "pdf-report-index.md"), path.join(evidenceRoot, "pdf-report-index.md"));
+  await copyIfExists(path.join(rootDir, "docs", "generated", "cdisc-bridge-preflight.md"), path.join(evidenceRoot, "cdisc-bridge-preflight.md"));
+  await copyIfExists(path.join(rootDir, "docs", "generated", "evidence-index.md"), path.join(evidenceRoot, "evidence-index.md"));
   await copyIfExists(path.join(rootDir, "docs", "generated", "phase3-readiness.md"), path.join(evidenceRoot, "phase3-readiness.md"));
   await copyIfExists(path.join(rootDir, "docs", "phase3-distribution.md"), path.join(evidenceRoot, "phase3-distribution.md"));
   await copyIfExists(path.join(rootDir, "docs", "validation-approval-template.md"), path.join(evidenceRoot, "validation-approval-template.md"));
@@ -372,8 +382,11 @@ const createValidationPack = async (config, assets, platform = "macos") => {
       "- Reproducibility evidence for pinned Node, Rust, R, lockfiles, and Shinylive/dist asset hashes",
       "- Playwright portal/app verification with external HTTP(S) request audit",
       "- Clinical data pack validation with data dictionary",
+      "- CDISC bridge preflight with explicit non-submission-ready status and Pinnacle 21 handoff readiness",
       "- Exported subject reports with data pack hash, generated timestamp, and reviewer sign-off fields",
+      "- PDF companion reports for validation and demo review packets",
       "- Review workflow status template for reviewer, reviewed_at, decision, and notes",
+      "- Persistent reviewer sign-off state, sign-off history, and human-readable evidence index",
       "- Screenshot evidence for the portal and verified apps",
       "- Release asset checksum inventory",
       "- Release artifact smoke test plan with platform install, offline, app, and evidence checks",

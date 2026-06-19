@@ -122,6 +122,9 @@ The stable Windows packaging path asks Tauri to create NSIS installer artifacts.
 - bundle manifest and dist checksums
 - SBOM seed and license inventory
 - harness config validation and runtime bundle integrity evidence
+- CDISC bridge preflight evidence with explicit non-submission-ready status
+- HTML and companion PDF report evidence
+- reviewer sign-off state, review history, and human-readable evidence index
 - Tauri security audit and reproducibility evidence
 - manual clean macOS or Windows checklist
 - release artifact smoke test plan in JSON and Markdown
