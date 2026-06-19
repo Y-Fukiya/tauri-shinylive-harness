@@ -60,7 +60,7 @@ During `npm run export`, the harness computes per-file SHA-256 hashes and an agg
 - `reports/clinical-data-pack-validation.json`
 - `docs/generated/clinical-data-dictionary.md`
 
-The validator checks metadata, required columns, subject ID references, lab/vital visit references, key controlled terminology, visit dates, AE start/end days, medication intervals, exposure interval overlap, treatment-related AE exposure context, lab-linked AE support records, medication indication alignment, and the aggregate data pack hash.
+The validator checks metadata, required columns, subject ID references, lab/vital visit references, key controlled terminology, visit dates, AE start/end days, medication intervals, exposure interval overlap, treatment-related AE exposure context, lab-linked AE support records, medication indication alignment, reviewer-friendly issue summaries, and the aggregate data pack hash.
 
 ## Reference Checks
 

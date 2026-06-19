@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -7,6 +7,9 @@ import test from "node:test";
 import { parseHarnessToml, rootDir } from "./harness-core.mjs";
 import { validateClinicalDataPack } from "./clinical-data-pack-validator.mjs";
 import { buildReleaseSmokePlan, renderReleaseSmokeMarkdown } from "./release-smoke-plan.mjs";
+import { verifyReleaseArtifacts } from "./release-verifier.mjs";
+import { auditTauriSecurity } from "./tauri-security-audit.mjs";
+import { createReproducibilityReport } from "./reproducibility-report.mjs";
 
 test("parseHarnessToml preserves quoted commas and hashes inside arrays", () => {
   const config = parseHarnessToml(`
@@ -82,6 +85,8 @@ test("clinical data validator catches controlled term and visit reference failur
     const codes = new Set(result.issues.map((issue) => issue.code));
 
     assert.equal(result.ok, false);
+    assert.equal(result.summary.issuesByCode["invalid-controlled-term"].count, 1);
+    assert.equal(result.summary.issuesBySubject["SUBJ-001"].count >= 1, true);
     assert.equal(codes.has("invalid-controlled-term"), true);
     assert.equal(codes.has("unknown-visit-reference"), true);
   } finally {
@@ -177,4 +182,78 @@ test("release smoke plan captures platform install, offline, and app smoke evide
   assert.match(markdown, /Disable network access/);
   assert.match(markdown, /\/__harness\/integrity/);
   assert.match(markdown, /SUBJ-001 AE count: 3/);
+});
+
+test("verifyReleaseArtifacts validates checksums and required validation-pack evidence", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "harness-release-verify-test-"));
+  const releaseRoot = path.join(tempRoot, "release");
+  const validationRoot = path.join(releaseRoot, "validation-pack");
+  const evidenceRoot = path.join(validationRoot, "evidence");
+
+  try {
+    await mkdir(evidenceRoot, { recursive: true });
+    const files = new Map([
+      ["RELEASE_NOTES.md", "# Demo\n\nNot for clinical decision making.\n"],
+      ["validation-pack.zip", "zip-placeholder\n"],
+      ["validation-pack/release-smoke-plan.json", JSON.stringify({ schemaVersion: 1, apps: [] }, null, 2)],
+      ["validation-pack/release-smoke-test.md", "# Smoke\n"],
+      ["validation-pack/evidence-index.json", "{}\n"],
+      ["validation-pack/evidence/static-verification.json", "{}\n"],
+      ["validation-pack/evidence/e2e-diagnostics.json", "{}\n"],
+      ["validation-pack/evidence/bundle-integrity.json", "{}\n"],
+      ["validation-pack/evidence/tauri-security-audit.json", "{}\n"],
+      ["validation-pack/evidence/reproducibility.json", "{}\n"],
+      ["validation-pack/evidence/harness-config-validation.json", "{}\n"],
+      ["validation-pack/evidence/clinical-data-pack-validation.json", "{}\n"],
+      ["validation-pack/evidence/clinical-data-dictionary.md", "# Dictionary\n"],
+      ["validation-pack/evidence/portal-manifest.json", "{}\n"],
+      ["validation-pack/evidence/harness-bundle-manifest.json", "{}\n"],
+    ]);
+
+    for (const [relativePath, contents] of files) {
+      const targetPath = path.join(releaseRoot, relativePath);
+      await mkdir(path.dirname(targetPath), { recursive: true });
+      await writeFile(targetPath, contents);
+    }
+
+    const checksumLines = [];
+    for (const relativePath of files.keys()) {
+      const targetPath = path.join(releaseRoot, relativePath);
+      const data = await readFile(targetPath);
+      const { createHash } = await import("node:crypto");
+      checksumLines.push(`${createHash("sha256").update(data).digest("hex")}  ${relativePath}`);
+    }
+    await writeFile(path.join(releaseRoot, "SHA256SUMS"), `${checksumLines.join("\n")}\n`);
+
+    const result = await verifyReleaseArtifacts({
+      releaseRoot,
+      reportPath: path.join(tempRoot, "release-artifact-verification.json"),
+      writeReport: true,
+    });
+
+    assert.equal(result.ok, true);
+    assert.equal(result.summary.errorCount, 0);
+    assert.equal(result.summary.checksumCount, files.size);
+    assert.equal(result.releaseSmokePlan.schemaVersion, 1);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("auditTauriSecurity passes the current local-first Tauri configuration", async () => {
+  const result = await auditTauriSecurity({ writeReport: false });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.summary.errorCount, 0);
+  assert.equal(result.checks.some((check) => check.id === "capabilities-minimal" && check.ok), true);
+  assert.equal(result.checks.some((check) => check.id === "localhost-navigation-only" && check.ok), true);
+});
+
+test("createReproducibilityReport records pinned runtimes and source hashes", async () => {
+  const result = await createReproducibilityReport({ writeReport: false, includeAssetHashes: false });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.pins.node, "24");
+  assert.equal(result.pins.rustToolchain.channel, "1.93.1");
+  assert.equal(result.files.some((file) => file.path === "package-lock.json" && file.sha256), true);
 });

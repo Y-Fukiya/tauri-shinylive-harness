@@ -161,6 +161,59 @@ const waitForDomProbe = async (appFrame, domProbe) => {
   }
 };
 
+const appAssetUrl = (portalUrl, app, probe) => {
+  const appRoot = app.path.endsWith("/index.html") ? app.path.slice(0, -"/index.html".length) : app.path;
+  return new URL(`${appRoot}/${probe}`.replace(/\/{2,}/g, "/"), portalUrl).toString();
+};
+
+const verifyRangeCacheProbe = async (requestContext, portalUrl, app) => {
+  const probe = (app.headerProbes ?? []).find((candidate) => candidate.endsWith("R.wasm"));
+  if (!probe) {
+    return {
+      appId: app.id,
+      ok: true,
+      skipped: true,
+      reason: "No R.wasm header probe configured.",
+    };
+  }
+
+  const url = appAssetUrl(portalUrl, app, probe);
+  const response = await requestContext.get(url, {
+    headers: {
+      Range: "bytes=0-15",
+    },
+  });
+  const headers = response.headers();
+  const body = await response.body();
+  const contentRange = headers["content-range"] ?? "";
+  const cacheControl = headers["cache-control"] ?? "";
+  const acceptRanges = headers["accept-ranges"] ?? "";
+  const contentLength = headers["content-length"] ?? "";
+  const ok =
+    response.status() === 206 &&
+    body.length === 16 &&
+    contentRange.startsWith("bytes 0-15/") &&
+    acceptRanges.toLowerCase() === "bytes" &&
+    cacheControl.includes("immutable") &&
+    contentLength === "16";
+
+  return {
+    appId: app.id,
+    ok,
+    skipped: false,
+    url,
+    status: response.status(),
+    bodyLength: body.length,
+    headers: {
+      acceptRanges,
+      cacheControl,
+      contentLength,
+      contentRange,
+      contentType: headers["content-type"] ?? "",
+    },
+  };
+};
+
 const options = parseOptions(process.argv.slice(2));
 const appId = options.app ?? options._[0] ?? null;
 const config = await readConfig();
@@ -171,6 +224,7 @@ if (appId && targetApps.length === 0) {
 
 const externalRequests = [];
 const appResults = [];
+const rangeCacheProbes = [];
 const screenshots = [];
 const { child, portalUrl } = await startServer();
 let browser;
@@ -217,6 +271,8 @@ try {
   screenshots.push({ name: "portal", path: path.relative(rootDir, portalScreenshot).split(path.sep).join("/") });
 
   for (const app of targetApps) {
+    rangeCacheProbes.push(await verifyRangeCacheProbe(page.request, portalUrl, app));
+
     await page.getByTestId(`app-option-${app.id}`).click();
     const appFrame = page.frameLocator("iframe.harness-app-frame").frameLocator("iframe.app-frame");
 
@@ -247,6 +303,7 @@ try {
     ok:
       externalRequests.length === 0 &&
       appResults.every((result) => result.ok) &&
+      rangeCacheProbes.every((result) => result.ok) &&
       bundleIntegrity.ok === true &&
       portalClinicalDisclaimer,
     portalUrl,
@@ -255,6 +312,7 @@ try {
     bundleIntegrity,
     portalClinicalDisclaimer,
     appResults,
+    rangeCacheProbes,
     externalRequests,
     screenshots,
   };

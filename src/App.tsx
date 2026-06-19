@@ -1,13 +1,11 @@
-import {
-  AlertTriangle,
-  CheckCircle2,
-  Download,
-  ExternalLink,
-  RefreshCw,
-  Search,
-  Server,
-  ShieldCheck
-} from "lucide-react";
+import AlertTriangle from "lucide-react/dist/esm/icons/alert-triangle.mjs";
+import CheckCircle2 from "lucide-react/dist/esm/icons/check-circle-2.mjs";
+import Download from "lucide-react/dist/esm/icons/download.mjs";
+import ExternalLink from "lucide-react/dist/esm/icons/external-link.mjs";
+import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw.mjs";
+import Search from "lucide-react/dist/esm/icons/search.mjs";
+import Server from "lucide-react/dist/esm/icons/server.mjs";
+import ShieldCheck from "lucide-react/dist/esm/icons/shield-check.mjs";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type HarnessApp = {

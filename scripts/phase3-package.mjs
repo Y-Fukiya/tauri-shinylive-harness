@@ -284,6 +284,8 @@ const createValidationPack = async (config, assets, platform = "macos") => {
   await copyIfExists(path.join(reportsRoot, "harness-config-validation.json"), path.join(evidenceRoot, "harness-config-validation.json"));
   await copyIfExists(path.join(reportsRoot, "static-verification.json"), path.join(evidenceRoot, "static-verification.json"));
   await copyIfExists(path.join(reportsRoot, "bundle-integrity.json"), path.join(evidenceRoot, "bundle-integrity.json"));
+  await copyIfExists(path.join(reportsRoot, "tauri-security-audit.json"), path.join(evidenceRoot, "tauri-security-audit.json"));
+  await copyIfExists(path.join(reportsRoot, "reproducibility.json"), path.join(evidenceRoot, "reproducibility.json"));
   await copyIfExists(path.join(reportsRoot, "e2e-diagnostics.json"), path.join(evidenceRoot, "e2e-diagnostics.json"));
   await copyIfExists(path.join(reportsRoot, "clinical-data-pack-validation.json"), path.join(evidenceRoot, "clinical-data-pack-validation.json"));
   await copyIfExists(path.join(reportsRoot, "report-export-manifest.json"), path.join(evidenceRoot, "report-export-manifest.json"));
@@ -366,6 +368,8 @@ const createValidationPack = async (config, assets, platform = "macos") => {
       "- Harness configuration validation",
       "- Static bundle hash verification",
       "- Runtime bundle integrity endpoint verification",
+      "- Tauri security hardening audit for capabilities, CSP, navigation, resources, and localhost binding",
+      "- Reproducibility evidence for pinned Node, Rust, R, lockfiles, and Shinylive/dist asset hashes",
       "- Playwright portal/app verification with external HTTP(S) request audit",
       "- Clinical data pack validation with data dictionary",
       "- Exported subject reports with data pack hash, generated timestamp, and reviewer sign-off fields",

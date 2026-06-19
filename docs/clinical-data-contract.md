@@ -69,6 +69,7 @@ The validator checks:
 - lab-linked AE terms, such as ALT increase, against nearby supporting lab records
 - concomitant medication indications against same-subject AE terms for non-background indications
 - per-file SHA-256 and aggregate data pack SHA-256
+- reviewer-friendly issue summaries by severity, rule code, subject, and domain
 
 The aggregate data pack hash is computed from each file's logical path inside the pack plus file size and SHA-256, so the same data pack produces the same aggregate hash whether it is stored under `data-packs/<id>/` or materialized into an app source directory.
 
@@ -80,3 +81,7 @@ docs/generated/clinical-data-dictionary.md
 ```
 
 Those files are copied into `release/validation-pack.zip` during `npm run phase3:package`.
+
+## CDISC Bridge
+
+The synthetic schema can be explained through `docs/cdisc-mapping.md` and `mappings/cdisc-demo-mapping.json`. This bridge is descriptive and is not a submission-ready SDTM/ADaM mapping.

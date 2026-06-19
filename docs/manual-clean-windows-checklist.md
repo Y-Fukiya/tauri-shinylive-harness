@@ -41,6 +41,8 @@ Use this checklist for unsigned internal Windows release candidates and for cred
 - [ ] Review `release/validation-pack/evidence/bundle-integrity.json`.
 - [ ] Review `release/validation-pack/evidence/harness-config-validation.json`.
 - [ ] Review `release/validation-pack/release-smoke-plan.json`.
+- [ ] Review `release/validation-pack/evidence/tauri-security-audit.json`.
+- [ ] Review `release/validation-pack/evidence/reproducibility.json`.
 - [ ] Review clinical data validation and generated data dictionary.
 - [ ] Review SBOM/license inventory.
 - [ ] Review `reports/local-release-audit.json`.

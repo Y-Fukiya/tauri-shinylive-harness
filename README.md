@@ -11,7 +11,7 @@ The bundled clinical demo data contract is a synthetic, non-CDISC schema for har
 The harness is now config-driven:
 
 - `harness.toml` is the app catalog and distribution source of truth.
-- `node scripts/harness.mjs` provides `new`, `add-app`, `add-data-pack`, `validate-config`, `validate-data`, `list`, `doctor`, `export`, `export-reports`, `prepare`, `verify-static`, `verify`, and `build`.
+- `node scripts/harness.mjs` provides `new`, `add-app`, `add-data-pack`, `validate-config`, `validate-data`, `list`, `doctor`, `export`, `export-reports`, `prepare`, `audit-tauri-security`, `reproducibility`, `verify-static`, `verify-release`, `verify`, and `build`.
 - `schemas/harness.schema.json` and `reports/harness-config-validation.json` define and record harness config validation.
 - The portal supports multiple configured apps with search, selection, same-origin iframe loading, diagnostics, and JSON report download.
 - `dist/manifest.json` aggregates `apps/*/harness-app.json`.
@@ -20,7 +20,7 @@ The harness is now config-driven:
 - `data-packs/*` stores reusable synthetic clinical data packs; `data_pack_source` links apps back to the pack that generated/validated them.
 - `dist/harness-bundle-manifest.json` records file-level SHA-256 hashes, and `/__harness/integrity` verifies those hashes at runtime.
 - `dist/checksums/SHA256SUMS`, `dist/reports/sbom.json`, and `dist/reports/licenses.md` are generated during prepare.
-- Playwright E2E verifies portal diagnostics, Shiny smoke text, optional DOM probes, screenshot evidence, and zero external HTTP(S) requests.
+- Playwright E2E verifies portal diagnostics, Shiny smoke text, optional DOM probes, `R.wasm` range/cache behavior, screenshot evidence, and zero external HTTP(S) requests.
 - Phase 3 preflight checks macOS Apple signing/notarization, Windows code-signing, and GitHub release readiness without printing secrets.
 - `release/` packaging creates macOS app/DMG/pkg or Windows installer artifacts, checksums, release notes, and validation pack.
 - GitHub Actions workflows are included for macOS and Windows CI/release-candidate builds.
@@ -54,6 +54,7 @@ npm run build:all
 npm run verify
 npm run build:harness
 npm run build:release-local
+npm run verify:release
 ```
 
 Create a fresh harness project from this template:
@@ -80,7 +81,10 @@ node scripts/harness.mjs doctor
 node scripts/harness.mjs export safety-summary
 node scripts/harness.mjs export-reports --app subject-profile-reference
 node scripts/harness.mjs verify --app subject-profile-reference
+node scripts/harness.mjs audit-tauri-security
+node scripts/harness.mjs reproducibility
 node scripts/harness.mjs verify-static
+node scripts/harness.mjs verify-release --release release/
 node scripts/e2e-verify.mjs
 npm run phase3:preflight
 npm run phase3:package
@@ -96,7 +100,8 @@ npm run phase3:release-draft
 - Two bundled Shinylive R apps: `subject-safety-mini` and `subject-profile-reference`.
 - Clinical demo data packs with synthetic demographics, visits, labs, vitals, AEs, concomitant meds, and exposure. The main Subject Profile pack has 30 subjects, with additional oncology, vaccine, and chronic-disease scenario packs under `data-packs/*`.
 - Data-pack registry under `data-packs/*` with app-level `data_pack_source` traceability.
-- Clinical data pack schema and validator with required column, referential integrity, timeline, data dictionary, and hash report checks.
+- Clinical data pack schema and validator with required column, referential integrity, cross-domain timeline, controlled terminology, reviewer-friendly issue summaries, data dictionary, and hash report checks.
+- CDISC bridge mapping schema and demo mapping under `schemas/cdisc-mapping.schema.json` and `mappings/cdisc-demo-mapping.json`.
 - Data pack SHA-256 traceability in `harness-app.json` and `dist/manifest.json`.
 - Subject Profile Reference App v2 with subject selector, lab selector, AE severity/relatedness/seriousness summaries, exposure/AE timeline, and in-app data pack hash display.
 - Subject Profile Reference App reports: Subject Snapshot, Safety Review, and Data Listing.
@@ -105,11 +110,11 @@ npm run phase3:release-draft
 - App template registry for generating subject profile apps from `--template subject-profile`.
 - Multi-app-ready diagnostics portal.
 - Multi-app scaffold smoke test through `npm run smoke:multi-app`.
-- Embedded Rust loopback static server with COOP/COEP/CORP, CSP, MIME mapping, and path traversal protection.
+- Embedded Rust loopback static server with COOP/COEP/CORP, CSP, MIME mapping, byte-range serving, cache headers, and path traversal protection.
 - Runtime bundle integrity endpoint exposed at `/__harness/integrity`.
 - macOS `.app` and Windows NSIS installer builds via Tauri.
 - Static bundle manifest, checksums, SBOM/license inventory, audit log, and generated verification procedure.
-- Phase 3 release candidate preflight, package assembly, screenshot/data/config/integrity validation evidence pack, manual clean macOS/Windows checklists, and GitHub draft release automation.
+- Phase 3 release candidate preflight, package assembly, screenshot/data/config/integrity/Tauri-security/reproducibility validation evidence pack, release artifact verifier, manual clean macOS/Windows checklists, and GitHub draft release automation.
 
 ## Phase 3 Boundary
 
@@ -120,6 +125,7 @@ Credential-free local release candidate:
 ```sh
 npm run build:release-local
 npm run build:release-windows-local
+npm run verify:release
 ```
 
 These local commands now write `reports/local-release-audit-<platform>.json`, update `reports/local-release-audit.json` with the latest audit, and generate `docs/generated/local-release-audit-<platform>.md` so unsigned internal readiness, missing signing, and pending clean-machine install verification are explicit.
@@ -143,6 +149,9 @@ See:
 - `docs/template-cli.md`
 - `docs/clinical-data-contract.md`
 - `docs/clinical-demo-data-pack.md`
+- `docs/cdisc-mapping.md`
+- `docs/demo-script.md`
+- `docs/sample-release-evidence.md`
 - `docs/report-export.md`
 - `docs/generated/verification-procedure.md`
 - `docs/verification.md`

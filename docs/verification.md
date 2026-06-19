@@ -51,6 +51,7 @@ Expected:
 - Every non-demographics subject reference resolves to demographics.
 - Visit dates, AE start/end days, medication days, and exposure intervals are valid.
 - Cross-domain checks cover treatment-related AE exposure context, lab-linked AE support records, medication indication alignment, and overlapping exposure intervals.
+- `summary` groups issues by severity, rule code, subject, and domain for reviewer scanning.
 - `reports/clinical-data-pack-validation.json` records the validation result and aggregate data pack hash.
 - `docs/generated/clinical-data-dictionary.md` records inferred column types and missingness.
 
@@ -80,6 +81,7 @@ Expected:
 - Every listed bundled asset exists under the static root.
 - Every asset size and SHA-256 matches the manifest.
 - Static assets advertise byte range support and cache headers suitable for bundled webR assets.
+- E2E requests a bundled `R.wasm` asset with `Range: bytes=0-15` and expects `206`, `Content-Range`, `Accept-Ranges: bytes`, and immutable cache headers.
 - The diagnostics portal displays `Bundle Integrity`.
 - `reports/bundle-integrity.json` is written.
 
@@ -153,6 +155,7 @@ npm run phase3:package
 npm run phase3:preflight:windows
 npm run tauri:build:windows:no-sign
 npm run phase3:package:windows
+npm run verify:release
 ```
 
 Expected:
@@ -162,6 +165,9 @@ Expected:
 - Tauri creates the macOS app and Windows NSIS installer, and Phase 3 packaging creates platform release evidence.
 - `release/SHA256SUMS` covers every generated release file.
 - `release/validation-pack/` and `release/validation-pack.zip` contain verification evidence, config validation, runtime integrity, data validation report, data dictionary, screenshots, manifest, SBOM/license inventory, platform manual clean checklist, release smoke test plan, and checksums.
+- `reports/release-artifact-verification.json` confirms release checksums, `validation-pack.zip`, `release-smoke-plan.json`, and required evidence files.
+- `reports/tauri-security-audit.json` records Tauri capability, CSP, navigation, resource, and localhost bind checks.
+- `reports/reproducibility.json` records pinned Node, Rust, R, lockfile hashes, and bundled asset hashes.
 
 With Apple credentials configured, replace `npm run tauri:build:app:no-sign` with:
 

@@ -23,6 +23,8 @@
 - `reports/harness-config-validation.json`
 - `reports/static-verification.json`
 - `reports/bundle-integrity.json`
+- `reports/tauri-security-audit.json`
+- `reports/reproducibility.json`
 - `reports/e2e-diagnostics.json`
 - `reports/clinical-data-pack-validation.json`
 - `reports/screenshots/`
@@ -34,6 +36,8 @@
 - `release/validation-pack/evidence-index.json`
 - `release/validation-pack/release-smoke-plan.json`
 - `release/validation-pack/release-smoke-test.md`
+- `release/validation-pack/evidence/tauri-security-audit.json`
+- `release/validation-pack/evidence/reproducibility.json`
 - `release/validation-pack/manual-clean-macos-checklist.md`
 - `release/validation-pack/manual-clean-windows-checklist.md`
 
@@ -53,6 +57,8 @@
 - External request audit has zero entries
 - Static asset hashes match `dist/harness-bundle-manifest.json`
 - Runtime `/__harness/integrity` reports OK
+- Tauri security audit has zero errors
+- Reproducibility report records pinned runtime and lockfile hashes
 - Harness config validation has zero errors
 - Clinical data validation has zero errors
 - Data dictionary generated for validated data packs
@@ -60,6 +66,7 @@
 - Screenshot evidence is present for the portal and verified apps
 - Release checksums match `release/SHA256SUMS`
 - Release smoke plan matches the tested platform and app catalog
+- `npm run verify:release` passes for the generated release directory
 - Portal, release notes, and validation summary state not for clinical decision making
 
 ## Phase 3 Signing Checklist

@@ -22,6 +22,7 @@ npm run validate:data
 npm run smoke:multi-app
 npm run verify
 npm run build:release-local
+npm run verify:release
 ```
 
 Expected:
@@ -34,6 +35,7 @@ Expected:
 - `build:release-local` creates an unsigned internal macOS app/DMG/pkg release candidate and validation evidence pack, including a release artifact smoke test plan.
 - `build:release-windows-local` creates an unsigned internal Windows installer release candidate on Windows.
 - Local release packaging writes `reports/local-release-audit-<platform>.json` and includes `release/validation-pack/release-smoke-test.md`; external distribution still requires platform signing plus clean-machine install sign-off.
+- `verify:release` checks `release/SHA256SUMS`, `validation-pack.zip`, release smoke evidence, and required validation evidence files.
 - The bundled synthetic apps are not for clinical decision making without organization-specific validation and approval.
 
 This repository currently exports two apps:
@@ -62,6 +64,8 @@ The generated project contains:
 - harness CLI scripts
 - clinical data pack schema and validator
 - harness config schema and validator
+- release artifact verifier
+- Tauri security and reproducibility reports
 - reusable synthetic data-pack registry
 - reusable subject-profile app template
 - CI/release workflow templates
@@ -98,6 +102,6 @@ npm run local:audit:macos
 npm run local:audit:windows
 ```
 
-The macOS command writes `release/` with app zip, DMG, pkg, checksums, release notes, SBOM/license evidence, config validation evidence, runtime bundle integrity evidence, clinical data validation evidence, Playwright screenshots, manual clean macOS checklist, release smoke plan, and `validation-pack.zip`.
+The macOS command writes `release/` with app zip, DMG, pkg, checksums, release notes, SBOM/license evidence, config validation evidence, runtime bundle integrity evidence, clinical data validation evidence, Tauri security audit, reproducibility evidence, Playwright screenshots, manual clean macOS checklist, release smoke plan, and `validation-pack.zip`.
 
 The Windows command writes `release/` with NSIS installer artifacts, optional MSI artifacts, checksums, release notes, the same validation evidence, manual clean Windows checklist, release smoke plan, and `validation-pack.zip`.

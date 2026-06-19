@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { execFile } from "node:child_process";
-import { cp, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { cp, mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 
@@ -26,6 +26,9 @@ import {
   writeJson,
 } from "./harness-core.mjs";
 import { exportReports } from "./report-exporter.mjs";
+import { verifyReleaseArtifacts } from "./release-verifier.mjs";
+import { auditTauriSecurity } from "./tauri-security-audit.mjs";
+import { createReproducibilityReport } from "./reproducibility-report.mjs";
 
 const execFileAsync = promisify(execFile);
 const command = process.argv[2] ?? "help";
@@ -42,7 +45,10 @@ const usage = `Usage:
   node scripts/harness.mjs export [app-id]
   node scripts/harness.mjs export-reports [--app app-id] [--subject subject-id] [--all-subjects]
   node scripts/harness.mjs prepare
+  node scripts/harness.mjs audit-tauri-security [--report reports/tauri-security-audit.json]
+  node scripts/harness.mjs reproducibility [--report reports/reproducibility.json]
   node scripts/harness.mjs verify-static
+  node scripts/harness.mjs verify-release [--release release/] [--report reports/release-artifact-verification.json]
   node scripts/harness.mjs verify [--app app-id]
   node scripts/harness.mjs build
 
@@ -371,17 +377,33 @@ npm run verify
 \`\`\`
 `;
 
+const copyTemplatePath = async (source, destination) => {
+  if (!shouldCopyTemplatePath(source)) {
+    return;
+  }
+
+  const metadata = await stat(source);
+  if (metadata.isDirectory()) {
+    await mkdir(destination, { recursive: true });
+    for (const entry of await readdir(source)) {
+      await copyTemplatePath(path.join(source, entry), path.join(destination, entry));
+    }
+    return;
+  }
+
+  if (metadata.isFile()) {
+    await mkdir(path.dirname(destination), { recursive: true });
+    await writeFile(destination, await readFile(source));
+  }
+};
+
 const copyTemplate = async (target) => {
   for (const entry of templateEntries) {
     const source = path.join(rootDir, entry);
     if (!(await exists(source))) {
       continue;
     }
-    await cp(source, path.join(target, entry), {
-      recursive: true,
-      force: true,
-      filter: shouldCopyTemplatePath,
-    });
+    await copyTemplatePath(source, path.join(target, entry));
   }
 };
 
@@ -861,6 +883,8 @@ const verifyAll = async (values = []) => {
   await exportApps();
   await exportReports({ appId });
   await buildPortalAndPrepare();
+  await auditTauriSecurity();
+  await createReproducibilityReport();
   await runCommand("npm", ["run", "test:unit"]);
   await runCommand("npm", ["run", "check"]);
   await runCommand("cargo", ["test", "--manifest-path", "crates/harness-server/Cargo.toml"]);
@@ -929,6 +953,61 @@ try {
           assets: result.assetCount,
           issues: result.issues.length,
         });
+      }
+      break;
+    case "audit-tauri-security":
+      {
+        const options = parseOptions(args);
+        const reportPath = options.report ? path.resolve(options.report) : path.join(reportsRoot, "tauri-security-audit.json");
+        const result = await auditTauriSecurity({ reportPath });
+        printJson({
+          ok: result.ok,
+          report: repoRelative(reportPath),
+          checks: result.summary.checkCount,
+          errors: result.summary.errorCount,
+          warnings: result.summary.warningCount,
+        });
+        if (!result.ok) {
+          throw new Error(`Tauri security audit failed. See ${repoRelative(reportPath)}`);
+        }
+      }
+      break;
+    case "reproducibility":
+      {
+        const options = parseOptions(args);
+        const reportPath = options.report ? path.resolve(options.report) : path.join(reportsRoot, "reproducibility.json");
+        const result = await createReproducibilityReport({ reportPath });
+        printJson({
+          ok: result.ok,
+          report: repoRelative(reportPath),
+          node: result.pins.node,
+          rust: result.pins.rustToolchain.channel,
+          r: result.pins.r,
+        });
+        if (!result.ok) {
+          throw new Error(`Reproducibility report failed. See ${repoRelative(reportPath)}`);
+        }
+      }
+      break;
+    case "verify-release":
+      {
+        const options = parseOptions(args);
+        const releaseRootPath = options.release ? path.resolve(options.release) : path.join(rootDir, "release");
+        const reportPath = options.report
+          ? path.resolve(options.report)
+          : path.join(reportsRoot, "release-artifact-verification.json");
+        const result = await verifyReleaseArtifacts({ releaseRoot: releaseRootPath, reportPath });
+        printJson({
+          ok: result.ok,
+          report: repoRelative(reportPath),
+          releaseRoot: result.releaseRoot,
+          errors: result.summary.errorCount,
+          warnings: result.summary.warningCount,
+          checksums: result.summary.checksumCount,
+        });
+        if (!result.ok) {
+          throw new Error(`Release artifact verification failed. See ${repoRelative(reportPath)}`);
+        }
       }
       break;
     case "verify":

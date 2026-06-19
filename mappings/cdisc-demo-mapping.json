@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "sourceSchema": "tauri-shinylive-harness.synthetic-clinical-v1",
+  "targetStandard": {
+    "name": "SDTM bridge",
+    "version": "demo-subset-0.1",
+    "note": "This is a bridge mapping for synthetic demo data. It is not a CDISC submission mapping and must be replaced or approved before regulated use."
+  },
+  "domains": {
+    "demographics": {
+      "targetDomain": "DM",
+      "columns": {
+        "subject_id": { "target": "USUBJID", "relationship": "direct" },
+        "site_id": { "target": "SITEID", "relationship": "direct" },
+        "arm": { "target": "ARM", "relationship": "direct" },
+        "sex": { "target": "SEX", "relationship": "controlled-term" },
+        "age": { "target": "AGE", "relationship": "direct" },
+        "race": { "target": "RACE", "relationship": "controlled-term" },
+        "ethnicity": { "target": "ETHNIC", "relationship": "controlled-term" },
+        "consent_date": { "target": "RFICDTC", "relationship": "direct" },
+        "first_dose_date": { "target": "RFXSTDTC", "relationship": "direct" },
+        "last_contact_date": { "target": "RFPENDTC", "relationship": "direct" }
+      }
+    },
+    "visits": {
+      "targetDomain": "SV",
+      "columns": {
+        "subject_id": { "target": "USUBJID", "relationship": "direct" },
+        "visit": { "target": "VISIT", "relationship": "direct" },
+        "visit_day": { "target": "VISITDY", "relationship": "direct" },
+        "visit_date": { "target": "SVSTDTC", "relationship": "direct" },
+        "visit_status": { "target": "SVSTAT", "relationship": "derived" }
+      }
+    },
+    "labs": {
+      "targetDomain": "LB",
+      "columns": {
+        "subject_id": { "target": "USUBJID", "relationship": "direct" },
+        "visit": { "target": "VISIT", "relationship": "direct" },
+        "visit_day": { "target": "LBDY", "relationship": "direct" },
+        "lab_test": { "target": "LBTESTCD", "relationship": "controlled-term" },
+        "lab_value": { "target": "LBORRES", "relationship": "direct" },
+        "unit": { "target": "LBORRESU", "relationship": "controlled-term" },
+        "low": { "target": "LBORNRLO", "relationship": "direct" },
+        "high": { "target": "LBORNRHI", "relationship": "direct" },
+        "flag": { "target": "LBNRIND", "relationship": "controlled-term" }
+      }
+    },
+    "vitals": {
+      "targetDomain": "VS",
+      "columns": {
+        "subject_id": { "target": "USUBJID", "relationship": "direct" },
+        "visit": { "target": "VISIT", "relationship": "direct" },
+        "visit_day": { "target": "VSDY", "relationship": "direct" },
+        "systolic_bp": { "target": "VSORRES", "relationship": "derived", "notes": "Map to one VS row with VSTESTCD=SYSBP." },
+        "diastolic_bp": { "target": "VSORRES", "relationship": "derived", "notes": "Map to one VS row with VSTESTCD=DIABP." },
+        "heart_rate": { "target": "VSORRES", "relationship": "derived", "notes": "Map to one VS row with VSTESTCD=HR." },
+        "temperature_c": { "target": "VSORRES", "relationship": "derived", "notes": "Map to one VS row with VSTESTCD=TEMP." },
+        "weight_kg": { "target": "VSORRES", "relationship": "derived", "notes": "Map to one VS row with VSTESTCD=WEIGHT." }
+      }
+    },
+    "adverse_events": {
+      "targetDomain": "AE",
+      "columns": {
+        "subject_id": { "target": "USUBJID", "relationship": "direct" },
+        "ae_id": { "target": "AESPID", "relationship": "direct" },
+        "ae_term": { "target": "AEDECOD", "relationship": "controlled-term" },
+        "system_organ_class": { "target": "AESOC", "relationship": "controlled-term" },
+        "start_day": { "target": "AESTDY", "relationship": "direct" },
+        "end_day": { "target": "AEENDY", "relationship": "direct" },
+        "severity": { "target": "AESEV", "relationship": "controlled-term" },
+        "serious": { "target": "AESER", "relationship": "controlled-term" },
+        "related": { "target": "AEREL", "relationship": "controlled-term" },
+        "outcome": { "target": "AEOUT", "relationship": "controlled-term" }
+      }
+    },
+    "concomitant_meds": {
+      "targetDomain": "CM",
+      "columns": {
+        "subject_id": { "target": "USUBJID", "relationship": "direct" },
+        "medication": { "target": "CMTRT", "relationship": "controlled-term" },
+        "indication": { "target": "CMINDC", "relationship": "controlled-term" },
+        "start_day": { "target": "CMSTDY", "relationship": "direct" },
+        "end_day": { "target": "CMENDY", "relationship": "direct" },
+        "ongoing": { "target": "CMENRF", "relationship": "derived" }
+      }
+    },
+    "exposure": {
+      "targetDomain": "EX",
+      "columns": {
+        "subject_id": { "target": "USUBJID", "relationship": "direct" },
+        "cycle": { "target": "EXLNKID", "relationship": "derived" },
+        "start_day": { "target": "EXSTDY", "relationship": "direct" },
+        "end_day": { "target": "EXENDY", "relationship": "direct" },
+        "dose_mg": { "target": "EXDOSE", "relationship": "direct" },
+        "dose_status": { "target": "EXDOSFRQ", "relationship": "derived" },
+        "dose_intensity_pct": { "target": "EXADJ", "relationship": "derived" }
+      }
+    }
+  }
+}

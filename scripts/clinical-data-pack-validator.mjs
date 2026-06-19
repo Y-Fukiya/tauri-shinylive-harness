@@ -282,6 +282,48 @@ const addIssue = (issues, severity, code, message, details = {}) => {
   issues.push({ severity, code, message, details });
 };
 
+const incrementSummary = (target, key, issue) => {
+  if (!key) {
+    return;
+  }
+  const entry = target[key] ?? {
+    count: 0,
+    severities: {},
+    codes: {},
+  };
+  entry.count += 1;
+  entry.severities[issue.severity] = (entry.severities[issue.severity] ?? 0) + 1;
+  entry.codes[issue.code] = (entry.codes[issue.code] ?? 0) + 1;
+  target[key] = entry;
+};
+
+const summarizeIssues = (issues) => {
+  const bySeverity = {};
+  const byCode = {};
+  const bySubject = {};
+  const byDomain = {};
+
+  for (const item of issues) {
+    bySeverity[item.severity] = (bySeverity[item.severity] ?? 0) + 1;
+    byCode[item.code] = byCode[item.code] ?? {
+      count: 0,
+      severities: {},
+      message: item.message,
+    };
+    byCode[item.code].count += 1;
+    byCode[item.code].severities[item.severity] = (byCode[item.code].severities[item.severity] ?? 0) + 1;
+    incrementSummary(bySubject, item.details?.subject_id, item);
+    incrementSummary(byDomain, item.details?.domain, item);
+  }
+
+  return {
+    bySeverity,
+    byCode,
+    bySubject,
+    byDomain,
+  };
+};
+
 const validateControlledTerminology = (issues, domainName, records) => {
   const domainTerms = controlledTerminology[domainName] ?? {};
   for (const [column, values] of Object.entries(domainTerms)) {
@@ -843,6 +885,7 @@ export const validateClinicalDataPack = async ({
   const aggregateHash = createHash("sha256").update(aggregateSource).digest("hex");
   const errorCount = issues.filter((issue) => issue.severity === "error").length;
   const warningCount = issues.filter((issue) => issue.severity === "warning").length;
+  const issueSummary = summarizeIssues(issues);
 
   const result = {
     schemaVersion: 1,
@@ -867,6 +910,10 @@ export const validateClinicalDataPack = async ({
       domainCount: domains.length,
       errorCount,
       warningCount,
+      issuesBySeverity: issueSummary.bySeverity,
+      issuesByCode: issueSummary.byCode,
+      issuesBySubject: issueSummary.bySubject,
+      issuesByDomain: issueSummary.byDomain,
     },
     domains,
     issues,
@@ -909,6 +956,17 @@ export const validateConfiguredDataPacks = async ({
     checkedAt: new Date().toISOString(),
     appId,
     resultCount: results.length,
+    summary: {
+      dataPackCount: results.length,
+      errorCount: results.reduce((total, item) => total + item.summary.errorCount, 0),
+      warningCount: results.reduce((total, item) => total + item.summary.warningCount, 0),
+      issueCodeCounts: results.reduce((counts, item) => {
+        for (const [code, entry] of Object.entries(item.summary.issuesByCode ?? {})) {
+          counts[code] = (counts[code] ?? 0) + entry.count;
+        }
+        return counts;
+      }, {}),
+    },
     results,
   };
 
