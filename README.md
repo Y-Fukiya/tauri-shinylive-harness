@@ -1,175 +1,180 @@
+**English** | [日本語](README.ja.md)
+
 # Tauri Shinylive Harness
 
-Reusable Tauri + Shinylive harness for generating, validating, packaging, and preparing release candidates for bundled Shinylive/webR apps inside a desktop shell.
+A reusable template for shipping bundled [Shinylive](https://shinylive.io/) / webR
+apps inside a desktop shell. You write Shiny apps in R, the harness exports them to
+static webR assets, serves them from an embedded localhost server inside a
+[Tauri](https://tauri.app/) window, and produces validation/release evidence along
+the way. Everything runs offline once exported.
 
-## Clinical Use Limitation
+> **Clinical use limitation.** This harness and its bundled synthetic demo apps are
+> for technical evaluation only. They are not validated medical devices and are not
+> for clinical decision making. The bundled demo data is synthetic and is **not** an
+> SDTM/ADaM submission model. Map or replace the demo domains with your own validated
+> CDISC/controlled-terminology workflow before using it for anything regulated, and
+> never commit real patient data.
 
-This harness and its bundled synthetic demo apps are for technical evaluation only. They are not validated medical devices and are not for clinical decision making unless an organization completes its own regulated validation and approval.
+## What you get
 
-The bundled clinical demo data contract is a synthetic, non-CDISC schema for harness verification and product demonstrations. It is not an SDTM/ADaM submission model. Organizations that need submission-oriented evidence should map or replace the demo domains with their own validated CDISC/controlled terminology workflow.
+- A diagnostics **portal** that lists configured apps and loads them in a same-origin iframe.
+- An embedded **Rust localhost server** with COOP/COEP/CORP, CSP, byte-range serving, and a runtime bundle-integrity check.
+- Two example R apps (`subject-safety-mini`, `subject-profile-reference`) and reusable synthetic **data packs**.
+- A config-driven CLI for scaffolding apps, validating data, exporting, and packaging desktop builds.
 
-The harness is now config-driven:
+## Prerequisites
 
-- `harness.toml` is the app catalog and distribution source of truth.
-- `node scripts/harness.mjs` provides `new`, `add-app`, `add-data-pack`, `validate-config`, `validate-data`, `list`, `doctor`, `export`, `export-reports`, `export-report-pdfs`, `cdisc-preflight`, `review-signoff`, `evidence-index`, `package-template`, `prepare`, `audit-tauri-security`, `reproducibility`, `verify-static`, `verify-release`, `verify`, and `build`.
-- `schemas/harness.schema.json` and `reports/harness-config-validation.json` define and record harness config validation.
-- The portal supports multiple configured apps with search, selection, same-origin iframe loading, diagnostics, and JSON report download.
-- `dist/manifest.json` aggregates `apps/*/harness-app.json`.
-- App manifests can include `dataPack` file hashes, clinical data validation evidence, and DOM probes for richer verification.
-- Apps can declare `report_templates`, and `export-reports` writes HTML report evidence with data pack hash, generated timestamp, app version, clinical-use limitation, and reviewer sign-off fields.
-- `export-report-pdfs` writes companion PDF evidence from exported HTML reports, and `review-signoff` / `evidence-index` persist review workflow state for validation packs.
-- `cdisc-preflight` checks the synthetic-to-SDTM bridge coverage, controlled terminology gaps, and Pinnacle 21 handoff readiness while explicitly keeping `submissionReady: false` until a regulated CDISC layer exists.
-- `data-packs/*` stores reusable synthetic clinical data packs; `data_pack_source` links apps back to the pack that generated/validated them.
-- `dist/harness-bundle-manifest.json` records file-level SHA-256 hashes, and `/__harness/integrity` verifies those hashes at runtime.
-- `dist/checksums/SHA256SUMS`, `dist/reports/sbom.json`, and `dist/reports/licenses.md` are generated during prepare.
-- Playwright E2E verifies portal diagnostics, Shiny smoke text, optional DOM probes, `R.wasm` range/cache behavior, screenshot evidence, and zero external HTTP(S) requests.
-- Phase 3 preflight checks macOS Apple signing/notarization, Windows code-signing, and GitHub release readiness without printing secrets.
-- `release/` packaging creates macOS app/DMG/pkg or Windows installer artifacts, checksums, release notes, and validation pack.
-- GitHub Actions workflows are included for macOS and Windows CI/release-candidate builds.
+| Tool | Used for | Notes |
+| --- | --- | --- |
+| Node.js 24 + npm | CLI, portal build, tests | version pinned in `.nvmrc` |
+| Rust (stable, via rustup) | embedded server + Tauri shell | `rust-toolchain.toml` |
+| R with `Rscript` | Shinylive export | first export installs the `shinylive` R package into `.r-lib` |
+| Playwright Chromium | end-to-end verification | `npx playwright install chromium` |
+| Tauri OS deps | desktop build | macOS: Xcode CLT · Windows: WebView2 + MSVC · Linux: webkit2gtk, librsvg |
 
-## Commands
+The first export may need network access to download Shinylive/webR assets into
+`.shinylive-cache`. After that the app runs fully offline.
 
-Prerequisites for the full local verification path:
+## Quickstart
 
-- Node.js and npm dependencies installed with `npm ci`
-- Rust/Cargo via rustup for the embedded localhost server and Tauri shell
-- R with `Rscript`; first export installs or reuses the `shinylive` R package under `.r-lib`
-- Playwright Chromium installed with `npx playwright install chromium`
-- Tauri OS prerequisites:
-  - macOS: Xcode Command Line Tools
-  - Windows: WebView2 and MSVC Build Tools
-  - Linux: webkit2gtk, librsvg, and related Tauri system packages
-- First Shinylive export may need network access to install R packages or download Shinylive web assets into `.shinylive-cache`
+Start a new project from this template in one of two ways.
 
-Fast path for this repository:
+**A. GitHub "Use this template"** — click *Use this template* on the repo page, clone
+your new repo, then:
 
 ```sh
 npm ci
-npm run validate:config
-npm run doctor
-npm run test:unit
-npm run validate:data
-npm run export:reports
-npm run export:report-pdfs
-npm run clinical:cdisc-preflight
-npm run smoke:multi-app
-npm run export
-npm run build:all
-npm run verify
-npm run package:template
-npm run build:harness
-npm run build:release-local
-npm run verify:release
+npm run export      # regenerate apps/ from shinylive-src/ (see note below)
+npm run verify      # validate + build + test + e2e
+npm run tauri:dev   # launch the desktop app
 ```
 
-Create a fresh harness project from this template:
+**B. Scaffold from the CLI** — from a checkout of this repo:
 
 ```sh
-npm run harness -- new ../my-shinylive-harness \
-  --name my-shinylive-harness \
-  --portal-title "My Shinylive Portal"
-cd ../my-shinylive-harness
+npm run harness -- new ../my-portal --name my-portal --portal-title "My Portal"
+cd ../my-portal
 npm ci
 npm run verify
 ```
 
-Useful direct CLI commands:
+> **`apps/` is generated, not committed.** The exported webR runtime is large, so
+> `apps/` is git-ignored. A fresh clone has no bundle until you run `npm run export`
+> (or `npm run verify`, which exports first). This is expected.
+
+## How the project is organized
+
+The golden rule: **edit sources and config, then regenerate outputs.** Never hand-edit
+generated directories.
+
+| Path | Role | Edit it? |
+| --- | --- | --- |
+| `harness.toml` | source of truth: project identity, distribution, app catalog | Yes |
+| `shinylive-src/<app>/` | editable Shiny app sources (`app.R`, `data/`) | Yes |
+| `data-packs/<pack>/` | reusable synthetic data packs | Yes |
+| `src/`, `src-tauri/`, `crates/` | portal UI, Tauri shell, Rust server | Yes |
+| `templates/` | app/report templates used by `add-app --template` | Yes |
+| `apps/`, `dist/`, `reports/`, `release/` | generated outputs | No — regenerate |
+
+## Everyday development loop
+
+Add an app (the `subject-profile` template wires up data, reports, and DOM probes):
 
 ```sh
-node scripts/harness.mjs add-app safety-summary --title "Safety Summary"
-node scripts/harness.mjs add-app subject-profile-copy --template subject-profile
-node scripts/harness.mjs add-data-pack subject-profile-copy ./my-data-pack --id my-synthetic-pack-v1 --copy
-node scripts/harness.mjs validate-config
-node scripts/harness.mjs validate-data subject-profile-reference
-node scripts/harness.mjs list
-node scripts/harness.mjs doctor
-node scripts/harness.mjs export safety-summary
-node scripts/harness.mjs export-reports --app subject-profile-reference
-node scripts/harness.mjs export-report-pdfs
-node scripts/harness.mjs cdisc-preflight
-node scripts/harness.mjs review-signoff --status pending-review --decision not-reviewed
-node scripts/harness.mjs evidence-index
-node scripts/harness.mjs package-template
-node scripts/harness.mjs verify --app subject-profile-reference
-node scripts/harness.mjs audit-tauri-security
-node scripts/harness.mjs reproducibility
-node scripts/harness.mjs verify-static
-node scripts/harness.mjs verify-release --release release/
-node scripts/e2e-verify.mjs
-npm run phase3:preflight
-npm run phase3:package
-npm run phase3:package:windows
-npm run local:audit:macos
-npm run local:audit:windows
-npm run phase3:release-draft
+npm run harness -- add-app lab-trends --title "Lab Trends" --template subject-profile
 ```
 
-## Current Deliverables
-
-- Reusable v0.9.1 CLI/template foundation.
-- Two bundled Shinylive R apps: `subject-safety-mini` and `subject-profile-reference`.
-- Clinical demo data packs with synthetic demographics, visits, labs, vitals, AEs, concomitant meds, and exposure. The main Subject Profile pack has 30 subjects, with additional oncology, vaccine, and chronic-disease scenario packs under `data-packs/*`.
-- Data-pack registry under `data-packs/*` with app-level `data_pack_source` traceability.
-- Clinical data pack schema and validator with required column, referential integrity, cross-domain timeline, controlled terminology, reviewer-friendly issue summaries, data dictionary, and hash report checks.
-- CDISC bridge mapping schema, demo mapping, and preflight report under `schemas/cdisc-mapping.schema.json`, `mappings/cdisc-demo-mapping.json`, and `reports/cdisc-bridge-preflight.json`.
-- Data pack SHA-256 traceability in `harness-app.json` and `dist/manifest.json`.
-- Subject Profile Reference App v2 with subject selector, lab selector, AE severity/relatedness/seriousness summaries, exposure/AE timeline, and in-app data pack hash display.
-- Subject Profile Reference App reports: Subject Snapshot, Safety Review, and Data Listing.
-- Report Template Registry under `templates/reports/*`, generated HTML reports under `reports/exported/*`, and companion PDF reports under `reports/exported-pdf/*`.
-- Review workflow evidence under `reports/review-workflow.json`, `reports/review-signoff.json`, `reports/review-signoff-history.jsonl`, `reports/evidence-index.html`, generated docs, and the Phase 3 validation pack.
-- App template registry for generating subject profile apps from `--template subject-profile`, plus `package-template` for cutting a reusable starter-template artifact.
-- Multi-app-ready diagnostics portal.
-- Multi-app scaffold smoke test through `npm run smoke:multi-app`.
-- Embedded Rust loopback static server with COOP/COEP/CORP, CSP, MIME mapping, byte-range serving, cache headers, and path traversal protection.
-- Runtime bundle integrity endpoint exposed at `/__harness/integrity`.
-- macOS `.app` and Windows NSIS installer builds via Tauri.
-- Static bundle manifest, checksums, SBOM/license inventory, audit log, and generated verification procedure.
-- Phase 3 release candidate preflight, package assembly, screenshot/data/config/integrity/Tauri-security/reproducibility validation evidence pack, release artifact verifier, manual clean macOS/Windows checklists, and GitHub draft release automation.
-
-## Phase 3 Boundary
-
-The repository can now drive the Phase 3 path up to credential-ready macOS and Windows release candidates. Production Apple Developer ID signing/notarization, Windows code signing, and public GitHub Release publication require credentials. Formal clinical validation approval still requires organization review and signoff.
-
-Credential-free local release candidate:
+Attach a reusable synthetic data pack to an app:
 
 ```sh
-npm run build:release-local
-npm run build:release-windows-local
+npm run harness -- add-data-pack lab-trends ./my-data --id lab-trends-data-v1 --copy
+```
+
+Then validate, export, and run:
+
+```sh
+npm run validate:config     # check harness.toml against the schema
+npm run validate:data       # check data packs (integrity, controlled terms, timelines)
+npm run export              # build webR bundles for all apps
+npm run dev                 # portal only, in a browser at 127.0.0.1:1420
+npm run tauri:dev           # full desktop app
+```
+
+`npm run doctor` is a quick health check (prerequisites, config, templates, data
+references) and is the fastest way to see what is missing.
+
+## Command reference
+
+Run the CLI via `npm run harness -- <command>` (or `node scripts/harness.mjs <command>`).
+
+**Scaffold & data**
+
+| Command | Purpose |
+| --- | --- |
+| `new <dir>` | scaffold a fresh harness project |
+| `add-app <id> [--template subject-profile]` | add an app to the catalog |
+| `add-data-pack <app> <dir> --id <pack> --copy` | register a synthetic data pack |
+| `list` / `doctor` | list apps / run health checks |
+
+**Validate, export, evidence**
+
+| Command | Purpose |
+| --- | --- |
+| `validate-config` / `validate-data` | schema + data integrity checks |
+| `export [app]` | build webR bundles |
+| `export-reports` / `export-report-pdfs` | generate HTML/PDF report evidence |
+| `cdisc-preflight` | check synthetic->SDTM bridge readiness (stays `submissionReady: false`) |
+| `review-signoff` / `evidence-index` | persist review-workflow evidence |
+| `verify` | run the full Phase 2 chain (validate -> export -> build -> tests -> e2e) |
+
+**Package & release**
+
+| Command | Purpose |
+| --- | --- |
+| `package-template` | cut a reusable starter from the current project |
+| `prepare` / `build` | build portal + dist, then the Tauri app |
+| `audit-tauri-security` / `reproducibility` | security + reproducibility evidence |
+| `verify-release` | validate built release artifacts |
+
+A handful of these also have npm aliases (`npm run validate:config`, `npm run verify`,
+`npm run export`, ...); see `package.json` for the full list.
+
+## Building and releasing
+
+Credential-free local release candidates (unsigned):
+
+```sh
+npm run build:release-local          # macOS .app + evidence pack
+npm run build:release-windows-local  # Windows installer + evidence pack
 npm run verify:release
 ```
 
-These local commands now write `reports/local-release-audit-<platform>.json`, update `reports/local-release-audit.json` with the latest audit, and generate `docs/generated/local-release-audit-<platform>.md` so unsigned internal readiness, missing signing, and pending clean-machine install verification are explicit.
+Signed builds (Apple Developer ID / notarization, Windows code signing) and public
+GitHub Releases require credentials and are wired through the `phase3:*` scripts and
+the `Release Candidate` workflow. See `docs/phase3-distribution.md`.
 
-Credential-backed release candidate:
+## Continuous integration
 
-```sh
-npm run phase3:preflight
-npm run tauri:build:app
-npm run phase3:package
-npm run phase3:preflight:windows
-npm run tauri:build:windows
-npm run phase3:package:windows
-npm run phase3:release-draft
-```
+`.github/workflows/ci.yml` runs `doctor`, `smoke:multi-app`, and `verify` on macOS and
+Windows. `verify` is heavy: it installs the `shinylive` R package, downloads webR
+assets, compiles the Rust server, and runs Playwright. If CI is slow or flaky on a
+fork, consider splitting a fast deterministic job (`npm ci` -> `validate:config` ->
+`validate:data` -> `test:unit` -> `check` -> `cargo test`) from the heavy
+export/e2e/Tauri job.
 
-See:
+## Documentation
 
-- `docs/spec.md`
-- `docs/quickstart.md`
-- `docs/template-cli.md`
-- `docs/clinical-data-contract.md`
-- `docs/clinical-demo-data-pack.md`
-- `docs/cdisc-mapping.md`
-- `docs/demo-script.md`
-- `docs/sample-release-evidence.md`
-- `docs/report-export.md`
-- `docs/generated/verification-procedure.md`
-- `docs/verification.md`
-- `docs/manual-clean-macos-checklist.md`
-- `docs/manual-clean-windows-checklist.md`
-- `docs/release-template.md`
-- `docs/phase3-distribution.md`
-- `docs/validation-approval-template.md`
-- `docs/adr/0001-localhost-static-server.md`
-- `docs/app-assets-contract.md`
-- `AGENTS.md`
+| Doc | Topic |
+| --- | --- |
+| `docs/spec.md` | architecture and contracts |
+| `docs/quickstart.md` | extended setup walkthrough |
+| `docs/template-cli.md` | full CLI reference |
+| `docs/clinical-data-contract.md`, `docs/cdisc-mapping.md` | data contract & CDISC bridge |
+| `docs/report-export.md` | report templates and evidence |
+| `docs/phase3-distribution.md` | signing, notarization, release |
+| `AGENTS.md` | conventions for automated contributors |
+
+## License
+
+MIT — see `LICENSE`. Bundled synthetic clinical demo data is not real patient data and
+is provided only for technical evaluation and demonstration.
