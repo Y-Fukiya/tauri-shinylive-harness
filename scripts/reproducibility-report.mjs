@@ -47,9 +47,12 @@ const readPackageManagerPin = async () => {
 };
 
 const commandVersion = async (command, args = ["--version"], { timeout = 5000 } = {}) => {
+  const executable = commandForPlatform(command);
+  const shell = process.platform === "win32" && /\.(?:cmd|bat)$/i.test(executable);
   try {
-    const result = await execFileAsync(commandForPlatform(command), args, {
+    const result = await execFileAsync(executable, args, {
       cwd: rootDir,
+      shell,
       timeout,
       windowsHide: true,
     });
