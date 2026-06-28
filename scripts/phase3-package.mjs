@@ -318,7 +318,6 @@ const createValidationPack = async (config, assets, platform = "macos") => {
   await copyIfExists(path.join(reportsRoot, "tauri-security-audit.json"), path.join(evidenceRoot, "tauri-security-audit.json"));
   await copyIfExists(path.join(reportsRoot, "phi-pii-scan.json"), path.join(evidenceRoot, "phi-pii-scan.json"));
   await copyIfExists(path.join(reportsRoot, "reproducibility.json"), path.join(evidenceRoot, "reproducibility.json"));
-  await copyIfExists(path.join(reportsRoot, "release-gate.json"), path.join(evidenceRoot, "release-gate.json"));
   await copyIfExists(path.join(reportsRoot, "e2e-diagnostics.json"), path.join(evidenceRoot, "e2e-diagnostics.json"));
   await copyIfExists(path.join(reportsRoot, "offline-verification.json"), path.join(evidenceRoot, "offline-verification.json"));
   await copyIfExists(path.join(reportsRoot, "clinical-data-pack-validation.json"), path.join(evidenceRoot, "clinical-data-pack-validation.json"));
@@ -586,11 +585,17 @@ const pkgArgs = [
   "--install-location",
   "/Applications",
 ];
+if (config.distribution.macBundles.includes("pkg") && config.phase3.signingRequired && !process.env.APPLE_INSTALLER_SIGNING_IDENTITY) {
+  throw new Error("APPLE_INSTALLER_SIGNING_IDENTITY is required to build signed pkg artifacts.");
+}
 if (process.env.APPLE_INSTALLER_SIGNING_IDENTITY) {
   pkgArgs.push("--sign", process.env.APPLE_INSTALLER_SIGNING_IDENTITY);
 }
 pkgArgs.push(pkgPath);
 await runCommand("pkgbuild", pkgArgs);
+if (config.distribution.macBundles.includes("pkg")) {
+  await notarizeIfConfigured(pkgPath);
+}
 
 const dmg = await findFirst(
   dmgRoot,

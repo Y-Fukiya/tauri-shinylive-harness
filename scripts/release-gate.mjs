@@ -78,6 +78,7 @@ const buildSteps = ({ platform, internal }) => {
   },
   { name: "export:reports", command: "npm", args: ["run", "export:reports"] },
   { name: "export:report-pdfs", command: "npm", args: ["run", "export:report-pdfs"] },
+  { name: "guard:phi:release", command: "npm", args: ["run", "guard:phi:release"] },
   { name: "verify:offline", command: "npm", args: ["run", "verify:offline"] },
   { name: "verify:e2e", command: "npm", args: ["run", "verify:e2e"] },
   {

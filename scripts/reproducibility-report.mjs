@@ -134,6 +134,14 @@ const shinyliveAssetAnchors = async () => {
     ];
   }
   const version = versions.at(-1);
+  const exportTemplateAnchors = [
+    `.shinylive-cache/${version}/export_template/shinylive/shinylive.js`,
+    `.shinylive-cache/${version}/export_template/shinylive/shinylive.css`,
+    `.shinylive-cache/${version}/export_template/shinylive/webr/R.wasm`,
+  ];
+  if (await exists(path.join(rootDir, exportTemplateAnchors[0]))) {
+    return exportTemplateAnchors;
+  }
   return [
     `.shinylive-cache/${version}/shinylive/shinylive.js`,
     `.shinylive-cache/${version}/shinylive/shinylive.css`,

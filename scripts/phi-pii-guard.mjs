@@ -30,7 +30,7 @@ const valuePatterns = [
 
 const defaultScanRoots = null;
 const textExtensions = new Set([".csv", ".json", ".ndjson", ".jsonl", ".txt", ".md"]);
-const knownOptions = new Set(["path", "paths", "report"]);
+const knownOptions = new Set(["path", "paths", "report", "scope"]);
 
 const parseOptions = (values) => {
   const options = { _: [] };
@@ -240,6 +240,16 @@ export const scanPhiPii = async ({
   return result;
 };
 
+const scanRootsForScope = async (scope) => {
+  if (scope === "release") {
+    return ["data-packs", "apps", "dist", "reports/exported", "reports/exported-pdf", "docs/generated"];
+  }
+  if (scope && scope !== "default") {
+    throw new Error(`Unknown PHI/PII scan scope: ${scope}`);
+  }
+  return defaultScanRoots;
+};
+
 const runCli = async () => {
   const options = parseOptions(process.argv.slice(2));
   const optionPath = options.path ?? options.paths;
@@ -247,7 +257,7 @@ const runCli = async () => {
     ? [optionPath]
   : options._.length
       ? options._
-      : defaultScanRoots;
+      : await scanRootsForScope(options.scope === true ? "default" : options.scope);
   const reportPath = options.report ? path.resolve(options.report) : path.join(reportsRoot, "phi-pii-scan.json");
   const result = await scanPhiPii({ scanRoots, reportPath });
   console.log(JSON.stringify({

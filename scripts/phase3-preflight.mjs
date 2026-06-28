@@ -227,6 +227,9 @@ const localIdentityInstalled =
 const signingReady =
   (apple.localSigningIdentity && localIdentityInstalled) ||
   (apple.certificateP12 && apple.certificatePassword && apple.keychainPassword);
+const installerSigningReady =
+  !config.distribution.macBundles.includes("pkg") ||
+  present("APPLE_INSTALLER_SIGNING_IDENTITY");
 const notarizationReady = apple.appStoreConnectApi || apple.appleIdNotary;
 const githubReady = commands.ghAuth.ok || present("GITHUB_TOKEN");
 const toolingReady =
@@ -238,6 +241,9 @@ if (config.phase3.signingRequired && !signingReady) {
 }
 if (apple.localSigningIdentity && !localIdentityInstalled) {
   issues.push("APPLE_SIGNING_IDENTITY is set but was not found in `security find-identity -v -p codesigning`.");
+}
+if (config.phase3.signingRequired && config.distribution.macBundles.includes("pkg") && !installerSigningReady) {
+  issues.push("APPLE_INSTALLER_SIGNING_IDENTITY is required when mac_bundles includes pkg and signing_required is true.");
 }
 if (config.phase3.notarizationRequired && !notarizationReady) {
   issues.push("Missing notarization credentials: set App Store Connect API variables or APPLE_ID + APPLE_PASSWORD + APPLE_TEAM_ID.");
@@ -261,6 +267,7 @@ const report = {
   distribution: config.distribution,
   phase3: config.phase3,
   signingReady,
+  installerSigningReady,
   notarizationReady,
   githubReady,
   toolingReady,
@@ -284,6 +291,7 @@ await writeFile(
     "| Area | Ready |",
     "| --- | --- |",
     `| Signing | ${signingReady} |`,
+    `| Installer package signing | ${installerSigningReady} |`,
     `| Notarization | ${notarizationReady} |`,
     `| GitHub release | ${githubReady} |`,
     `| macOS tooling | ${toolingReady} |`,
@@ -300,6 +308,7 @@ await writeFile(
 );
 await appendAudit("phase3-preflight", report.ok ? "ok" : "blocked", {
   signingReady,
+  installerSigningReady,
   notarizationReady,
   githubReady,
   toolingReady,

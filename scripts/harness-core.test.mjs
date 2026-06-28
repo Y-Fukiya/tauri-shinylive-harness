@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -379,6 +380,8 @@ test("verifyReleaseArtifacts validates checksums and required validation-pack ev
     const files = new Map([
       ["RELEASE_NOTES.md", "# Demo\n\nNot for clinical decision making.\n"],
       ["release-summary.json", "{}\n"],
+      ["sbom.json", "{}\n"],
+      ["licenses.md", "# Licenses\n"],
       ["validation-pack.zip", "zip-placeholder\n"],
       ["validation-pack/release-smoke-plan.json", JSON.stringify({ schemaVersion: 1, apps: [] }, null, 2)],
       ["validation-pack/release-smoke-test.md", "# Smoke\n"],
@@ -398,6 +401,8 @@ test("verifyReleaseArtifacts validates checksums and required validation-pack ev
       ["validation-pack/evidence/review-signoff.json", "{}\n"],
       ["validation-pack/evidence/review-signoff-history.jsonl", "{}\n"],
       ["validation-pack/evidence/evidence-index.html", "<!doctype html>\n"],
+      ["validation-pack/evidence/sbom.json", "{}\n"],
+      ["validation-pack/evidence/licenses.md", "# Licenses\n"],
       ["validation-pack/evidence/portal-manifest.json", "{}\n"],
       ["validation-pack/evidence/harness-bundle-manifest.json", "{}\n"],
       ["validation-pack/evidence/release-summary.json", "{}\n"],
@@ -439,23 +444,26 @@ test("static verifier rejects unexpected generated files under dist reports", as
   try {
     await mkdir(path.join(tempRoot, "reports"), { recursive: true });
     await writeFile(path.join(tempRoot, "manifest.json"), JSON.stringify({ apps: [] }, null, 2));
+    await writeFile(path.join(tempRoot, "reports", "sbom.json"), "{}\n");
+    await writeFile(path.join(tempRoot, "reports", "licenses.md"), "# Licenses\n");
+    const manifestHash = createHash("sha256").update(await readFile(path.join(tempRoot, "manifest.json"))).digest("hex");
+    const sbom = await readFile(path.join(tempRoot, "reports", "sbom.json"));
+    const licenses = await readFile(path.join(tempRoot, "reports", "licenses.md"));
     await writeFile(
       path.join(tempRoot, "harness-bundle-manifest.json"),
       JSON.stringify(
         {
           schemaVersion: 1,
-          assets: [
-            { path: "manifest.json", sha256: "placeholder" },
-            { path: "reports/sbom.json", sha256: "placeholder" },
-            { path: "reports/licenses.md", sha256: "placeholder" },
+          assets: [{ path: "manifest.json", size: (await readFile(path.join(tempRoot, "manifest.json"))).length, sha256: manifestHash }],
+          generatedArtifacts: [
+            { path: "reports/sbom.json", size: sbom.length, sha256: createHash("sha256").update(sbom).digest("hex") },
+            { path: "reports/licenses.md", size: licenses.length, sha256: createHash("sha256").update(licenses).digest("hex") },
           ],
         },
         null,
         2,
       ),
     );
-    await writeFile(path.join(tempRoot, "reports", "sbom.json"), "{}\n");
-    await writeFile(path.join(tempRoot, "reports", "licenses.md"), "# Licenses\n");
     await writeFile(path.join(tempRoot, "reports", "malware.js"), "evil\n");
 
     await assert.rejects(
@@ -464,6 +472,53 @@ test("static verifier rejects unexpected generated files under dist reports", as
     );
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("static verifier rejects modified or missing generated SBOM/license artifacts", async () => {
+  const makeBundle = async () => {
+    const tempRoot = await mkdtemp(path.join(os.tmpdir(), "harness-static-generated-test-"));
+    await mkdir(path.join(tempRoot, "reports"), { recursive: true });
+    await writeFile(path.join(tempRoot, "manifest.json"), JSON.stringify({ apps: [] }, null, 2));
+    await writeFile(path.join(tempRoot, "reports", "sbom.json"), "{\"ok\":true}\n");
+    await writeFile(path.join(tempRoot, "reports", "licenses.md"), "# Licenses\n");
+    const manifest = await readFile(path.join(tempRoot, "manifest.json"));
+    const sbom = await readFile(path.join(tempRoot, "reports", "sbom.json"));
+    const licenses = await readFile(path.join(tempRoot, "reports", "licenses.md"));
+    await writeFile(
+      path.join(tempRoot, "harness-bundle-manifest.json"),
+      JSON.stringify(
+        {
+          schemaVersion: 1,
+          assets: [{ path: "manifest.json", size: manifest.length, sha256: createHash("sha256").update(manifest).digest("hex") }],
+          generatedArtifacts: [
+            { path: "reports/sbom.json", size: sbom.length, sha256: createHash("sha256").update(sbom).digest("hex") },
+            { path: "reports/licenses.md", size: licenses.length, sha256: createHash("sha256").update(licenses).digest("hex") },
+          ],
+        },
+        null,
+        2,
+      ),
+    );
+    return tempRoot;
+  };
+
+  const modifiedRoot = await makeBundle();
+  const missingRoot = await makeBundle();
+  try {
+    await writeFile(path.join(modifiedRoot, "reports", "sbom.json"), "{\"evil\":\"yes\"}\n");
+    await assert.rejects(
+      () => verifyBundleArtifacts({ apps: [] }, { targetRoot: modifiedRoot, writeOutputs: false }),
+      /Generated artifact .*mismatch: reports\/sbom\.json/,
+    );
+    await rm(path.join(missingRoot, "reports", "licenses.md"), { force: true });
+    await assert.rejects(
+      () => verifyBundleArtifacts({ apps: [] }, { targetRoot: missingRoot, writeOutputs: false }),
+      /Missing required generated file: reports\/licenses\.md/,
+    );
+  } finally {
+    await rm(modifiedRoot, { recursive: true, force: true });
+    await rm(missingRoot, { recursive: true, force: true });
   }
 });
 
@@ -647,6 +702,27 @@ test("PHI guard explicit scan roots catch suspicious headers and values", async 
     await writeFile(path.join(tempRoot, "bad.csv"), "subject_id,email\nSUBJ-001,person@example.com\n");
     const result = await scanPhiPii({
       scanRoots: [tempRoot],
+      reportPath: path.join(tempRoot, "phi-pii-scan.json"),
+      writeReport: true,
+    });
+
+    assert.equal(result.ok, false);
+    assert.equal(result.issues.some((issue) => issue.code === "phi-pii-column"), true);
+    assert.equal(result.issues.some((issue) => issue.code === "email-like-value"), true);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("PHI guard release scan roots include generated dist artifacts", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "harness-phi-release-test-"));
+
+  try {
+    const distReports = path.join(tempRoot, "dist", "reports");
+    await mkdir(distReports, { recursive: true });
+    await writeFile(path.join(distReports, "test.csv"), "subject_id,email\nSUBJ-001,alice@example.com\n");
+    const result = await scanPhiPii({
+      scanRoots: [path.join(tempRoot, "dist")],
       reportPath: path.join(tempRoot, "phi-pii-scan.json"),
       writeReport: true,
     });

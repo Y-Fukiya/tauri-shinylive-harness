@@ -28,9 +28,13 @@ export const requiredReleaseFiles = [
   "validation-pack/evidence/review-signoff.json",
   "validation-pack/evidence/review-signoff-history.jsonl",
   "validation-pack/evidence/evidence-index.html",
+  "validation-pack/evidence/sbom.json",
+  "validation-pack/evidence/licenses.md",
   "validation-pack/evidence/portal-manifest.json",
   "validation-pack/evidence/harness-bundle-manifest.json",
   "validation-pack/evidence/release-summary.json",
+  "sbom.json",
+  "licenses.md",
 ];
 
 const parseOptions = (values) => {

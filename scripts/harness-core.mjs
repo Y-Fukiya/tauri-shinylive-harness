@@ -725,6 +725,7 @@ export const writeBundleArtifacts = async (config, manifest) => {
     distribution: config.distribution,
     appCount: manifest.apps.length,
     assets,
+    generatedArtifacts: [],
   };
 
   await writeJson(path.join(distRoot, "harness-bundle-manifest.json"), bundleManifest);
@@ -735,6 +736,18 @@ export const writeBundleArtifacts = async (config, manifest) => {
   );
   await writeJson(path.join(distRoot, "reports", "sbom.json"), await createSbom(config, assets));
   await writeFile(path.join(distRoot, "reports", "licenses.md"), await createLicenseReport(config));
+  const generatedArtifacts = [];
+  for (const relativePath of ["reports/sbom.json", "reports/licenses.md"]) {
+    const targetPath = path.join(distRoot, relativePath);
+    const metadata = await stat(targetPath);
+    generatedArtifacts.push({
+      path: relativePath,
+      size: metadata.size,
+      sha256: await sha256File(targetPath),
+    });
+  }
+  bundleManifest.generatedArtifacts = generatedArtifacts;
+  await writeJson(path.join(distRoot, "harness-bundle-manifest.json"), bundleManifest);
 
   return bundleManifest;
 };
@@ -923,11 +936,12 @@ export const verifyBundleArtifacts = async (config = null, { targetRoot = distRo
   const portalManifest = await readJson(manifestPath);
   const issues = [];
   const manifestFiles = new Set(bundleManifest.assets.map((asset) => asset.path));
+  const generatedArtifacts = bundleManifest.generatedArtifacts ?? [];
+  const generatedArtifactFiles = new Set(generatedArtifacts.map((asset) => asset.path));
   const allowedGeneratedFiles = new Set([
     "harness-bundle-manifest.json",
     "checksums/SHA256SUMS",
-    "reports/licenses.md",
-    "reports/sbom.json",
+    ...generatedArtifactFiles,
   ]);
   const actualFiles = (await listFiles(targetRoot)).map(toPosix);
   const unexpectedFiles = actualFiles
@@ -967,6 +981,29 @@ export const verifyBundleArtifacts = async (config = null, { targetRoot = distRo
       issues.push(`Hash mismatch: ${asset.path}`);
     }
   }
+  for (const requiredGeneratedFile of ["reports/sbom.json", "reports/licenses.md"]) {
+    const artifact = generatedArtifacts.find((candidate) => candidate.path === requiredGeneratedFile);
+    const targetPath = path.join(targetRoot, requiredGeneratedFile);
+    if (!artifact) {
+      issues.push(`Missing generated artifact manifest entry: ${requiredGeneratedFile}`);
+      continue;
+    }
+    if (!(await exists(targetPath))) {
+      issues.push(`Missing required generated file: ${requiredGeneratedFile}`);
+      continue;
+    }
+    const metadata = await stat(targetPath);
+    if (metadata.size === 0) {
+      issues.push(`Generated file is empty: ${requiredGeneratedFile}`);
+    }
+    if (metadata.size !== artifact.size) {
+      issues.push(`Generated artifact size mismatch: ${requiredGeneratedFile}`);
+    }
+    const nextHash = await sha256File(targetPath);
+    if (nextHash !== artifact.sha256) {
+      issues.push(`Generated artifact hash mismatch: ${requiredGeneratedFile}`);
+    }
+  }
 
   const report = {
     schemaVersion: 1,
@@ -975,6 +1012,7 @@ export const verifyBundleArtifacts = async (config = null, { targetRoot = distRo
     checkedAt: new Date().toISOString(),
     appCount: portalManifest.apps.length,
     assetCount: bundleManifest.assets.length,
+    generatedArtifactCount: generatedArtifacts.length,
     issues,
   };
 
