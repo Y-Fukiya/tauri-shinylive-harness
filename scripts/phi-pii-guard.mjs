@@ -30,6 +30,7 @@ const valuePatterns = [
 
 const defaultScanRoots = null;
 const textExtensions = new Set([".csv", ".json", ".ndjson", ".jsonl", ".txt", ".md"]);
+const knownOptions = new Set(["path", "paths", "report"]);
 
 const parseOptions = (values) => {
   const options = { _: [] };
@@ -40,6 +41,9 @@ const parseOptions = (values) => {
       continue;
     }
     const key = value.slice(2);
+    if (!knownOptions.has(key)) {
+      throw new Error(`Unknown option: --${key}`);
+    }
     const next = values[index + 1];
     if (!next || next.startsWith("--")) {
       options[key] = true;
@@ -238,8 +242,9 @@ export const scanPhiPii = async ({
 
 const runCli = async () => {
   const options = parseOptions(process.argv.slice(2));
-  const scanRoots = options.path
-    ? [options.path]
+  const optionPath = options.path ?? options.paths;
+  const scanRoots = optionPath
+    ? [optionPath]
   : options._.length
       ? options._
       : defaultScanRoots;

@@ -5,26 +5,27 @@ import { fileURLToPath } from "node:url";
 import { reportsRoot, rootDir, runCommand, toPosix, writeJson } from "./harness-core.mjs";
 
 const steps = [
-  { name: "doctor:release", command: "npm", args: ["run", "doctor:release"] },
+  { name: "doctor:tooling", command: "npm", args: ["run", "doctor:tooling"] },
   { name: "check", command: "npm", args: ["run", "check"] },
   { name: "test:unit", command: "npm", args: ["run", "test:unit"] },
   { name: "test:rust", command: "npm", args: ["run", "test:rust"] },
   { name: "validate:config:strict", command: "npm", args: ["run", "validate:config", "--", "--strict"] },
   { name: "validate:data:strict", command: "npm", args: ["run", "validate:data", "--", "--strict"] },
   { name: "guard:phi", command: "npm", args: ["run", "guard:phi"] },
-  { name: "build:all", command: "npm", args: ["run", "build:all"] },
+  { name: "build:all", command: "npm", args: ["run", "build:all"], env: { HARNESS_RELEASE_MODE: "true" } },
   { name: "verify:static:strict", command: "npm", args: ["run", "verify:static", "--", "--strict"] },
   { name: "audit:tauri-security", command: "npm", args: ["run", "audit:tauri-security"] },
   { name: "audit:reproducibility:strict", command: "npm", args: ["run", "audit:reproducibility:strict"] },
   {
     name: "clinical:cdisc-preflight:demo",
     command: "npm",
-    args: ["run", "clinical:cdisc-preflight", "--", "--mode", "demo", "--require-submission-ready", "false"],
+    args: ["run", "clinical:cdisc-preflight", "--", "--mode", "demo"],
   },
   { name: "verify:offline", command: "npm", args: ["run", "verify:offline"] },
   { name: "verify:e2e", command: "npm", args: ["run", "verify:e2e"] },
-  { name: "phase3:preflight", command: "npm", args: ["run", "phase3:preflight"] },
+  { name: "phase3:preflight:strict", command: "npm", args: ["run", "phase3:preflight:strict"] },
   { name: "phase3:package", command: "npm", args: ["run", "phase3:package"] },
+  { name: "doctor:artifacts", command: "npm", args: ["run", "doctor:artifacts"] },
   { name: "verify:release", command: "npm", args: ["run", "verify:release"] },
 ];
 
@@ -61,7 +62,12 @@ const runCli = async () => {
     results.push(result);
 
     try {
-      await runCommand(step.command, step.args);
+      await runCommand(step.command, step.args, {
+        env: {
+          ...process.env,
+          ...(step.env ?? {}),
+        },
+      });
       result.ok = true;
       result.status = "passed";
       result.completedAt = new Date().toISOString();

@@ -55,7 +55,7 @@ const usage = `Usage:
   node scripts/harness.mjs package-template [--output dist/starter-template] [--zip]
   node scripts/harness.mjs prepare
   node scripts/harness.mjs audit-tauri-security [--report reports/tauri-security-audit.json]
-  node scripts/harness.mjs reproducibility [--report reports/reproducibility.json]
+  node scripts/harness.mjs reproducibility [--report reports/reproducibility.json] [--include-assets]
   node scripts/harness.mjs verify-static
   node scripts/harness.mjs verify-release [--release release/] [--report reports/release-artifact-verification.json]
   node scripts/harness.mjs verify [--app app-id]
@@ -1077,7 +1077,10 @@ try {
       {
         const options = parseOptions(args);
         const reportPath = options.report ? path.resolve(options.report) : path.join(reportsRoot, "reproducibility.json");
-        const result = await createReproducibilityReport({ reportPath });
+        const result = await createReproducibilityReport({
+          reportPath,
+          includeAssetHashes: options["include-assets"] === true,
+        });
         printJson({
           ok: result.ok,
           report: repoRelative(reportPath),

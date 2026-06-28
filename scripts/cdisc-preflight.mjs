@@ -3,7 +3,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { clinicalDomains, controlledTerminology } from "./clinical-data-pack-validator.mjs";
+import { clinicalDomains, controlledTerminology, validateConfiguredDataPacks } from "./clinical-data-pack-validator.mjs";
 import {
   appendAudit,
   exists,
@@ -61,6 +61,51 @@ const relative = (targetPath) => {
 };
 
 const readJson = async (targetPath) => JSON.parse(await readFile(targetPath, "utf8"));
+
+const validateExternalValidationSummary = ({ summary, expectedDataPackHashes }) => {
+  const issues = [];
+  const requireString = (key) => {
+    if (!summary[key] || typeof summary[key] !== "string") {
+      issues.push(issue("error", "external-validation-summary-schema", `External validation summary must include string field: ${key}.`, { field: key }));
+    }
+  };
+  const requireNumber = (key) => {
+    if (!Number.isFinite(summary[key])) {
+      issues.push(issue("error", "external-validation-summary-schema", `External validation summary must include numeric field: ${key}.`, { field: key }));
+    }
+  };
+
+  for (const key of ["validatorName", "validatorVersion", "runAt", "studyId", "resultStatus"]) {
+    requireString(key);
+  }
+  for (const key of ["criticalErrors", "errors", "warnings"]) {
+    requireNumber(key);
+  }
+  if (!Array.isArray(summary.inputDatasetHashes) || summary.inputDatasetHashes.length === 0) {
+    issues.push(issue("error", "external-validation-summary-schema", "External validation summary must include non-empty inputDatasetHashes.", {
+      field: "inputDatasetHashes",
+    }));
+  }
+  if (summary.reviewRequired !== true) {
+    issues.push(issue("error", "external-validation-review-required", "External validation summary must explicitly set reviewRequired: true."));
+  }
+  if (summary.resultStatus && summary.resultStatus !== "completed") {
+    issues.push(issue("error", "external-validation-not-completed", "External validation summary resultStatus must be completed.", {
+      resultStatus: summary.resultStatus,
+    }));
+  }
+
+  const providedHashes = new Set(summary.inputDatasetHashes ?? []);
+  for (const expectedHash of expectedDataPackHashes) {
+    if (!providedHashes.has(expectedHash)) {
+      issues.push(issue("error", "external-validation-dataset-hash-mismatch", "External validation summary does not reference the current data pack hash.", {
+        expectedHash,
+      }));
+    }
+  }
+
+  return issues;
+};
 
 const summarizeIssues = (issues) => {
   const bySeverity = {};
@@ -307,16 +352,27 @@ export const runCdiscPreflight = async ({
   validateMappingShape(mapping, issues);
   const coverage = evaluateCoverage(mapping, issues);
   const pinnacle21 = await evaluatePinnacle21({ pinnacleCli, pinnacleConfig }, issues);
+  const configuredDataPacks = await validateConfiguredDataPacks({ writeOutputs: false });
+  const expectedDataPackHashes = configuredDataPacks.results.map((item) => item.dataPack.sha256);
   const externalValidationReport = path.join(reportsRoot, "external-validation", "pinnacle21-summary.json");
+  const externalValidationSummary = (await exists(externalValidationReport)) ? await readJson(externalValidationReport) : null;
   const externalValidation = {
     required: normalizedMode === "handoff",
     path: relative(externalValidationReport),
     present: await exists(externalValidationReport),
     sha256: (await exists(externalValidationReport)) ? await sha256File(externalValidationReport) : null,
+    summary: externalValidationSummary,
+    expectedDataPackHashes,
   };
   if (normalizedMode === "handoff" && !externalValidation.present) {
     issues.push(issue("error", "external-validation-evidence-missing", "Handoff mode requires imported external validation evidence.", {
       expected: externalValidation.path,
+    }));
+  }
+  if (normalizedMode === "handoff" && externalValidation.present) {
+    issues.push(...validateExternalValidationSummary({
+      summary: externalValidationSummary ?? {},
+      expectedDataPackHashes,
     }));
   }
   const summary = summarizeIssues(issues);

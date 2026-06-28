@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { parseHarnessToml, rootDir } from "./harness-core.mjs";
+import { exists, parseHarnessToml, reportsRoot, rootDir } from "./harness-core.mjs";
 import { validateClinicalDataPack } from "./clinical-data-pack-validator.mjs";
 import { buildReleaseSmokePlan, renderReleaseSmokeMarkdown } from "./release-smoke-plan.mjs";
 import { verifyReleaseArtifacts } from "./release-verifier.mjs";
@@ -16,6 +16,7 @@ import { generateEvidenceIndex, writeReviewSignoff } from "./review-evidence.mjs
 import { createTemplatePackage } from "./template-package.mjs";
 import { scanPhiPii } from "./phi-pii-guard.mjs";
 import { verifyOfflineBundle } from "./offline-verify.mjs";
+import { validateJsonSchema } from "./lib/schema-validation.mjs";
 
 const invalidClinicalFixtureIds = [
   "missing-required-column",
@@ -25,6 +26,8 @@ const invalidClinicalFixtureIds = [
   "ae-without-subject",
   "lab-without-visit",
   "exposure-negative-dose",
+  "extra-csv-field",
+  "missing-csv-field",
   "malformed-csv",
 ];
 
@@ -107,6 +110,58 @@ header_probes = ["index.html", "shinylive/webr/R.wasm",]
     "hash # inside",
     'escaped "quote"',
   ]);
+});
+
+test("local JSON Schema subset validator catches supported keyword failures", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "harness-schema-subset-test-"));
+  const schemaPath = path.join(tempRoot, "schema.json");
+
+  try {
+    await writeFile(
+      schemaPath,
+      JSON.stringify({
+        type: "object",
+        required: ["id", "status", "items"],
+        additionalProperties: false,
+        properties: {
+          id: { type: "string", pattern: "^[A-Z]+-[0-9]+$" },
+          status: { enum: ["ready", "blocked"] },
+          items: {
+            type: "array",
+            minItems: 1,
+            items: {
+              type: "object",
+              required: ["kind"],
+              additionalProperties: false,
+              properties: {
+                kind: { const: "check" },
+              },
+            },
+          },
+        },
+      }),
+    );
+
+    const result = await validateJsonSchema({
+      schemaPath,
+      label: "schema subset fixture",
+      data: {
+        id: "bad",
+        status: "unknown",
+        extra: true,
+        items: [{}],
+      },
+    });
+    const keywords = new Set(result.errors.map((error) => error.keyword));
+
+    assert.equal(result.ok, false);
+    assert.equal(keywords.has("pattern"), true);
+    assert.equal(keywords.has("enum"), true);
+    assert.equal(keywords.has("additionalProperties"), true);
+    assert.equal(keywords.has("required"), true);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
 });
 
 test("data pack aggregate hash is independent of repository placement", async () => {
@@ -408,6 +463,64 @@ test("CDISC preflight covers the synthetic schema without claiming submission re
   assert.equal(codes.has("demo-bridge-not-submission-ready"), true);
 });
 
+test("CDISC handoff requires structured external validation evidence with matching data hash", async () => {
+  const externalRoot = path.join(reportsRoot, "external-validation");
+  const summaryPath = path.join(externalRoot, "pinnacle21-summary.json");
+  const backupRoot = await mkdtemp(path.join(os.tmpdir(), "harness-cdisc-handoff-backup-"));
+  const backupPath = path.join(backupRoot, "pinnacle21-summary.json");
+  const hadExisting = await exists(summaryPath);
+
+  try {
+    await mkdir(externalRoot, { recursive: true });
+    if (hadExisting) {
+      await cp(summaryPath, backupPath);
+    }
+    await writeFile(summaryPath, JSON.stringify({ schemaVersion: 1, files: [] }, null, 2));
+
+    const dummyResult = await runCdiscPreflight({ mode: "handoff", writeOutputs: false, pinnacleCli: null });
+    assert.equal(dummyResult.ok, false);
+    assert.equal(dummyResult.issues.some((item) => item.code === "external-validation-summary-schema"), true);
+
+    const dataResult = await validateClinicalDataPack({
+      dataDir: path.join(rootDir, "data-packs", "clinical-demo-subject-profile-v1"),
+      dataPackId: "clinical-demo-subject-profile-v1",
+      writeOutputs: false,
+    });
+    await writeFile(
+      summaryPath,
+      JSON.stringify(
+        {
+          schemaVersion: 1,
+          validatorName: "Pinnacle 21 Enterprise",
+          validatorVersion: "demo-summary",
+          runAt: "2026-06-28T00:00:00.000Z",
+          studyId: "STUDY001",
+          inputDatasetHashes: [dataResult.dataPack.sha256],
+          resultStatus: "completed",
+          criticalErrors: 0,
+          errors: 0,
+          warnings: 0,
+          reviewRequired: true,
+          files: [],
+        },
+        null,
+        2,
+      ),
+    );
+
+    const validResult = await runCdiscPreflight({ mode: "handoff", writeOutputs: false, pinnacleCli: null });
+    assert.equal(validResult.ok, true);
+    assert.equal(validResult.submissionReady, "external-review-required");
+  } finally {
+    if (hadExisting) {
+      await cp(backupPath, summaryPath, { force: true });
+    } else {
+      await rm(summaryPath, { force: true });
+    }
+    await rm(backupRoot, { recursive: true, force: true });
+  }
+});
+
 test("PDF report exporter creates companion PDFs from exported HTML manifest", async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), "harness-pdf-export-test-"));
 
@@ -485,6 +598,25 @@ test("PHI guard fails suspicious headers and values", async () => {
     assert.equal(result.ok, false);
     assert.equal(codes.has("phi-pii-column"), true);
     assert.equal(codes.has("email-like-value"), true);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("PHI guard explicit scan roots catch suspicious headers and values", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "harness-phi-paths-test-"));
+
+  try {
+    await writeFile(path.join(tempRoot, "bad.csv"), "subject_id,email\nSUBJ-001,person@example.com\n");
+    const result = await scanPhiPii({
+      scanRoots: [tempRoot],
+      reportPath: path.join(tempRoot, "phi-pii-scan.json"),
+      writeReport: true,
+    });
+
+    assert.equal(result.ok, false);
+    assert.equal(result.issues.some((issue) => issue.code === "phi-pii-column"), true);
+    assert.equal(result.issues.some((issue) => issue.code === "email-like-value"), true);
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
   }

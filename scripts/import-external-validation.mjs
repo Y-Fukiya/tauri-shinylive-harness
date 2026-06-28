@@ -59,11 +59,46 @@ for (const file of (await listFiles(destinationRoot)).sort()) {
   });
 }
 
+const readOptionalSummary = async () => {
+  const candidates = sourceMetadata.isDirectory()
+    ? [
+        path.join(source, "external-validation-summary.json"),
+        path.join(source, "validation-summary.json"),
+      ]
+    : [source];
+  for (const candidate of candidates) {
+    if (!(await exists(candidate)) || path.extname(candidate).toLowerCase() !== ".json") {
+      continue;
+    }
+    try {
+      const parsed = JSON.parse(await readFile(candidate, "utf8"));
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return parsed;
+      }
+    } catch {
+      // Imported raw evidence may include non-summary JSON files.
+    }
+  }
+  return {};
+};
+
+const externalSummary = await readOptionalSummary();
+
 const summary = {
   schemaVersion: 1,
   importedAt: new Date().toISOString(),
   type,
   study,
+  validatorName: externalSummary.validatorName ?? null,
+  validatorVersion: externalSummary.validatorVersion ?? null,
+  runAt: externalSummary.runAt ?? null,
+  studyId: externalSummary.studyId ?? study,
+  inputDatasetHashes: externalSummary.inputDatasetHashes ?? [],
+  resultStatus: externalSummary.resultStatus ?? null,
+  criticalErrors: externalSummary.criticalErrors ?? null,
+  errors: externalSummary.errors ?? null,
+  warnings: externalSummary.warnings ?? null,
+  reviewRequired: externalSummary.reviewRequired ?? null,
   source: path.isAbsolute(input) ? input : toPosix(input),
   boundary: "Imported external validation evidence is archived for review. The harness does not certify the external validator result.",
   files,

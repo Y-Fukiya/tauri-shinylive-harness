@@ -34,6 +34,17 @@ const readTrimmed = async (relativePath) => {
   return (await exists(targetPath)) ? (await readFile(targetPath, "utf8")).trim() : null;
 };
 
+const readPackageManagerPin = async () => {
+  const targetPath = path.join(rootDir, "package.json");
+  if (!(await exists(targetPath))) {
+    return null;
+  }
+  const packageJson = JSON.parse(await readFile(targetPath, "utf8"));
+  const value = packageJson.packageManager ?? "";
+  const match = /^npm@(.+)$/.exec(value);
+  return match ? match[1] : null;
+};
+
 const executableNames = (command) => {
   if (process.platform !== "win32") {
     return [command];
@@ -161,11 +172,12 @@ const rPackageVersion = async (packageName) => {
 export const createReproducibilityReport = async ({
   reportPath = path.join(reportsRoot, "reproducibility.json"),
   writeReport = true,
-  includeAssetHashes = true,
+  includeAssetHashes = false,
   strict = false,
   includeObservedVersions = true,
 } = {}) => {
   const pinnedNode = await readTrimmed(".nvmrc");
+  const pinnedNpm = await readPackageManagerPin();
   const pinnedR = await readTrimmed(".R-version");
   const rustToolchainText = await readTrimmed("rust-toolchain.toml");
   const rustChannel = rustToolchainText?.match(/channel\s*=\s*"([^"]+)"/)?.[1] ?? null;
@@ -187,13 +199,10 @@ export const createReproducibilityReport = async ({
   ].filter(Boolean);
   const assetHashes = includeAssetHashes
     ? [
-        await directoryInventory(".shinylive-cache"),
-        ...(await hashMatchedAssets(".shinylive-cache", [
-          "shinylive/shinylive.js",
-          "shinylive/shinylive.css",
-          "shinylive/webr/R.wasm",
-          "shinylive/webr/library.data.gz",
-        ])),
+        await hashIfExists(".shinylive-cache/shinylive/shinylive.js"),
+        await hashIfExists(".shinylive-cache/shinylive/shinylive.css"),
+        await hashIfExists(".shinylive-cache/shinylive/webr/R.wasm"),
+        await hashIfExists(".shinylive-cache/shinylive/webr/library.data.gz"),
         await hashIfExists("dist/harness-bundle-manifest.json"),
         await hashIfExists("dist/checksums/SHA256SUMS"),
       ].filter(Boolean)
@@ -213,6 +222,7 @@ export const createReproducibilityReport = async ({
   const strictVersionChecks = strict
     ? [
         strictPinCheck({ name: "node", pin: pinnedNode, observed: observed.node, exact: true }),
+        strictPinCheck({ name: "npm", pin: pinnedNpm, observed: observed.npm, exact: true }),
         strictPinCheck({ name: "r", pin: pinnedR, observed: observed.rscript, exact: true }),
         strictPinCheck({ name: "rustc", pin: rustChannel, observed: observed.rustc, exact: true }),
         {
@@ -230,9 +240,6 @@ export const createReproducibilityReport = async ({
           "dist/harness-bundle-manifest.json",
           "dist/checksums/SHA256SUMS",
           "apps",
-          "reports/evidence-index.html",
-          "release/validation-pack/evidence-index.json",
-          "release/validation-pack.zip",
         ].map(async (relativePath) => ({
           path: relativePath,
           ok: await exists(path.join(rootDir, relativePath)),
@@ -250,6 +257,7 @@ export const createReproducibilityReport = async ({
     mode: strict ? "release-strict" : "standard",
     pins: {
       node: pinnedNode,
+      npm: pinnedNpm,
       r: pinnedR,
       rustToolchain: {
         channel: rustChannel,
@@ -280,7 +288,7 @@ const runCli = async () => {
   const result = await createReproducibilityReport({
     reportPath,
     strict,
-    includeAssetHashes: !strict,
+    includeAssetHashes: strict || options["include-assets"] === true,
     includeObservedVersions: true,
   });
   console.log(
@@ -289,6 +297,7 @@ const runCli = async () => {
         ok: result.ok,
         report: toPosix(path.relative(rootDir, reportPath)),
         node: result.pins.node,
+        npm: result.pins.npm,
         rust: result.pins.rustToolchain.channel,
         r: result.pins.r,
         mode: result.mode,

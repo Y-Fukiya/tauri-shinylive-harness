@@ -172,6 +172,8 @@ const parseCsvRows = (text) => {
   let row = [];
   let current = "";
   let inQuotes = false;
+  let lineNumber = 1;
+  let rowStartLine = 1;
 
   const source = text.replace(/^\uFEFF/, "");
   for (let index = 0; index < source.length; index += 1) {
@@ -196,13 +198,19 @@ const parseCsvRows = (text) => {
       if (char === "\r" && next === "\n") {
         index += 1;
       }
+      lineNumber += 1;
       row.push(current);
       if (!(row.length === 1 && row[0] === "")) {
+        Object.defineProperty(row, "__line", { value: rowStartLine });
         rows.push(row);
       }
       row = [];
       current = "";
+      rowStartLine = lineNumber;
       continue;
+    }
+    if (char === "\n" || char === "\r") {
+      lineNumber += 1;
     }
     current += char;
   }
@@ -213,6 +221,7 @@ const parseCsvRows = (text) => {
   if (current !== "" || row.length > 0) {
     row.push(current);
     if (!(row.length === 1 && row[0] === "")) {
+      Object.defineProperty(row, "__line", { value: rowStartLine });
       rows.push(row);
     }
   }
@@ -224,15 +233,24 @@ const readCsv = async (targetPath) => {
   const text = await readFile(targetPath, "utf8");
   const rows = parseCsvRows(text);
   const headers = rows[0] ?? [];
+  const rowMismatches = [];
   const records = rows.slice(1).map((row, rowIndex) => {
-    const record = { __row: rowIndex + 2 };
+    const rowNumber = row.__line ?? rowIndex + 2;
+    if (row.length !== headers.length) {
+      rowMismatches.push({
+        row: rowNumber,
+        expected: headers.length,
+        actual: row.length,
+      });
+    }
+    const record = { __row: rowNumber };
     for (let index = 0; index < headers.length; index += 1) {
       record[headers[index]] = row[index] ?? "";
     }
     return record;
   });
 
-  return { headers, records };
+  return { headers, records, rowMismatches };
 };
 
 const isBlank = (value) => value === undefined || value === null || String(value).trim() === "";
@@ -545,6 +563,15 @@ export const validateClinicalDataPack = async ({
       continue;
     }
     csvByDomain.set(domainName, csv);
+    for (const mismatch of csv.rowMismatches ?? []) {
+      addIssue(issues, "error", "csv-row-field-count-mismatch", `${domainSpec.file} row has a different field count than the header.`, {
+        domain: domainName,
+        file: domainSpec.file,
+        row: mismatch.row,
+        expected: mismatch.expected,
+        actual: mismatch.actual,
+      });
+    }
     for (const column of domainSpec.requiredColumns) {
       if (!csv.headers.includes(column)) {
         addIssue(issues, "error", "missing-required-column", `${domainSpec.file} is missing required column ${column}.`, {
@@ -968,6 +995,7 @@ export const validateConfiguredDataPacks = async ({
   appId = null,
   reportPath = path.join(reportsRoot, "clinical-data-pack-validation.json"),
   dictionaryPath = path.join(rootDir, "docs", "generated", "clinical-data-dictionary.md"),
+  writeOutputs = true,
 } = {}) => {
   const config = await readConfig();
   const apps = config.apps.filter((app) => app.dataPack && (!appId || app.id === appId));
@@ -1006,19 +1034,21 @@ export const validateConfiguredDataPacks = async ({
     results,
   };
 
-  await writeJson(reportPath, result);
-  if (results.length === 1) {
-    await mkdir(path.dirname(dictionaryPath), { recursive: true });
-    await writeFile(dictionaryPath, createDataDictionaryMarkdown(results[0]));
-  } else if (results.length > 1) {
-    await mkdir(path.dirname(dictionaryPath), { recursive: true });
-    await writeFile(
-      dictionaryPath,
-      results
-        .map((item) => createDataDictionaryMarkdown(item).trimEnd())
-        .join("\n\n---\n\n")
-        .concat("\n"),
-    );
+  if (writeOutputs) {
+    await writeJson(reportPath, result);
+    if (results.length === 1) {
+      await mkdir(path.dirname(dictionaryPath), { recursive: true });
+      await writeFile(dictionaryPath, createDataDictionaryMarkdown(results[0]));
+    } else if (results.length > 1) {
+      await mkdir(path.dirname(dictionaryPath), { recursive: true });
+      await writeFile(
+        dictionaryPath,
+        results
+          .map((item) => createDataDictionaryMarkdown(item).trimEnd())
+          .join("\n\n---\n\n")
+          .concat("\n"),
+      );
+    }
   }
 
   if (!result.ok) {

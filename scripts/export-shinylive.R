@@ -36,6 +36,9 @@ dir.create(local_lib, recursive = TRUE, showWarnings = FALSE)
 .libPaths(c(local_lib, .libPaths()))
 
 allow_network_install <- Sys.getenv("HARNESS_ALLOW_NETWORK_INSTALL", "false") %in% c("true", "1", "yes")
+release_mode <- Sys.getenv("HARNESS_RELEASE_MODE", "false") %in% c("true", "1", "yes")
+allow_network_assets_default <- if (release_mode) "false" else "true"
+allow_network_assets <- Sys.getenv("HARNESS_ALLOW_NETWORK_ASSETS", allow_network_assets_default) %in% c("true", "1", "yes")
 if (!requireNamespace("shinylive", quietly = TRUE)) {
   if (!allow_network_install) {
     stop("shinylive is not installed. Release builds must use a locked local R library.")
@@ -66,6 +69,9 @@ asset_root <- file.path(assets_dir, paste0("shinylive-", assets_version))
 template_dir <- file.path(asset_root, "export_template")
 
 if (!dir.exists(template_dir)) {
+  if (!allow_network_assets) {
+    stop("Shinylive export template is missing. Release builds must use pre-cached assets: ", template_dir)
+  }
   if (dir.exists(asset_root)) {
     unlink(asset_root, recursive = TRUE)
   }
