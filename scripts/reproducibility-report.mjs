@@ -117,6 +117,7 @@ const shinyliveAssetAnchors = async () => {
   const cacheRoot = path.join(rootDir, ".shinylive-cache");
   if (!(await exists(cacheRoot))) {
     return [
+      ".shinylive-cache/shinylive-<version>/export_template/index.html",
       ".shinylive-cache/shinylive-<version>/shinylive/shinylive.js",
       ".shinylive-cache/shinylive-<version>/shinylive/shinylive.css",
       ".shinylive-cache/shinylive-<version>/shinylive/webr/R.wasm",
@@ -128,21 +129,15 @@ const shinyliveAssetAnchors = async () => {
     .sort();
   if (versions.length === 0) {
     return [
+      ".shinylive-cache/shinylive-<version>/export_template/index.html",
       ".shinylive-cache/shinylive-<version>/shinylive/shinylive.js",
       ".shinylive-cache/shinylive-<version>/shinylive/shinylive.css",
       ".shinylive-cache/shinylive-<version>/shinylive/webr/R.wasm",
     ];
   }
   const version = versions.at(-1);
-  const exportTemplateAnchors = [
-    `.shinylive-cache/${version}/export_template/shinylive/shinylive.js`,
-    `.shinylive-cache/${version}/export_template/shinylive/shinylive.css`,
-    `.shinylive-cache/${version}/export_template/shinylive/webr/R.wasm`,
-  ];
-  if (await exists(path.join(rootDir, exportTemplateAnchors[0]))) {
-    return exportTemplateAnchors;
-  }
   return [
+    `.shinylive-cache/${version}/export_template/index.html`,
     `.shinylive-cache/${version}/shinylive/shinylive.js`,
     `.shinylive-cache/${version}/shinylive/shinylive.css`,
     `.shinylive-cache/${version}/shinylive/webr/R.wasm`,
@@ -210,7 +205,7 @@ export const createReproducibilityReport = async ({
     ? [
         ...(await Promise.all(requiredAssetAnchors.map((assetPath) => hashIfExists(assetPath, {
           kind: "asset-anchor",
-          maxBytes: 0,
+          maxBytes: 250_000_000,
         })))),
         await hashIfExists("dist/harness-bundle-manifest.json"),
         await hashIfExists("dist/checksums/SHA256SUMS"),

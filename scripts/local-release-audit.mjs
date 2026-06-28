@@ -284,13 +284,31 @@ if (platform === "windows") {
           path.join(releaseRoot, dmg),
         ]),
       );
+      signing.commands.staplerDmg = summarizeCommand(
+        await runCapture("xcrun", ["stapler", "validate", path.join(releaseRoot, dmg)]),
+      );
     }
     if (pkg) {
       signing.commands.pkgSignature = summarizeCommand(
         await runCapture("pkgutil", ["--check-signature", path.join(releaseRoot, pkg)]),
       );
+      signing.commands.spctlPkgInstall = summarizeCommand(
+        await runCapture("spctl", ["--assess", "--type", "install", "--verbose=4", path.join(releaseRoot, pkg)]),
+      );
+      signing.commands.staplerPkg = summarizeCommand(
+        await runCapture("xcrun", ["stapler", "validate", path.join(releaseRoot, pkg)]),
+      );
     }
-    signing.ok = Boolean(signing.commands.codesignVerify?.ok && signing.commands.spctlExecute?.ok);
+    signing.ok = Boolean(
+      signing.commands.codesignVerify?.ok &&
+        signing.commands.spctlExecute?.ok &&
+        (!dmg || (signing.commands.spctlDmg?.ok && signing.commands.staplerDmg?.ok)) &&
+        (!pkg || (
+          signing.commands.pkgSignature?.ok &&
+          signing.commands.spctlPkgInstall?.ok &&
+          signing.commands.staplerPkg?.ok
+        )),
+    );
   } else {
     signing.notes.push("macOS signing and Gatekeeper verification require a macOS host.");
     issues.push("Clean macOS install and Gatekeeper verification require a macOS machine or VM.");
