@@ -6,7 +6,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
-import { exists, listFiles, reportsRoot, rootDir, sha256File, toPosix, writeJson } from "./harness-core.mjs";
+import { commandForPlatform, exists, listFiles, reportsRoot, rootDir, sha256File, toPosix, writeJson } from "./harness-core.mjs";
 
 const execFileAsync = promisify(execFile);
 
@@ -46,17 +46,9 @@ const readPackageManagerPin = async () => {
   return match ? match[1] : null;
 };
 
-const executableNames = (command) => {
-  if (process.platform !== "win32") {
-    return [command];
-  }
-  const extensions = (process.env.PATHEXT ?? ".EXE;.CMD;.BAT").split(";").filter(Boolean);
-  return extensions.flatMap((extension) => [extension.toLowerCase(), extension.toUpperCase()].map((next) => `${command}${next}`));
-};
-
 const commandVersion = async (command, args = ["--version"], { timeout = 5000 } = {}) => {
   try {
-    const result = await execFileAsync(command, args, {
+    const result = await execFileAsync(commandForPlatform(command), args, {
       cwd: rootDir,
       timeout,
       windowsHide: true,
