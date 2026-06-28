@@ -1,9 +1,13 @@
 #!/usr/bin/env node
+import { execFile } from "node:child_process";
 import { access, readFile, stat as fsStat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 
 import { exists, listFiles, reportsRoot, rootDir, sha256File, toPosix, writeJson } from "./harness-core.mjs";
+
+const execFileAsync = promisify(execFile);
 
 const parseOptions = (values) => {
   const options = { _: [] };
@@ -38,19 +42,41 @@ const executableNames = (command) => {
   return extensions.flatMap((extension) => [extension.toLowerCase(), extension.toUpperCase()].map((next) => `${command}${next}`));
 };
 
-const commandVersion = async (command) => {
-  for (const directory of (process.env.PATH ?? "").split(path.delimiter).filter(Boolean)) {
-    for (const name of executableNames(command)) {
-      const candidate = path.join(directory, name);
-      try {
-        await access(candidate);
-        return `available: ${candidate}`;
-      } catch {
-        // Try next PATH entry.
-      }
-    }
+const commandVersion = async (command, args = ["--version"]) => {
+  try {
+    const result = await execFileAsync(command, args, {
+      cwd: rootDir,
+      timeout: 15000,
+      windowsHide: true,
+    });
+    return {
+      ok: true,
+      command,
+      raw: `${result.stdout}${result.stderr}`.trim(),
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      command,
+      raw: error instanceof Error ? error.message : String(error),
+    };
   }
-  return "unavailable: not found on PATH";
+};
+
+const parseFirstSemver = (value) => value?.match(/v?(\d+\.\d+\.\d+)/)?.[1] ?? null;
+
+const strictPinCheck = ({ name, pin, observed, exact = true }) => {
+  const observedVersion = parseFirstSemver(observed.raw);
+  const pinVersion = parseFirstSemver(pin);
+  const ok = Boolean(observed.ok && pinVersion && observedVersion && (exact ? observedVersion === pinVersion : observedVersion.startsWith(pinVersion)));
+  return {
+    name,
+    ok,
+    pin,
+    observed: observed.raw,
+    observedVersion,
+    requirement: exact ? "exact-semver-match" : "prefix-semver-match",
+  };
 };
 
 const hashIfExists = async (relativePath) => {
@@ -104,6 +130,34 @@ const hashMatchedAssets = async (relativeDir, suffixes) => {
   );
 };
 
+const readRenvPackages = async () => {
+  const targetPath = path.join(rootDir, "renv.lock");
+  if (!(await exists(targetPath))) {
+    return {};
+  }
+  const lock = JSON.parse(await readFile(targetPath, "utf8"));
+  return Object.fromEntries(
+    Object.entries(lock.Packages ?? {}).map(([name, metadata]) => [
+      name,
+      {
+        pinned: metadata.Version ?? null,
+        source: metadata.Source ?? null,
+        repository: metadata.Repository ?? null,
+      },
+    ]),
+  );
+};
+
+const rPackageVersion = async (packageName) => {
+  const result = await commandVersion("Rscript", ["-e", `cat(as.character(utils::packageVersion("${packageName}")))`]);
+  return {
+    ok: result.ok,
+    package: packageName,
+    observed: result.ok ? result.raw : null,
+    error: result.ok ? null : result.raw,
+  };
+};
+
 export const createReproducibilityReport = async ({
   reportPath = path.join(reportsRoot, "reproducibility.json"),
   writeReport = true,
@@ -127,6 +181,7 @@ export const createReproducibilityReport = async ({
         ".nvmrc",
         ".R-version",
         "rust-toolchain.toml",
+        "renv.lock",
       ].map(hashIfExists),
     )),
   ].filter(Boolean);
@@ -144,6 +199,31 @@ export const createReproducibilityReport = async ({
       ].filter(Boolean)
     : [];
 
+  const observed = {
+    node: includeObservedVersions ? await commandVersion("node") : { ok: true, raw: "skipped" },
+    npm: includeObservedVersions ? await commandVersion("npm") : { ok: true, raw: "skipped" },
+    rustc: includeObservedVersions ? await commandVersion("rustc") : { ok: true, raw: "skipped" },
+    cargo: includeObservedVersions ? await commandVersion("cargo") : { ok: true, raw: "skipped" },
+    rscript: includeObservedVersions ? await commandVersion("Rscript") : { ok: true, raw: "skipped" },
+  };
+  const renvPackages = await readRenvPackages();
+  const rPackages = {
+    shinylive: await rPackageVersion("shinylive"),
+  };
+  const strictVersionChecks = strict
+    ? [
+        strictPinCheck({ name: "node", pin: pinnedNode, observed: observed.node, exact: true }),
+        strictPinCheck({ name: "r", pin: pinnedR, observed: observed.rscript, exact: true }),
+        strictPinCheck({ name: "rustc", pin: rustChannel, observed: observed.rustc, exact: true }),
+        {
+          name: "r-package:shinylive",
+          ok: Boolean(renvPackages.shinylive?.pinned && rPackages.shinylive.observed === renvPackages.shinylive.pinned),
+          pin: renvPackages.shinylive?.pinned ?? null,
+          observed: rPackages.shinylive.observed,
+          requirement: "renv-lock-version-match",
+        },
+      ]
+    : [];
   const strictChecks = strict
     ? await Promise.all(
         [
@@ -160,11 +240,12 @@ export const createReproducibilityReport = async ({
       )
     : [];
   const missingStrict = strictChecks.filter((check) => !check.ok);
+  const failingStrictVersionChecks = strictVersionChecks.filter((check) => !check.ok);
 
   const result = {
     schemaVersion: 1,
     ok: Boolean(pinnedNode && pinnedR && rustChannel && sourceFiles.some((file) => file.path === "package-lock.json")) &&
-      (!strict || missingStrict.length === 0),
+      (!strict || (missingStrict.length === 0 && failingStrictVersionChecks.length === 0)),
     checkedAt: new Date().toISOString(),
     mode: strict ? "release-strict" : "standard",
     pins: {
@@ -174,17 +255,15 @@ export const createReproducibilityReport = async ({
         channel: rustChannel,
       },
     },
-    observed: {
-      node: includeObservedVersions ? await commandVersion("node") : "skipped in strict mode",
-      npm: includeObservedVersions ? await commandVersion("npm") : "skipped in strict mode",
-      rustc: includeObservedVersions ? await commandVersion("rustc") : "skipped in strict mode",
-      cargo: includeObservedVersions ? await commandVersion("cargo") : "skipped in strict mode",
-      rscript: includeObservedVersions ? await commandVersion("Rscript") : "skipped in strict mode",
-    },
+    observed,
+    rPackages,
+    renvPackages,
     files: sourceFiles,
     assets: assetHashes,
     strictChecks,
+    strictVersionChecks,
     missingStrict,
+    failingStrictVersionChecks,
   };
 
   if (writeReport) {
@@ -202,7 +281,7 @@ const runCli = async () => {
     reportPath,
     strict,
     includeAssetHashes: !strict,
-    includeObservedVersions: !strict,
+    includeObservedVersions: true,
   });
   console.log(
     JSON.stringify(
@@ -214,6 +293,7 @@ const runCli = async () => {
         r: result.pins.r,
         mode: result.mode,
         missingStrict: result.missingStrict.length,
+        failingStrictVersionChecks: result.failingStrictVersionChecks.length,
       },
       null,
       2,

@@ -1,5 +1,6 @@
 use std::{
     collections::BTreeMap,
+    env,
     io::SeekFrom,
     net::{Ipv4Addr, SocketAddr},
     path::{Path, PathBuf},
@@ -100,7 +101,10 @@ struct HealthResponse {
     bind_address: String,
     port: u16,
     #[serde(rename = "assetRoot")]
-    asset_root: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    asset_root: Option<String>,
+    #[serde(rename = "assetRootKind")]
+    asset_root_kind: String,
     #[serde(rename = "portalPath")]
     portal_path: String,
     #[serde(rename = "appCount")]
@@ -383,7 +387,17 @@ async fn health(State(state): State<Arc<AppState>>) -> Json<HealthResponse> {
         ok: true,
         bind_address: state.bind_address.clone(),
         port: state.port,
-        asset_root: state.asset_root.display().to_string(),
+        asset_root: if env::var("HARNESS_DEBUG_HEALTH").ok().as_deref() == Some("1") {
+            Some(state.asset_root.display().to_string())
+        } else {
+            None
+        },
+        asset_root_kind: if env::var("HARNESS_DEBUG_HEALTH").ok().as_deref() == Some("1") {
+            "debug-absolute-path"
+        } else {
+            "bundled-static-root"
+        }
+        .to_string(),
         portal_path: "/portal/index.html".to_string(),
         app_count,
         security_headers,
@@ -411,7 +425,13 @@ async fn header_probe(
 
     let full_path = state.asset_root.join(&normalized);
     let content_type = content_type_for_path(&normalized);
-    let exists = full_path.is_file();
+    let exists = match fs::canonicalize(&full_path).await {
+        Ok(canonical) if canonical.starts_with(&state.canonical_root) => fs::metadata(&canonical)
+            .await
+            .map(|metadata| metadata.is_file())
+            .unwrap_or(false),
+        _ => false,
+    };
 
     Json(HeaderProbeResponse {
         ok: exists,

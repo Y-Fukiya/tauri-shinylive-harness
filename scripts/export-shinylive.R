@@ -35,7 +35,11 @@ local_lib <- normalizePath(".r-lib", mustWork = FALSE)
 dir.create(local_lib, recursive = TRUE, showWarnings = FALSE)
 .libPaths(c(local_lib, .libPaths()))
 
+allow_network_install <- Sys.getenv("HARNESS_ALLOW_NETWORK_INSTALL", "false") %in% c("true", "1", "yes")
 if (!requireNamespace("shinylive", quietly = TRUE)) {
+  if (!allow_network_install) {
+    stop("shinylive is not installed. Release builds must use a locked local R library.")
+  }
   install.packages("shinylive", repos = "https://cloud.r-project.org", lib = local_lib)
 }
 

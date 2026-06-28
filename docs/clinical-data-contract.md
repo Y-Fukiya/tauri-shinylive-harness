@@ -85,3 +85,20 @@ Those files are copied into `release/validation-pack.zip` during `npm run phase3
 ## CDISC Bridge
 
 The synthetic schema can be explained through `docs/cdisc-mapping.md` and `mappings/cdisc-demo-mapping.json`. This bridge is descriptive and is not a submission-ready SDTM/ADaM mapping.
+
+## CSV Dialect
+
+Clinical demo CSV files use a narrow, explicit dialect:
+
+- Encoding: UTF-8. A UTF-8 BOM is accepted.
+- Delimiter: comma only.
+- Line endings: LF or CRLF.
+- Quoting: double quotes. A literal quote inside a quoted field is escaped as `""`.
+- Quoted commas: allowed.
+- Embedded newlines inside quoted fields: allowed by the harness parser.
+- Empty fields: interpreted as empty strings before rule-specific validation.
+- Binary data and external file references are not allowed in data pack CSV files.
+
+Malformed quoted CSV, unterminated quoted fields, missing required columns,
+invalid controlled terminology, and broken subject/visit references are
+validation failures.

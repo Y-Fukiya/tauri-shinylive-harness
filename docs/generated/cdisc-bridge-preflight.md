@@ -1,6 +1,6 @@
 # CDISC Bridge Preflight
 
-Generated: 2026-06-19T04:26:38.771Z
+Generated: 2026-06-28T12:53:32.504Z
 Project: tauri-shinylive-harness 0.9.1
 Mapping: `mappings/cdisc-demo-mapping.json`
 Schema: `schemas/cdisc-mapping.schema.json`
@@ -8,6 +8,7 @@ Schema: `schemas/cdisc-mapping.schema.json`
 ## Status
 
 - Preflight OK: yes
+- Mode: demo
 - Submission ready: no
 - Target standard: SDTM bridge demo-subset-0.1
 - Pinnacle 21 CLI configured: no
@@ -23,6 +24,7 @@ Schema: `schemas/cdisc-mapping.schema.json`
 
 - Synthetic clinical schema is the source of truth for this demo harness.
 - SDTM mapping is descriptive and requires formal review before regulated use.
+- This preflight is not a CDISC validator and is not a replacement for P21, CORE, or sponsor validation processes.
 - ADaM import/export is not implemented.
 - define.xml generation is not implemented.
 - External Pinnacle 21 validation is a handoff point, not an embedded validation result.

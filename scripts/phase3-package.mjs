@@ -101,6 +101,15 @@ const gitValue = async (args) => {
   }
 };
 
+const commandText = async (command, args) => {
+  try {
+    const { stdout, stderr } = await execFileAsync(command, args, { cwd: rootDir, timeout: 15000 });
+    return `${stdout}${stderr}`.trim() || "not available";
+  } catch {
+    return "not available";
+  }
+};
+
 const releaseContext = async (config) => ({
   releaseTag: process.env.RELEASE_TAG ?? `v${config.project.version}`,
   gitCommit: process.env.GITHUB_SHA ?? (await gitValue(["rev-parse", "HEAD"])),
@@ -278,15 +287,40 @@ const createValidationPack = async (config, assets, platform = "macos") => {
   const validationRoot = path.join(releaseRoot, "validation-pack");
   const evidenceRoot = path.join(validationRoot, "evidence");
   const context = await releaseContext(config);
+  const releaseSummary = {
+    schemaVersion: 1,
+    project: config.project.name,
+    version: config.project.version,
+    gitCommit: context.gitCommit,
+    gitTag: context.gitExactTag,
+    builtAt: new Date().toISOString(),
+    platform,
+    node: process.version,
+    npm: await commandText("npm", ["--version"]),
+    r: await commandText("Rscript", ["--version"]),
+    rustc: await commandText("rustc", ["--version"]),
+    cargo: await commandText("cargo", ["--version"]),
+    tauriCli: await commandText("tauri", ["--version"]),
+    dataClassification: "synthetic",
+    regulatedUse: false,
+    submissionReady: false,
+    artifactSha256: assets.map((asset) => ({ path: asset.name, sha256: asset.sha256 })),
+  };
   await rm(validationRoot, { recursive: true, force: true });
   await mkdir(evidenceRoot, { recursive: true });
+  await writeFile(path.join(releaseRoot, "release-summary.json"), `${JSON.stringify(releaseSummary, null, 2)}\n`);
+  await writeFile(path.join(evidenceRoot, "release-summary.json"), `${JSON.stringify(releaseSummary, null, 2)}\n`);
 
+  await copyIfExists(path.join(releaseRoot, "release-summary.json"), path.join(evidenceRoot, "release-summary.json"));
   await copyIfExists(path.join(reportsRoot, "harness-config-validation.json"), path.join(evidenceRoot, "harness-config-validation.json"));
   await copyIfExists(path.join(reportsRoot, "static-verification.json"), path.join(evidenceRoot, "static-verification.json"));
   await copyIfExists(path.join(reportsRoot, "bundle-integrity.json"), path.join(evidenceRoot, "bundle-integrity.json"));
   await copyIfExists(path.join(reportsRoot, "tauri-security-audit.json"), path.join(evidenceRoot, "tauri-security-audit.json"));
+  await copyIfExists(path.join(reportsRoot, "phi-pii-scan.json"), path.join(evidenceRoot, "phi-pii-scan.json"));
   await copyIfExists(path.join(reportsRoot, "reproducibility.json"), path.join(evidenceRoot, "reproducibility.json"));
+  await copyIfExists(path.join(reportsRoot, "release-gate.json"), path.join(evidenceRoot, "release-gate.json"));
   await copyIfExists(path.join(reportsRoot, "e2e-diagnostics.json"), path.join(evidenceRoot, "e2e-diagnostics.json"));
+  await copyIfExists(path.join(reportsRoot, "offline-verification.json"), path.join(evidenceRoot, "offline-verification.json"));
   await copyIfExists(path.join(reportsRoot, "clinical-data-pack-validation.json"), path.join(evidenceRoot, "clinical-data-pack-validation.json"));
   await copyIfExists(path.join(reportsRoot, "cdisc-bridge-preflight.json"), path.join(evidenceRoot, "cdisc-bridge-preflight.json"));
   await copyIfExists(path.join(reportsRoot, "report-export-manifest.json"), path.join(evidenceRoot, "report-export-manifest.json"));

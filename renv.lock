@@ -1,0 +1,19 @@
+{
+  "R": {
+    "Version": "4.6.0",
+    "Repositories": [
+      {
+        "Name": "CRAN",
+        "URL": "https://cloud.r-project.org"
+      }
+    ]
+  },
+  "Packages": {
+    "shinylive": {
+      "Package": "shinylive",
+      "Version": "0.5.0",
+      "Source": "Repository",
+      "Repository": "CRAN"
+    }
+  }
+}

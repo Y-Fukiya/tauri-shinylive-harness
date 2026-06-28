@@ -60,3 +60,30 @@ npm run audit:reproducibility:strict
 
 These checks are intended for release candidates, not for a fresh source
 checkout.
+## Fixed Release Evidence Layout
+
+Release candidates should be understandable from `release/` alone:
+
+```text
+release/
+  release-summary.json
+  SHA256SUMS
+  RELEASE_NOTES.md
+  validation-pack.zip
+  validation-pack/
+    evidence/
+      release-summary.json
+      static-verification.json
+      reproducibility.json
+      tauri-security-audit.json
+      offline-verification.json
+      phi-pii-scan.json
+      cdisc-bridge-preflight.json
+      e2e-diagnostics.json
+      sbom.json
+      licenses.md
+```
+
+`release-summary.json` records project/version, commit/tag, build timestamp,
+runtime versions, `dataClassification: "synthetic"`, `regulatedUse: false`,
+`submissionReady: false`, and artifact SHA-256 values.

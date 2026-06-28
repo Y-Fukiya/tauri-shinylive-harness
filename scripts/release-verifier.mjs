@@ -8,6 +8,7 @@ import { exists, reportsRoot, rootDir, sha256File, toPosix, writeJson } from "./
 export const requiredReleaseFiles = [
   "SHA256SUMS",
   "RELEASE_NOTES.md",
+  "release-summary.json",
   "validation-pack.zip",
   "validation-pack/evidence-index.json",
   "validation-pack/release-smoke-plan.json",
@@ -16,7 +17,9 @@ export const requiredReleaseFiles = [
   "validation-pack/evidence/e2e-diagnostics.json",
   "validation-pack/evidence/bundle-integrity.json",
   "validation-pack/evidence/tauri-security-audit.json",
+  "validation-pack/evidence/phi-pii-scan.json",
   "validation-pack/evidence/reproducibility.json",
+  "validation-pack/evidence/offline-verification.json",
   "validation-pack/evidence/harness-config-validation.json",
   "validation-pack/evidence/clinical-data-pack-validation.json",
   "validation-pack/evidence/clinical-data-dictionary.md",
@@ -27,6 +30,7 @@ export const requiredReleaseFiles = [
   "validation-pack/evidence/evidence-index.html",
   "validation-pack/evidence/portal-manifest.json",
   "validation-pack/evidence/harness-bundle-manifest.json",
+  "validation-pack/evidence/release-summary.json",
 ];
 
 const parseOptions = (values) => {

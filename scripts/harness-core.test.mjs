@@ -14,6 +14,68 @@ import { runCdiscPreflight } from "./cdisc-preflight.mjs";
 import { exportReportPdfs } from "./pdf-report-exporter.mjs";
 import { generateEvidenceIndex, writeReviewSignoff } from "./review-evidence.mjs";
 import { createTemplatePackage } from "./template-package.mjs";
+import { scanPhiPii } from "./phi-pii-guard.mjs";
+import { verifyOfflineBundle } from "./offline-verify.mjs";
+
+const invalidClinicalFixtureIds = [
+  "missing-required-column",
+  "invalid-controlled-term",
+  "duplicate-subject",
+  "impossible-date-order",
+  "ae-without-subject",
+  "lab-without-visit",
+  "exposure-negative-dose",
+  "malformed-csv",
+];
+
+const updateCsv = async (filePath, updater) => {
+  const text = await readFile(filePath, "utf8");
+  await writeFile(filePath, updater(text));
+};
+
+const removeCsvColumn = (text, column) => {
+  const lines = text.trimEnd().split(/\r?\n/);
+  const headers = lines[0].split(",");
+  const columnIndex = headers.indexOf(column);
+  assert.notEqual(columnIndex, -1, `Expected fixture source column ${column}`);
+  return `${lines
+    .map((line) => line.split(",").filter((_, index) => index !== columnIndex).join(","))
+    .join("\n")}\n`;
+};
+
+const applyFixtureMutation = async (dataDir, mutation) => {
+  const filePath = path.join(dataDir, mutation.file);
+  if (mutation.type === "removeColumn") {
+    await updateCsv(filePath, (text) => removeCsvColumn(text, mutation.column));
+    return;
+  }
+  if (mutation.type === "replaceText") {
+    await updateCsv(filePath, (text) => {
+      assert.match(text, new RegExp(mutation.search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+      return text.replace(mutation.search, mutation.replace);
+    });
+    return;
+  }
+  if (mutation.type === "duplicateFirstDataRow") {
+    await updateCsv(filePath, (text) => {
+      const lines = text.trimEnd().split(/\r?\n/);
+      assert.equal(lines.length > 1, true);
+      return `${lines.concat(lines[1]).join("\n")}\n`;
+    });
+    return;
+  }
+  if (mutation.type === "writeFile") {
+    await writeFile(filePath, mutation.contents);
+    return;
+  }
+  throw new Error(`Unknown fixture mutation type: ${mutation.type}`);
+};
+
+const applyFixtureMutations = async (dataDir, mutations = []) => {
+  for (const mutation of mutations) {
+    await applyFixtureMutation(dataDir, mutation);
+  }
+};
 
 test("parseHarnessToml preserves quoted commas and hashes inside arrays", () => {
   const config = parseHarnessToml(`
@@ -62,6 +124,69 @@ test("data pack aggregate hash is independent of repository placement", async ()
   assert.equal(registryResult.ok, true);
   assert.equal(appResult.ok, true);
   assert.equal(registryResult.dataPack.sha256, appResult.dataPack.sha256);
+});
+
+for (const fixtureId of invalidClinicalFixtureIds) {
+  test(`clinical data invalid fixture fails as expected: ${fixtureId}`, async () => {
+    const fixtureRoot = path.join(rootDir, "fixtures", "invalid-data-packs", fixtureId);
+    const fixture = JSON.parse(await readFile(path.join(fixtureRoot, "fixture.json"), "utf8"));
+    const expected = JSON.parse(await readFile(path.join(fixtureRoot, "expected.json"), "utf8"));
+    const tempRoot = await mkdtemp(path.join(os.tmpdir(), `harness-${fixtureId}-fixture-`));
+    const tempPack = path.join(tempRoot, fixture.baseDataPack);
+
+    try {
+      await cp(path.join(rootDir, "data-packs", fixture.baseDataPack), tempPack, {
+        recursive: true,
+      });
+      await applyFixtureMutations(tempPack, fixture.mutations);
+
+      const result = await validateClinicalDataPack({
+        dataDir: tempPack,
+        dataPackId: fixture.baseDataPack,
+        writeOutputs: false,
+      });
+      const codes = new Set(result.issues.map((issue) => issue.code));
+      const severities = new Set(result.issues.map((issue) => issue.severity));
+
+      assert.equal(result.ok, expected.expectedOk);
+      for (const code of expected.expectedCodes) {
+        assert.equal(codes.has(code), true, `Expected issue code ${code}`);
+      }
+      for (const severity of expected.expectedSeverities ?? []) {
+        assert.equal(severities.has(severity), true, `Expected issue severity ${severity}`);
+      }
+    } finally {
+      await rm(tempRoot, { recursive: true, force: true });
+    }
+  });
+}
+
+test("clinical data validator accepts documented CSV dialect features", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "harness-csv-dialect-test-"));
+  const tempPack = path.join(tempRoot, "clinical-demo-subject-profile-v1");
+
+  try {
+    await cp(path.join(rootDir, "data-packs", "clinical-demo-subject-profile-v1"), tempPack, {
+      recursive: true,
+    });
+    const demographicsPath = path.join(tempPack, "demographics.csv");
+    await updateCsv(demographicsPath, (text) =>
+      text
+        .replace("SUBJ-001,SITE-203,Active,F,54,Asian,", "SUBJ-001,SITE-203,Active,F,54,\"Asian, synthetic\",")
+        .replace(",Europe,61.0,", ",\"Europe\nSynthetic\",61.0,"),
+    );
+
+    const result = await validateClinicalDataPack({
+      dataDir: tempPack,
+      dataPackId: "clinical-demo-subject-profile-v1",
+      writeOutputs: false,
+    });
+
+    assert.equal(result.ok, true);
+    assert.equal(result.summary.errorCount, 0);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
 });
 
 test("clinical data validator catches controlled term and visit reference failures", async () => {
@@ -198,6 +323,7 @@ test("verifyReleaseArtifacts validates checksums and required validation-pack ev
     await mkdir(evidenceRoot, { recursive: true });
     const files = new Map([
       ["RELEASE_NOTES.md", "# Demo\n\nNot for clinical decision making.\n"],
+      ["release-summary.json", "{}\n"],
       ["validation-pack.zip", "zip-placeholder\n"],
       ["validation-pack/release-smoke-plan.json", JSON.stringify({ schemaVersion: 1, apps: [] }, null, 2)],
       ["validation-pack/release-smoke-test.md", "# Smoke\n"],
@@ -206,7 +332,9 @@ test("verifyReleaseArtifacts validates checksums and required validation-pack ev
       ["validation-pack/evidence/e2e-diagnostics.json", "{}\n"],
       ["validation-pack/evidence/bundle-integrity.json", "{}\n"],
       ["validation-pack/evidence/tauri-security-audit.json", "{}\n"],
+      ["validation-pack/evidence/phi-pii-scan.json", "{}\n"],
       ["validation-pack/evidence/reproducibility.json", "{}\n"],
+      ["validation-pack/evidence/offline-verification.json", "{}\n"],
       ["validation-pack/evidence/harness-config-validation.json", "{}\n"],
       ["validation-pack/evidence/clinical-data-pack-validation.json", "{}\n"],
       ["validation-pack/evidence/clinical-data-dictionary.md", "# Dictionary\n"],
@@ -217,6 +345,7 @@ test("verifyReleaseArtifacts validates checksums and required validation-pack ev
       ["validation-pack/evidence/evidence-index.html", "<!doctype html>\n"],
       ["validation-pack/evidence/portal-manifest.json", "{}\n"],
       ["validation-pack/evidence/harness-bundle-manifest.json", "{}\n"],
+      ["validation-pack/evidence/release-summary.json", "{}\n"],
     ]);
 
     for (const [relativePath, contents] of files) {
@@ -262,7 +391,7 @@ test("createReproducibilityReport records pinned runtimes and source hashes", as
   const result = await createReproducibilityReport({ writeReport: false, includeAssetHashes: false });
 
   assert.equal(result.ok, true);
-  assert.equal(result.pins.node, "24");
+  assert.equal(result.pins.node, "24.0.0");
   assert.equal(result.pins.rustToolchain.channel, "1.93.1");
   assert.equal(result.files.some((file) => file.path === "package-lock.json" && file.sha256), true);
 });
@@ -331,7 +460,50 @@ test("PDF report exporter creates companion PDFs from exported HTML manifest", a
     assert.equal(result.ok, true);
     assert.equal(result.summary.pdfCount, 1);
     assert.match(pdf, /^%PDF-1\.4/);
+    assert.match(pdf, /PDF role: companion artifact/);
     assert.equal(result.appResults[0].reports[0].path.endsWith(".pdf"), true);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("PHI guard fails suspicious headers and values", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "harness-phi-guard-test-"));
+
+  try {
+    await writeFile(
+      path.join(tempRoot, "bad.csv"),
+      "subject_id,patient_name,email\nSUBJ-001,Example Person,person@example.com\n",
+    );
+    const result = await scanPhiPii({
+      scanRoots: [tempRoot],
+      reportPath: path.join(tempRoot, "phi-pii-scan.json"),
+      writeReport: true,
+    });
+    const codes = new Set(result.issues.map((issue) => issue.code));
+
+    assert.equal(result.ok, false);
+    assert.equal(codes.has("phi-pii-column"), true);
+    assert.equal(codes.has("email-like-value"), true);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("offline verifier fails external URLs in bundled text assets", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "harness-offline-verify-test-"));
+
+  try {
+    await mkdir(path.join(tempRoot, "portal"), { recursive: true });
+    await writeFile(path.join(tempRoot, "portal", "index.html"), '<script src="https://cdn.example.test/app.js"></script>');
+    const result = await verifyOfflineBundle({
+      targetRoot: tempRoot,
+      reportPath: path.join(tempRoot, "offline-verification.json"),
+      writeReport: true,
+    });
+
+    assert.equal(result.ok, false);
+    assert.equal(result.issues[0].code, "external-url-reference");
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
   }

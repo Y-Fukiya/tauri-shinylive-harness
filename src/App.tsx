@@ -56,7 +56,8 @@ type HarnessHealth = {
   ok: boolean;
   bindAddress: string;
   port: number;
-  assetRoot: string;
+  assetRoot?: string;
+  assetRootKind?: string;
   portalPath: string;
   appCount: number;
   securityHeaders: Record<string, string>;
@@ -360,6 +361,13 @@ export const App = () => {
 
   return (
     <main className="workspace">
+      <div className="use-boundary-banner" role="note">
+        <strong>Synthetic data only</strong>
+        <span>
+          Not for diagnosis, treatment decisions, patient management, regulatory submission, GxP
+          production, or PHI/PII processing.
+        </span>
+      </div>
       <aside className="sidebar" aria-label="App status">
         <div className="brand">
           <ShieldCheck size={26} aria-hidden />
@@ -535,7 +543,7 @@ export const App = () => {
           <Field label="Health" value={health?.ok} />
           <Field label="Bind" value={health ? `${health.bindAddress}:${health.port}` : null} />
           <Field label="Apps" value={health?.appCount} />
-          <Field label="Root" value={health?.assetRoot} />
+          <Field label="Asset root" value={health?.assetRootKind ?? (health?.assetRoot ? "debug" : "bundled")} />
         </section>
 
         <section className="panel">

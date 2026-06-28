@@ -13,6 +13,7 @@ import {
   toPosix,
   writeJson,
 } from "./harness-core.mjs";
+import { validateJsonSchema } from "./lib/schema-validation.mjs";
 
 export const clinicalDomains = {
   demographics: {
@@ -87,6 +88,7 @@ export const clinicalDomains = {
 };
 
 const metadataFile = "clinical-demo-data-pack.json";
+const clinicalDataPackSchemaPath = path.join(rootDir, "schemas", "clinical-data-pack.schema.json");
 
 export const controlledTerminology = {
   demographics: {
@@ -472,6 +474,19 @@ export const validateClinicalDataPack = async ({
       });
     }
   }
+  const metadataSchemaValidation = (await exists(metadataPath))
+    ? await validateJsonSchema({
+        schemaPath: clinicalDataPackSchemaPath,
+        data: metadata,
+        label: "clinical data pack metadata",
+      })
+    : { ok: false, errors: [] };
+  for (const error of metadataSchemaValidation.errors) {
+    addIssue(issues, "error", "metadata-schema-validation", `Clinical data pack schema violation at ${error.instancePath || "/"}: ${error.message}`, {
+      keyword: error.keyword,
+      params: error.params,
+    });
+  }
 
   const effectiveDataPackId = dataPackId || metadata.id || path.basename(resolvedDataDir);
   if (metadata.id && dataPackId && metadata.id !== dataPackId) {
@@ -729,6 +744,7 @@ export const validateClinicalDataPack = async ({
     for (const record of csvByDomain.get(domainName)?.records ?? []) {
       const start = asNumber(record.start_day);
       const end = asNumber(record.end_day);
+      const dose = domainName === "exposure" ? asNumber(record.dose_mg) : null;
       if (start === null) {
         addIssue(issues, "error", "invalid-start-day", `${domainName}.start_day must be numeric.`, {
           domain: domainName,
@@ -750,6 +766,21 @@ export const validateClinicalDataPack = async ({
           domain: domainName,
           row: record.__row,
           subject_id: record.subject_id,
+        });
+      }
+      if (domainName === "exposure" && dose === null) {
+        addIssue(issues, "error", "invalid-exposure-dose", "exposure.dose_mg must be numeric.", {
+          domain: domainName,
+          row: record.__row,
+          subject_id: record.subject_id,
+          value: record.dose_mg,
+        });
+      } else if (domainName === "exposure" && dose < 0) {
+        addIssue(issues, "error", "negative-exposure-dose", "exposure.dose_mg cannot be negative.", {
+          domain: domainName,
+          row: record.__row,
+          subject_id: record.subject_id,
+          value: record.dose_mg,
         });
       }
     }
@@ -894,6 +925,11 @@ export const validateClinicalDataPack = async ({
     appId,
     dataDir: relativeToRoot(resolvedDataDir),
     schema: "schemas/clinical-data-pack.schema.json",
+    schemaValidation: {
+      ok: metadataSchemaValidation.ok,
+      errorCount: metadataSchemaValidation.errors.length,
+      errors: metadataSchemaValidation.errors,
+    },
     dataPack: {
       id: effectiveDataPackId,
       metadataId: metadata.id ?? null,

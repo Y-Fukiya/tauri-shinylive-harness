@@ -49,7 +49,7 @@ const usage = `Usage:
   node scripts/harness.mjs export [app-id]
   node scripts/harness.mjs export-reports [--app app-id] [--subject subject-id] [--all-subjects]
   node scripts/harness.mjs export-report-pdfs [--manifest reports/report-export-manifest.json] [--output reports/exported-pdf]
-  node scripts/harness.mjs cdisc-preflight [--mapping mappings/cdisc-demo-mapping.json] [--pinnacle21-cli path]
+  node scripts/harness.mjs cdisc-preflight [--mode demo|handoff|regulated] [--mapping mappings/cdisc-demo-mapping.json] [--pinnacle21-cli path]
   node scripts/harness.mjs review-signoff [--status pending-review] [--reviewer name] [--decision decision] [--notes text]
   node scripts/harness.mjs evidence-index
   node scripts/harness.mjs package-template [--output dist/starter-template] [--zip]
@@ -977,6 +977,7 @@ try {
         markdownPath: options.markdown ? path.resolve(options.markdown) : undefined,
         pinnacleCli: options["pinnacle21-cli"] === true ? undefined : options["pinnacle21-cli"],
         pinnacleConfig: options["pinnacle21-config"] === true ? undefined : options["pinnacle21-config"],
+        mode: options.mode === true ? "demo" : options.mode ?? "demo",
       });
       printJson({
         ok: result.ok,

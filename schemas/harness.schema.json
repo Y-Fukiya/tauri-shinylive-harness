@@ -24,7 +24,15 @@
     },
     "distribution": {
       "type": "object",
-      "required": ["artifactName", "releaseChannel", "releaseDraft", "requireOffline", "macBundles", "windowsBundles", "githubRepo"],
+      "required": [
+        "artifactName",
+        "releaseChannel",
+        "releaseDraft",
+        "requireOffline",
+        "macBundles",
+        "windowsBundles",
+        "githubRepo"
+      ],
       "additionalProperties": false,
       "properties": {
         "artifactName": {
@@ -52,7 +60,12 @@
     },
     "phase3": {
       "type": "object",
-      "required": ["signingRequired", "notarizationRequired", "validationPackRequired", "releaseDraftDefault"],
+      "required": [
+        "signingRequired",
+        "notarizationRequired",
+        "validationPackRequired",
+        "releaseDraftDefault"
+      ],
       "additionalProperties": false,
       "properties": {
         "signingRequired": { "type": "boolean" },
@@ -70,8 +83,7 @@
   "$defs": {
     "relativePath": {
       "type": "string",
-      "minLength": 1,
-      "not": { "pattern": "^(?:/|.*\\.\\.|.*\\\\)" }
+      "minLength": 1
     },
     "app": {
       "type": "object",

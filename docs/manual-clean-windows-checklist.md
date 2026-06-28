@@ -48,3 +48,12 @@ Use this checklist for unsigned internal Windows release candidates and for cred
 - [ ] Review `reports/local-release-audit.json`.
 - [ ] Confirm release notes and validation summary state not for clinical decision making.
 - [ ] Complete reviewer sign-off in `release/validation-pack/validation-summary.md`.
+## Platform Prerequisites
+
+- Confirm the target Windows version is within the supported internal demo
+  range for the selected Tauri/WebView stack.
+- Confirm Microsoft Edge WebView2 Runtime is installed, or document the
+  enterprise/offline installation path before distributing the candidate.
+- Treat unsigned NSIS/MSI candidates as internal evaluation builds only.
+- Signed installers require organization-approved Windows code-signing
+  credentials and release approval.

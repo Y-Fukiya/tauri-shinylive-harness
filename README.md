@@ -34,6 +34,10 @@ It must not be used for:
 unless the responsible organization separately validates, approves, controls,
 and operates the system under its own regulated procedures.
 
+Offline scope: application content is bundled for offline use. Platform
+prerequisites such as Microsoft Edge WebView2 Runtime on Windows may still be
+required depending on the target machine.
+
 ## Clinical Use Limitation
 
 This harness and bundled demo applications are for technical evaluation,
@@ -44,6 +48,10 @@ submission unless separately validated and approved by the responsible
 organization.
 
 The bundled clinical demo data contract is a synthetic, non-CDISC schema for harness verification and product demonstrations. It is not an SDTM/ADaM submission model. Organizations that need submission-oriented evidence should map or replace the demo domains with their own validated CDISC/controlled terminology workflow.
+
+CDISC scope: this repository provides CDISC bridge preflight and handoff
+readiness only. It is not a CDISC validator, not a P21/CORE replacement, and
+does not produce submission-ready SDTM, ADaM, or Define-XML packages.
 
 The harness is now config-driven:
 

@@ -211,6 +211,7 @@ export const exportReportPdfs = async ({
       }
       const text = htmlToReportText(await readFile(sourceHtmlPath, "utf8"));
       const lines = [
+        "PDF role: companion artifact. The source HTML report is canonical.",
         `Source HTML: ${path.isAbsolute(report.path) ? sourceHtmlPath : report.path}`,
         `Subject: ${report.subjectId ?? "n/a"}`,
         `Template: ${report.templateId ?? "n/a"}`,

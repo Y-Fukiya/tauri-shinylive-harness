@@ -1,0 +1,9 @@
+{
+  "expectedOk": false,
+  "expectedCodes": [
+    "invalid-controlled-term"
+  ],
+  "expectedSeverities": [
+    "error"
+  ]
+}

@@ -14,6 +14,8 @@ import { homedir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { validateJsonSchema } from "./lib/schema-validation.mjs";
+
 export const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 export const configPath = path.join(rootDir, "harness.toml");
 export const configSchemaPath = path.join(rootDir, "schemas", "harness.schema.json");
@@ -327,6 +329,18 @@ export const validateHarnessConfig = async (
 ) => {
   const nextConfig = config ?? (await readConfig());
   const issues = [];
+  const schemaValidation = await validateJsonSchema({
+    schemaPath: configSchemaPath,
+    data: nextConfig,
+    label: "harness normalized config",
+  });
+
+  for (const error of schemaValidation.errors) {
+    issue(issues, "error", "schema-validation", `Harness config schema violation at ${error.instancePath || "/"}: ${error.message}`, {
+      keyword: error.keyword,
+      params: error.params,
+    });
+  }
 
   validateStringField(issues, "project.name", nextConfig.project.name);
   validateStringField(issues, "project.portalTitle", nextConfig.project.portalTitle);
@@ -489,6 +503,11 @@ export const validateHarnessConfig = async (
     ok: errorCount === 0,
     checkedAt: new Date().toISOString(),
     schema: toPosix(path.relative(rootDir, configSchemaPath)),
+    schemaValidation: {
+      ok: schemaValidation.ok,
+      errorCount: schemaValidation.errors.length,
+      errors: schemaValidation.errors,
+    },
     project: nextConfig.project,
     summary: {
       appCount: nextConfig.apps.length,
@@ -896,6 +915,18 @@ export const verifyBundleArtifacts = async (config = null) => {
   const bundleManifest = await readJson(bundleManifestPath);
   const portalManifest = await readJson(manifestPath);
   const issues = [];
+  const manifestFiles = new Set(bundleManifest.assets.map((asset) => asset.path));
+  const allowedGeneratedFiles = new Set(["harness-bundle-manifest.json", "checksums/SHA256SUMS"]);
+  const actualFiles = (await listFiles(distRoot))
+    .map(toPosix)
+    .filter((file) => !file.startsWith("reports/"));
+  const unexpectedFiles = actualFiles
+    .filter((file) => !manifestFiles.has(file) && !allowedGeneratedFiles.has(file))
+    .sort();
+
+  if (unexpectedFiles.length > 0) {
+    issues.push(`Unexpected bundled files: ${unexpectedFiles.join(", ")}`);
+  }
 
   if (portalManifest.apps.length !== nextConfig.apps.length) {
     issues.push(`Expected ${nextConfig.apps.length} apps but manifest has ${portalManifest.apps.length}.`);

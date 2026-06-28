@@ -14,6 +14,7 @@ import {
   toPosix,
   writeJson,
 } from "./harness-core.mjs";
+import { validateJsonSchema } from "./lib/schema-validation.mjs";
 
 const defaultMappingPath = path.join(rootDir, "mappings", "cdisc-demo-mapping.json");
 const defaultSchemaPath = path.join(rootDir, "schemas", "cdisc-mapping.schema.json");
@@ -227,6 +228,7 @@ const markdownReport = (result) => [
   "## Status",
   "",
   `- Preflight OK: ${result.ok ? "yes" : "no"}`,
+  `- Mode: ${result.mode}`,
   `- Submission ready: ${result.submissionReady ? "yes" : "no"}`,
   `- Target standard: ${result.targetStandard.name} ${result.targetStandard.version}`,
   `- Pinnacle 21 CLI configured: ${result.pinnacle21.configured ? "yes" : "no"}`,
@@ -257,6 +259,7 @@ export const runCdiscPreflight = async ({
   markdownPath = defaultMarkdownPath,
   pinnacleCli = undefined,
   pinnacleConfig = undefined,
+  mode = "demo",
   writeOutputs = true,
 } = {}) => {
   const checkedAt = new Date().toISOString();
@@ -272,6 +275,13 @@ export const runCdiscPreflight = async ({
   ];
 
   const config = await readConfig();
+  const normalizedMode = ["demo", "handoff", "regulated"].includes(mode) ? mode : "demo";
+  if (mode !== normalizedMode) {
+    issues.push(issue("warning", "unknown-cdisc-preflight-mode", "Unknown CDISC preflight mode; falling back to demo.", { mode }));
+  }
+  if (normalizedMode === "regulated") {
+    issues.push(issue("error", "regulated-cdisc-validation-out-of-scope", "Regulated CDISC validation is outside this harness scope. Use external validators and imported evidence."));
+  }
   if (!(await exists(mappingPath))) {
     issues.push(issue("error", "mapping-file-missing", "CDISC mapping file is missing.", { path: relative(mappingPath) }));
   }
@@ -281,16 +291,42 @@ export const runCdiscPreflight = async ({
 
   const mapping = (await exists(mappingPath)) ? await readJson(mappingPath) : {};
   const schema = (await exists(schemaPath)) ? await readJson(schemaPath) : {};
+  if (await exists(schemaPath)) {
+    const schemaValidation = await validateJsonSchema({
+      schemaPath,
+      data: mapping,
+      label: "cdisc mapping",
+    });
+    for (const error of schemaValidation.errors) {
+      issues.push(issue("error", "mapping-schema-validation", `CDISC mapping schema violation at ${error.instancePath || "/"}: ${error.message}`, {
+        keyword: error.keyword,
+        params: error.params,
+      }));
+    }
+  }
   validateMappingShape(mapping, issues);
   const coverage = evaluateCoverage(mapping, issues);
   const pinnacle21 = await evaluatePinnacle21({ pinnacleCli, pinnacleConfig }, issues);
+  const externalValidationReport = path.join(reportsRoot, "external-validation", "pinnacle21-summary.json");
+  const externalValidation = {
+    required: normalizedMode === "handoff",
+    path: relative(externalValidationReport),
+    present: await exists(externalValidationReport),
+    sha256: (await exists(externalValidationReport)) ? await sha256File(externalValidationReport) : null,
+  };
+  if (normalizedMode === "handoff" && !externalValidation.present) {
+    issues.push(issue("error", "external-validation-evidence-missing", "Handoff mode requires imported external validation evidence.", {
+      expected: externalValidation.path,
+    }));
+  }
   const summary = summarizeIssues(issues);
   const errorCount = issues.filter((item) => item.severity === "error").length;
 
   const result = {
     schemaVersion: 1,
     ok: errorCount === 0,
-    submissionReady: false,
+    mode: normalizedMode,
+    submissionReady: normalizedMode === "handoff" && externalValidation.present ? "external-review-required" : false,
     checkedAt,
     project: config.project,
     mapping: {
@@ -312,9 +348,11 @@ export const runCdiscPreflight = async ({
     },
     coverage,
     pinnacle21,
+    externalValidation,
     limitations: [
       "Synthetic clinical schema is the source of truth for this demo harness.",
       "SDTM mapping is descriptive and requires formal review before regulated use.",
+      "This preflight is not a CDISC validator and is not a replacement for P21, CORE, or sponsor validation processes.",
       "ADaM import/export is not implemented.",
       "define.xml generation is not implemented.",
       "External Pinnacle 21 validation is a handoff point, not an embedded validation result.",
@@ -347,6 +385,7 @@ const runCli = async () => {
     markdownPath: options.markdown ? path.resolve(options.markdown) : defaultMarkdownPath,
     pinnacleCli: options["pinnacle21-cli"] === true ? undefined : options["pinnacle21-cli"],
     pinnacleConfig: options["pinnacle21-config"] === true ? undefined : options["pinnacle21-config"],
+    mode: options.mode === true ? "demo" : options.mode ?? "demo",
   });
   console.log(
     JSON.stringify(
