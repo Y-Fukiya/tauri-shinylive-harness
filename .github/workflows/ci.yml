@@ -23,8 +23,8 @@ jobs:
       - run: npm ci
       - name: Install locked R packages for verification
         run: |
-          Rscript -e 'install.packages("remotes", repos = "https://cloud.r-project.org")'
-          Rscript -e 'remotes::install_version("shinylive", version = "0.5.0", repos = "https://cloud.r-project.org")'
+          Rscript -e 'install.packages("shinylive", repos = "https://cloud.r-project.org")'
+          Rscript -e 'stopifnot(as.character(packageVersion("shinylive")) == "0.5.0")'
       - run: npx playwright install chromium
       - run: npm run doctor
       - run: npm run smoke:multi-app
@@ -54,8 +54,8 @@ jobs:
       - run: npm ci
       - name: Install locked R packages for verification
         run: |
-          Rscript -e 'install.packages("remotes", repos = "https://cloud.r-project.org")'
-          Rscript -e 'remotes::install_version("shinylive", version = "0.5.0", repos = "https://cloud.r-project.org")'
+          Rscript -e 'install.packages("shinylive", repos = "https://cloud.r-project.org")'
+          Rscript -e 'stopifnot(as.character(packageVersion("shinylive")) == "0.5.0")'
       - run: npx playwright install chromium
       - run: npm run doctor
       - run: npm run smoke:multi-app
