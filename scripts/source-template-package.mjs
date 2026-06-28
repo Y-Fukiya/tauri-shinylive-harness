@@ -4,7 +4,7 @@ import { mkdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 
-import { reportsRoot, rootDir, runCommand, sha256File, toPosix, writeJson } from "./harness-core.mjs";
+import { listFiles, reportsRoot, rootDir, runCommand, sha256File, toPosix, writeJson } from "./harness-core.mjs";
 
 const execFileAsync = promisify(execFile);
 const outputRoot = path.join(rootDir, "dist", "source-template");
@@ -73,18 +73,31 @@ const included = (file) =>
   !excludedPrefixes.some((prefix) => file.startsWith(prefix));
 
 const options = parseOptions(process.argv.slice(2));
-const { stdout } = await execFileAsync("git", ["ls-files"], { cwd: rootDir, timeout: 15000 });
-const files = stdout
-  .split(/\r?\n/)
-  .map((line) => line.trim())
-  .filter(Boolean)
-  .filter(included)
-  .sort();
+let files = [];
+let fileSource = "git-ls-files";
+try {
+  const { stdout } = await execFileAsync("git", ["ls-files"], { cwd: rootDir, timeout: 15000 });
+  files = stdout
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .filter(included)
+    .sort();
+} catch {
+  fileSource = "filesystem-fallback";
+  files = (await listFiles(rootDir))
+    .map(toPosix)
+    .filter(included)
+    .sort();
+}
 
 await mkdir(outputRoot, { recursive: true });
 
 let zip = null;
 if (options.zip) {
+  if (fileSource !== "git-ls-files") {
+    throw new Error("Creating source-template.zip requires a git repository. Run without --zip in filesystem fallback mode.");
+  }
   await runCommand("git", ["archive", "--format=zip", "-o", zipPath, "HEAD", ...files]);
   const metadata = await stat(zipPath);
   zip = {
@@ -99,6 +112,7 @@ const manifest = {
   generatedAt: new Date().toISOString(),
   ok: true,
   mode: options.zip ? "manifest-and-zip" : "manifest-only",
+  fileSource,
   outputRoot: toPosix(path.relative(rootDir, outputRoot)),
   zip,
   includedFileCount: files.length,

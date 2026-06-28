@@ -3,7 +3,7 @@ import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { exists, reportsRoot, rootDir, sha256File, toPosix, writeJson } from "./harness-core.mjs";
+import { exists, listFiles, reportsRoot, rootDir, sha256File, toPosix, writeJson } from "./harness-core.mjs";
 
 export const requiredReleaseFiles = [
   "SHA256SUMS",
@@ -116,6 +116,7 @@ export const verifyReleaseArtifacts = async ({
 
   const checksumPath = path.join(resolvedReleaseRoot, "SHA256SUMS");
   const checksumEntries = (await exists(checksumPath)) ? parseChecksums(await readFile(checksumPath, "utf8")) : [];
+  const validChecksumPaths = new Set(checksumEntries.filter((entry) => entry.valid).map((entry) => entry.path));
   for (const entry of checksumEntries) {
     if (!entry.valid) {
       issues.push(issue("error", "invalid-checksum-line", "SHA256SUMS contains an invalid line.", { line: entry.line }));
@@ -135,6 +136,18 @@ export const verifyReleaseArtifacts = async ({
     const actual = await sha256File(targetPath);
     if (actual !== entry.sha256) {
       issues.push(issue("error", "checksum-mismatch", "SHA256SUMS hash does not match the release file.", { path: entry.path, expected: entry.sha256, actual }));
+    }
+  }
+
+  if (await exists(resolvedReleaseRoot)) {
+    const actualReleaseFiles = (await listFiles(resolvedReleaseRoot))
+      .map(toPosix)
+      .filter((file) => file !== "SHA256SUMS")
+      .sort();
+    for (const file of actualReleaseFiles) {
+      if (!validChecksumPaths.has(file)) {
+        issues.push(issue("error", "release-file-missing-checksum", "Release file is not listed in SHA256SUMS.", { path: file }));
+      }
     }
   }
 

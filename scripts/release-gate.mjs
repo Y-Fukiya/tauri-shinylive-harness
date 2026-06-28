@@ -57,6 +57,17 @@ const buildSteps = ({ platform, internal }) => {
   const packageStep = platform === "windows"
     ? { name: "phase3:package:windows", command: "npm", args: ["run", "phase3:package:windows"] }
     : { name: "phase3:package:macos", command: "npm", args: ["run", "phase3:package:macos"] };
+  const localAuditStep = platform === "windows"
+    ? {
+        name: internal ? "local:audit:windows" : "local:audit:windows:strict",
+        command: "npm",
+        args: ["run", "local:audit:windows", ...(internal ? [] : ["--", "--strict"])],
+      }
+    : {
+        name: internal ? "local:audit:macos" : "local:audit:macos:strict",
+        command: "npm",
+        args: ["run", "local:audit:macos", ...(internal ? [] : ["--", "--strict"])],
+      };
 
   return [
   { name: "doctor:tooling", command: "npm", args: ["run", "doctor:tooling"] },
@@ -92,6 +103,7 @@ const buildSteps = ({ platform, internal }) => {
   packageStep,
   { name: "doctor:artifacts", command: "npm", args: ["run", "doctor:artifacts"] },
   { name: "verify:release", command: "npm", args: ["run", "verify:release"] },
+  localAuditStep,
   ];
 };
 

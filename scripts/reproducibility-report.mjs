@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
 import { readdir, readFile, stat as fsStat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
-import { exists, reportsRoot, rootDir, sha256File, toPosix, writeJson } from "./harness-core.mjs";
+import { exists, listFiles, reportsRoot, rootDir, sha256File, toPosix, writeJson } from "./harness-core.mjs";
 
 const execFileAsync = promisify(execFile);
 
@@ -113,6 +114,39 @@ const hashIfExists = async (relativePath, { maxBytes = Infinity, kind = "file-ha
   };
 };
 
+const treeHashIfExists = async (relativeRoot, { kind = "directory-tree-hash", maxBytes = 250_000_000 } = {}) => {
+  const targetRoot = path.join(rootDir, relativeRoot);
+  if (!(await exists(targetRoot))) {
+    return null;
+  }
+  const files = [];
+  for (const relativePath of (await listFiles(targetRoot)).map(toPosix).sort()) {
+    const targetPath = path.join(targetRoot, relativePath);
+    const metadata = await fsStat(targetPath);
+    if (!metadata.isFile()) {
+      continue;
+    }
+    const fileHash = metadata.size > maxBytes ? null : await sha256File(targetPath);
+    files.push({
+      path: relativePath,
+      size: metadata.size,
+      sha256: fileHash,
+      ...(fileHash ? {} : { hashSkipped: "size-above-local-hash-threshold" }),
+    });
+  }
+  const treeHash = createHash("sha256");
+  for (const file of files) {
+    treeHash.update(`${file.path}\0${file.size}\0${file.sha256 ?? ""}\n`);
+  }
+  return {
+    path: relativeRoot,
+    kind,
+    fileCount: files.length,
+    treeSha256: treeHash.digest("hex"),
+    files,
+  };
+};
+
 const shinyliveAssetAnchors = async () => {
   const cacheRoot = path.join(rootDir, ".shinylive-cache");
   if (!(await exists(cacheRoot))) {
@@ -201,8 +235,13 @@ export const createReproducibilityReport = async ({
     )),
   ].filter(Boolean);
   const requiredAssetAnchors = await shinyliveAssetAnchors();
+  const exportTemplateRoot = requiredAssetAnchors.find((assetPath) => assetPath.endsWith("/export_template/index.html"))
+    ?.replace(/\/index\.html$/, "");
   const assetHashes = includeAssetHashes
     ? [
+        exportTemplateRoot
+          ? await treeHashIfExists(exportTemplateRoot, { kind: "shinylive-export-template-tree" })
+          : null,
         ...(await Promise.all(requiredAssetAnchors.map((assetPath) => hashIfExists(assetPath, {
           kind: "asset-anchor",
           maxBytes: 250_000_000,
