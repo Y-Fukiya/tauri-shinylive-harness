@@ -249,8 +249,8 @@ export const createReproducibilityReport = async ({
   const observed = {
     node: includeObservedVersions ? await commandVersion("node") : { ok: true, raw: "skipped" },
     npm: includeObservedVersions ? await commandVersion("npm") : { ok: true, raw: "skipped" },
-    rustc: includeObservedVersions ? await commandVersion("rustc") : { ok: true, raw: "skipped" },
-    cargo: includeObservedVersions ? await commandVersion("cargo") : { ok: true, raw: "skipped" },
+    rustc: includeObservedVersions ? await commandVersion("rustc", ["--version"], { timeout: 60_000 }) : { ok: true, raw: "skipped" },
+    cargo: includeObservedVersions ? await commandVersion("cargo", ["--version"], { timeout: 60_000 }) : { ok: true, raw: "skipped" },
     rscript: includeObservedVersions ? await commandVersion("Rscript") : { ok: true, raw: "skipped" },
   };
   const renvPackages = await readRenvPackages();
