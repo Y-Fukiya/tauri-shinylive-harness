@@ -275,6 +275,7 @@ const markdownReport = (result) => [
   `- Preflight OK: ${result.ok ? "yes" : "no"}`,
   `- Mode: ${result.mode}`,
   `- Submission ready: ${result.submissionReady ? "yes" : "no"}`,
+  `- Handoff status: ${result.handoffStatus}`,
   `- Target standard: ${result.targetStandard.name} ${result.targetStandard.version}`,
   `- Pinnacle 21 CLI configured: ${result.pinnacle21.configured ? "yes" : "no"}`,
   "",
@@ -377,12 +378,14 @@ export const runCdiscPreflight = async ({
   }
   const summary = summarizeIssues(issues);
   const errorCount = issues.filter((item) => item.severity === "error").length;
+  const handoffOk = normalizedMode === "handoff" && externalValidation.present && errorCount === 0;
 
   const result = {
     schemaVersion: 1,
     ok: errorCount === 0,
     mode: normalizedMode,
-    submissionReady: normalizedMode === "handoff" && externalValidation.present ? "external-review-required" : false,
+    submissionReady: false,
+    handoffStatus: handoffOk ? "external-review-required" : "not-ready",
     checkedAt,
     project: config.project,
     mapping: {
@@ -426,6 +429,7 @@ export const runCdiscPreflight = async ({
       errors: errorCount,
       warnings: issues.filter((item) => item.severity === "warning").length,
       submissionReady: result.submissionReady,
+      handoffStatus: result.handoffStatus,
     });
   }
 
@@ -448,6 +452,7 @@ const runCli = async () => {
       {
         ok: result.ok,
         submissionReady: result.submissionReady,
+        handoffStatus: result.handoffStatus,
         report: relative(options.report ? path.resolve(options.report) : defaultReportPath),
         errors: result.summary.bySeverity.error ?? 0,
         warnings: result.summary.bySeverity.warning ?? 0,

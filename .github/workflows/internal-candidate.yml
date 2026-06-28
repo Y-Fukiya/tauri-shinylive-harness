@@ -1,0 +1,57 @@
+name: Internal Candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: "Target platform"
+        required: true
+        default: "macos"
+        type: choice
+        options:
+          - macos
+          - windows
+
+permissions:
+  contents: read
+
+jobs:
+  internal-candidate:
+    runs-on: ${{ inputs.platform == 'windows' && 'windows-latest' || 'macos-latest' }}
+    env:
+      HARNESS_TARGET_PLATFORM: ${{ inputs.platform }}
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@1.93.1
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: "4.6.0"
+
+      - run: npm ci
+
+      - name: Install locked R packages for internal candidate
+        run: |
+          Rscript -e 'install.packages("renv", repos = "https://cloud.r-project.org")'
+          Rscript -e 'renv::restore(lockfile = "renv.lock", library = .libPaths()[1], prompt = FALSE)'
+          Rscript -e 'stopifnot(as.character(packageVersion("shinylive")) == "0.5.0")'
+
+      - run: npx playwright install chromium
+
+      - name: Internal unsigned candidate gate
+        run: npm run gate:internal-release
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: internal-${{ inputs.platform }}-candidate
+          path: |
+            release/
+            reports/

@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { createReadStream } from "node:fs";
 import {
   access,
   appendFile,
@@ -325,7 +326,7 @@ const validateStringArray = (issues, field, value, { minLength = 0 } = {}) => {
 
 export const validateHarnessConfig = async (
   config = null,
-  { reportPath = path.join(reportsRoot, "harness-config-validation.json"), writeOutputs = true } = {},
+  { reportPath = path.join(reportsRoot, "harness-config-validation.json"), writeOutputs = true, strict = false } = {},
 ) => {
   const nextConfig = config ?? (await readConfig());
   const issues = [];
@@ -500,8 +501,9 @@ export const validateHarnessConfig = async (
   const warningCount = issues.filter((item) => item.severity === "warning").length;
   const result = {
     schemaVersion: 1,
-    ok: errorCount === 0,
+    ok: errorCount === 0 && (!strict || warningCount === 0),
     checkedAt: new Date().toISOString(),
+    strict,
     schema: toPosix(path.relative(rootDir, configSchemaPath)),
     schemaValidation: {
       ok: schemaValidation.ok,
@@ -690,7 +692,12 @@ export const listFiles = async (basePath, relative = "") => {
 
 export const sha256File = async (targetPath) => {
   const hash = createHash("sha256");
-  hash.update(await readFile(targetPath));
+  await new Promise((resolve, reject) => {
+    const stream = createReadStream(targetPath);
+    stream.on("data", (chunk) => hash.update(chunk));
+    stream.on("error", reject);
+    stream.on("end", resolve);
+  });
   return hash.digest("hex");
 };
 
@@ -896,8 +903,8 @@ const createLicenseReport = async (config) => {
   ].join("\n");
 };
 
-export const verifyBundleArtifacts = async (config = null) => {
-  if (!(await exists(path.join(distRoot, "harness-bundle-manifest.json")))) {
+export const verifyBundleArtifacts = async (config = null, { targetRoot = distRoot, writeOutputs = true } = {}) => {
+  if (!(await exists(path.join(targetRoot, "harness-bundle-manifest.json")))) {
     throw new Error(
       [
         "dist/ is missing prepared bundle artifacts.",
@@ -910,16 +917,19 @@ export const verifyBundleArtifacts = async (config = null) => {
     );
   }
   const nextConfig = config ?? (await readConfig());
-  const bundleManifestPath = path.join(distRoot, "harness-bundle-manifest.json");
-  const manifestPath = path.join(distRoot, "manifest.json");
+  const bundleManifestPath = path.join(targetRoot, "harness-bundle-manifest.json");
+  const manifestPath = path.join(targetRoot, "manifest.json");
   const bundleManifest = await readJson(bundleManifestPath);
   const portalManifest = await readJson(manifestPath);
   const issues = [];
   const manifestFiles = new Set(bundleManifest.assets.map((asset) => asset.path));
-  const allowedGeneratedFiles = new Set(["harness-bundle-manifest.json", "checksums/SHA256SUMS"]);
-  const actualFiles = (await listFiles(distRoot))
-    .map(toPosix)
-    .filter((file) => !file.startsWith("reports/"));
+  const allowedGeneratedFiles = new Set([
+    "harness-bundle-manifest.json",
+    "checksums/SHA256SUMS",
+    "reports/licenses.md",
+    "reports/sbom.json",
+  ]);
+  const actualFiles = (await listFiles(targetRoot)).map(toPosix);
   const unexpectedFiles = actualFiles
     .filter((file) => !manifestFiles.has(file) && !allowedGeneratedFiles.has(file))
     .sort();
@@ -940,14 +950,14 @@ export const verifyBundleArtifacts = async (config = null) => {
     }
     for (const probe of match.headerProbes ?? []) {
       const relativeProbe = probe.replace(/^\//, "");
-      if (!(await exists(path.join(distRoot, relativeProbe)))) {
+      if (!(await exists(path.join(targetRoot, relativeProbe)))) {
         issues.push(`Missing header probe target: ${probe}`);
       }
     }
   }
 
   for (const asset of bundleManifest.assets) {
-    const targetPath = path.join(distRoot, asset.path);
+    const targetPath = path.join(targetRoot, asset.path);
     if (!(await exists(targetPath))) {
       issues.push(`Missing bundled asset: ${asset.path}`);
       continue;
@@ -968,8 +978,10 @@ export const verifyBundleArtifacts = async (config = null) => {
     issues,
   };
 
-  await writeJson(path.join(reportsRoot, "static-verification.json"), report);
-  await appendAudit("verify-static", report.ok ? "ok" : "failed", report);
+  if (writeOutputs) {
+    await writeJson(path.join(reportsRoot, "static-verification.json"), report);
+    await appendAudit("verify-static", report.ok ? "ok" : "failed", report);
+  }
 
   if (issues.length > 0) {
     throw new Error(`Static verification failed:\n${issues.join("\n")}`);

@@ -39,30 +39,6 @@ const listInspectableFiles = async (basePath, relative = "") => {
   return files;
 };
 
-const listShellFiles = async (basePath) => {
-  const files = [];
-  for (const file of ["manifest.json", "portal/index.html", "harness-bundle-manifest.json"]) {
-    if (await exists(path.join(basePath, file))) {
-      files.push(file);
-    }
-  }
-  const appsRoot = path.join(basePath, "apps");
-  if (await exists(appsRoot)) {
-    for (const entry of await readdir(appsRoot, { withFileTypes: true })) {
-      if (!entry.isDirectory()) {
-        continue;
-      }
-      for (const file of ["index.html", "harness-boot.js", "app.json", "harness-app.json"]) {
-        const relativePath = path.join("apps", entry.name, file);
-        if (await exists(path.join(basePath, relativePath))) {
-          files.push(relativePath);
-        }
-      }
-    }
-  }
-  return files;
-};
-
 const parseOptions = (values) => {
   const options = {};
   for (let index = 0; index < values.length; index += 1) {
@@ -93,7 +69,7 @@ export const verifyOfflineBundle = async ({
     throw new Error("dist/ is missing. Run npm run build:all before npm run verify:offline.");
   }
 
-  for (const file of await listShellFiles(targetRoot)) {
+  for (const file of await listInspectableFiles(targetRoot)) {
     const extension = path.extname(file).toLowerCase();
     if (!inspectedExtensions.has(extension)) {
       continue;

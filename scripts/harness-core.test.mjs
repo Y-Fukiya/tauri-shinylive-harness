@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { exists, parseHarnessToml, reportsRoot, rootDir } from "./harness-core.mjs";
+import { exists, parseHarnessToml, reportsRoot, rootDir, verifyBundleArtifacts } from "./harness-core.mjs";
 import { validateClinicalDataPack } from "./clinical-data-pack-validator.mjs";
 import { buildReleaseSmokePlan, renderReleaseSmokeMarkdown } from "./release-smoke-plan.mjs";
 import { verifyReleaseArtifacts } from "./release-verifier.mjs";
@@ -433,6 +433,40 @@ test("verifyReleaseArtifacts validates checksums and required validation-pack ev
   }
 });
 
+test("static verifier rejects unexpected generated files under dist reports", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "harness-static-verify-test-"));
+
+  try {
+    await mkdir(path.join(tempRoot, "reports"), { recursive: true });
+    await writeFile(path.join(tempRoot, "manifest.json"), JSON.stringify({ apps: [] }, null, 2));
+    await writeFile(
+      path.join(tempRoot, "harness-bundle-manifest.json"),
+      JSON.stringify(
+        {
+          schemaVersion: 1,
+          assets: [
+            { path: "manifest.json", sha256: "placeholder" },
+            { path: "reports/sbom.json", sha256: "placeholder" },
+            { path: "reports/licenses.md", sha256: "placeholder" },
+          ],
+        },
+        null,
+        2,
+      ),
+    );
+    await writeFile(path.join(tempRoot, "reports", "sbom.json"), "{}\n");
+    await writeFile(path.join(tempRoot, "reports", "licenses.md"), "# Licenses\n");
+    await writeFile(path.join(tempRoot, "reports", "malware.js"), "evil\n");
+
+    await assert.rejects(
+      () => verifyBundleArtifacts({ apps: [] }, { targetRoot: tempRoot, writeOutputs: false }),
+      /Unexpected bundled files: reports\/malware\.js/,
+    );
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
 test("auditTauriSecurity passes the current local-first Tauri configuration", async () => {
   const result = await auditTauriSecurity({ writeReport: false });
 
@@ -479,6 +513,8 @@ test("CDISC handoff requires structured external validation evidence with matchi
 
     const dummyResult = await runCdiscPreflight({ mode: "handoff", writeOutputs: false, pinnacleCli: null });
     assert.equal(dummyResult.ok, false);
+    assert.equal(dummyResult.submissionReady, false);
+    assert.equal(dummyResult.handoffStatus, "not-ready");
     assert.equal(dummyResult.issues.some((item) => item.code === "external-validation-summary-schema"), true);
 
     const dataResult = await validateClinicalDataPack({
@@ -510,7 +546,8 @@ test("CDISC handoff requires structured external validation evidence with matchi
 
     const validResult = await runCdiscPreflight({ mode: "handoff", writeOutputs: false, pinnacleCli: null });
     assert.equal(validResult.ok, true);
-    assert.equal(validResult.submissionReady, "external-review-required");
+    assert.equal(validResult.submissionReady, false);
+    assert.equal(validResult.handoffStatus, "external-review-required");
   } finally {
     if (hadExisting) {
       await cp(backupPath, summaryPath, { force: true });
@@ -636,6 +673,26 @@ test("offline verifier fails external URLs in bundled text assets", async () => 
 
     assert.equal(result.ok, false);
     assert.equal(result.issues[0].code, "external-url-reference");
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("offline verifier scans portal bundled JavaScript assets", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "harness-offline-assets-test-"));
+
+  try {
+    await mkdir(path.join(tempRoot, "portal", "assets"), { recursive: true });
+    await writeFile(path.join(tempRoot, "portal", "index.html"), '<script type="module" src="/assets/index.js"></script>');
+    await writeFile(path.join(tempRoot, "portal", "assets", "index.js"), 'fetch("https://example.com/ping");\n');
+    const result = await verifyOfflineBundle({
+      targetRoot: tempRoot,
+      reportPath: path.join(tempRoot, "offline-verification.json"),
+      writeReport: true,
+    });
+
+    assert.equal(result.ok, false);
+    assert.equal(result.issues.some((issue) => issue.details.path.endsWith("portal/assets/index.js")), true);
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
   }

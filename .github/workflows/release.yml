@@ -49,15 +49,13 @@ jobs:
 
       - run: npm ci
 
-      - run: npx playwright install chromium
-
-      - name: Check harness template path
+      - name: Install locked R packages for release gate
         run: |
-          npm run doctor
-          npm run smoke:multi-app
+          Rscript -e 'install.packages("renv", repos = "https://cloud.r-project.org")'
+          Rscript -e 'renv::restore(lockfile = "renv.lock", library = .libPaths()[1], prompt = FALSE)'
+          Rscript -e 'stopifnot(as.character(packageVersion("shinylive")) == "0.5.0")'
 
-      - name: Verify Phase 2 bundle
-        run: npm run verify
+      - run: npx playwright install chromium
 
       - name: Import Apple Developer ID certificate
         if: ${{ env.APPLE_CERTIFICATE != '' }}
@@ -92,27 +90,10 @@ jobs:
           printf "%s" "$APPLE_API_PRIVATE_KEY" > "$API_KEY_PATH"
           echo "APPLE_API_KEY_PATH=$API_KEY_PATH" >> "$GITHUB_ENV"
 
-      - name: Phase 3 preflight
-        run: |
-          if [ -n "$APPLE_SIGNING_IDENTITY" ] || [ -n "$APPLE_CERTIFICATE" ]; then
-            node scripts/phase3-preflight.mjs
-          else
-            node scripts/phase3-preflight.mjs --allow-missing-credentials
-          fi
-
-      - name: Build signed app bundle
-        if: ${{ env.APPLE_SIGNING_IDENTITY != '' || env.APPLE_CERTIFICATE != '' }}
-        run: npm run tauri:build:app
-
-      - name: Build unsigned internal app bundle
-        if: ${{ env.APPLE_SIGNING_IDENTITY == '' && env.APPLE_CERTIFICATE == '' }}
-        run: npm run tauri:build:app:no-sign
-
-      - name: Package release evidence
-        run: npm run phase3:package
-
-      - name: Verify release evidence
-        run: npm run verify:release
+      - name: Release gate
+        env:
+          HARNESS_TARGET_PLATFORM: macos
+        run: npm run gate:release
 
       - uses: actions/upload-artifact@v7
         with:
@@ -146,15 +127,13 @@ jobs:
 
       - run: npm ci
 
-      - run: npx playwright install chromium
-
-      - name: Check harness template path
+      - name: Install locked R packages for release gate
         run: |
-          npm run doctor
-          npm run smoke:multi-app
+          Rscript -e 'install.packages("renv", repos = "https://cloud.r-project.org")'
+          Rscript -e 'renv::restore(lockfile = "renv.lock", library = .libPaths()[1], prompt = FALSE)'
+          Rscript -e 'stopifnot(as.character(packageVersion("shinylive")) == "0.5.0")'
 
-      - name: Verify Phase 2 bundle
-        run: npm run verify
+      - run: npx playwright install chromium
 
       - name: Import Windows signing certificate
         if: ${{ env.WINDOWS_CERTIFICATE != '' }}
@@ -168,28 +147,10 @@ jobs:
             "WINDOWS_CERTIFICATE_THUMBPRINT=$($cert.Thumbprint)" | Out-File -FilePath $env:GITHUB_ENV -Append
           }
 
-      - name: Phase 3 Windows preflight
-        shell: pwsh
-        run: |
-          if ($env:WINDOWS_CERTIFICATE_THUMBPRINT -or $env:WINDOWS_SIGN_COMMAND) {
-            node scripts/phase3-preflight.mjs --platform windows
-          } else {
-            node scripts/phase3-preflight.mjs --platform windows --allow-missing-credentials
-          }
-
-      - name: Build signed Windows installer
-        if: ${{ env.WINDOWS_CERTIFICATE_THUMBPRINT != '' || env.WINDOWS_SIGN_COMMAND != '' }}
-        run: npm run tauri:build:windows
-
-      - name: Build unsigned internal Windows installer
-        if: ${{ env.WINDOWS_CERTIFICATE_THUMBPRINT == '' && env.WINDOWS_SIGN_COMMAND == '' }}
-        run: npm run tauri:build:windows:no-sign
-
-      - name: Package Windows release evidence
-        run: npm run phase3:package:windows
-
-      - name: Verify Windows release evidence
-        run: npm run verify:release
+      - name: Release gate
+        env:
+          HARNESS_TARGET_PLATFORM: windows
+        run: npm run gate:release
 
       - uses: actions/upload-artifact@v7
         with:

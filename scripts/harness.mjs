@@ -705,13 +705,16 @@ const addDataPack = async (values) => {
   });
 };
 
-const validateConfig = async () => {
-  const result = await validateHarnessConfig();
+const validateConfig = async (values = []) => {
+  const options = parseOptions(values);
+  const strict = options.strict === true;
+  const result = await validateHarnessConfig(null, { strict });
   printJson({
     ok: result.ok,
     report: "reports/harness-config-validation.json",
     errors: result.summary.errorCount,
     warnings: result.summary.warningCount,
+    strict,
   });
   await appendAudit("validate-config", result.ok ? "ok" : "failed", result);
   if (!result.ok) {
@@ -737,12 +740,13 @@ const validateData = async (values) => {
       dataPackId: options.id ?? null,
       reportPath,
       dictionaryPath,
+      strict: options.strict === true,
     });
     if (!result.ok) {
       throw new Error("Clinical data pack validation failed.");
     }
   } else {
-    result = await validateConfiguredDataPacks({ appId, reportPath, dictionaryPath });
+    result = await validateConfiguredDataPacks({ appId, reportPath, dictionaryPath, strict: options.strict === true });
   }
 
   await appendAudit("validate-data", result.ok ? "ok" : "failed", result);
@@ -754,6 +758,7 @@ const validateData = async (values) => {
     resultCount: results.length,
     errors: results.reduce((total, item) => total + (item.summary?.errorCount ?? 0), 0),
     warnings: results.reduce((total, item) => total + (item.summary?.warningCount ?? 0), 0),
+    strict: options.strict === true,
     dataPacks: results.map((item) => ({
       id: item.dataPack?.id,
       appId: item.appId ?? null,
@@ -923,7 +928,7 @@ try {
       await addDataPack(args);
       break;
     case "validate-config":
-      await validateConfig();
+      await validateConfig(args);
       break;
     case "validate-data":
       await validateData(args);

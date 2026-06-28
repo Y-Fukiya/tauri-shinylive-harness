@@ -32,6 +32,7 @@ export const clinicalDomains = {
       "last_contact_date",
       "study_status",
     ],
+    optionalColumns: ["baseline_weight_kg", "baseline_bmi"],
   },
   visits: {
     file: "visits.csv",
@@ -465,6 +466,7 @@ export const validateClinicalDataPack = async ({
   reportPath = path.join(reportsRoot, "clinical-data-pack-validation.json"),
   dictionaryPath = path.join(rootDir, "docs", "generated", "clinical-data-dictionary.md"),
   writeOutputs = true,
+  strict = false,
 } = {}) => {
   if (!dataDir) {
     if (!app) {
@@ -578,6 +580,22 @@ export const validateClinicalDataPack = async ({
           domain: domainName,
           column,
         });
+      }
+    }
+    const allowedColumns = new Set([...(domainSpec.requiredColumns ?? []), ...(domainSpec.optionalColumns ?? [])]);
+    for (const column of csv.headers) {
+      if (!allowedColumns.has(column)) {
+        addIssue(
+          issues,
+          strict ? "error" : "warning",
+          "unknown-column",
+          `${domainSpec.file} contains a column outside the documented synthetic schema: ${column}.`,
+          {
+            domain: domainName,
+            file: domainSpec.file,
+            column,
+          },
+        );
       }
     }
 
@@ -947,8 +965,9 @@ export const validateClinicalDataPack = async ({
 
   const result = {
     schemaVersion: 1,
-    ok: errorCount === 0,
+    ok: errorCount === 0 && (!strict || warningCount === 0),
     checkedAt: new Date().toISOString(),
+    strict,
     appId,
     dataDir: relativeToRoot(resolvedDataDir),
     schema: "schemas/clinical-data-pack.schema.json",
@@ -996,6 +1015,7 @@ export const validateConfiguredDataPacks = async ({
   reportPath = path.join(reportsRoot, "clinical-data-pack-validation.json"),
   dictionaryPath = path.join(rootDir, "docs", "generated", "clinical-data-dictionary.md"),
   writeOutputs = true,
+  strict = false,
 } = {}) => {
   const config = await readConfig();
   const apps = config.apps.filter((app) => app.dataPack && (!appId || app.id === appId));
@@ -1010,14 +1030,16 @@ export const validateConfiguredDataPacks = async ({
         app,
         appId: app.id,
         writeOutputs: false,
+        strict,
       }),
     );
   }
 
   const result = {
     schemaVersion: 1,
-    ok: results.every((item) => item.ok),
+    ok: results.every((item) => item.ok) && (!strict || results.every((item) => item.summary.warningCount === 0)),
     checkedAt: new Date().toISOString(),
+    strict,
     appId,
     resultCount: results.length,
     summary: {
@@ -1066,6 +1088,7 @@ const runCli = async () => {
   const appId = options.app ?? options._[0] ?? null;
   const dataDir = options["data-dir"] ?? null;
   const dataPackId = options.id ?? null;
+  const strict = options.strict === true;
   const reportPath = options.report ? path.resolve(options.report) : path.join(reportsRoot, "clinical-data-pack-validation.json");
   const dictionaryPath = options.dictionary
     ? path.resolve(options.dictionary)
@@ -1079,18 +1102,20 @@ const runCli = async () => {
       dataPackId,
       reportPath,
       dictionaryPath,
+      strict,
     });
     if (!result.ok) {
       throw new Error(`Clinical data pack validation failed. See ${toPosix(path.relative(rootDir, reportPath))}`);
     }
   } else {
-    result = await validateConfiguredDataPacks({ appId, reportPath, dictionaryPath });
+    result = await validateConfiguredDataPacks({ appId, reportPath, dictionaryPath, strict });
   }
 
   console.log(
     JSON.stringify(
       {
         ok: result.ok,
+        strict,
         report: toPosix(path.relative(rootDir, reportPath)),
         dictionary: toPosix(path.relative(rootDir, dictionaryPath)),
       },

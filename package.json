@@ -18,6 +18,7 @@
     "gate:bundle": "npm run gate:fast && npm run build:all && npm run verify:static && npm run audit:tauri-security && npm run verify:offline",
     "gate:dev": "npm run gate:bundle",
     "gate:release": "node scripts/release-gate.mjs",
+    "gate:internal-release": "node scripts/release-gate.mjs --internal",
     "doctor": "node scripts/harness.mjs doctor",
     "doctor:tooling": "node scripts/release-doctor.mjs --scope tooling",
     "doctor:artifacts": "node scripts/release-doctor.mjs --scope artifacts",

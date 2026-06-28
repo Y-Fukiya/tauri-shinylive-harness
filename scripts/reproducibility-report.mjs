@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 import { execFile } from "node:child_process";
-import { access, readFile, stat as fsStat } from "node:fs/promises";
+import { readdir, readFile, stat as fsStat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
-import { exists, listFiles, reportsRoot, rootDir, sha256File, toPosix, writeJson } from "./harness-core.mjs";
+import { exists, reportsRoot, rootDir, sha256File, toPosix, writeJson } from "./harness-core.mjs";
 
 const execFileAsync = promisify(execFile);
 
@@ -53,11 +53,11 @@ const executableNames = (command) => {
   return extensions.flatMap((extension) => [extension.toLowerCase(), extension.toUpperCase()].map((next) => `${command}${next}`));
 };
 
-const commandVersion = async (command, args = ["--version"]) => {
+const commandVersion = async (command, args = ["--version"], { timeout = 5000 } = {}) => {
   try {
     const result = await execFileAsync(command, args, {
       cwd: rootDir,
-      timeout: 15000,
+      timeout,
       windowsHide: true,
     });
     return {
@@ -90,55 +90,55 @@ const strictPinCheck = ({ name, pin, observed, exact = true }) => {
   };
 };
 
-const hashIfExists = async (relativePath) => {
+const hashIfExists = async (relativePath, { maxBytes = Infinity, kind = "file-hash" } = {}) => {
   const targetPath = path.join(rootDir, relativePath);
   if (!(await exists(targetPath))) {
     return null;
   }
+  const metadata = await fsStat(targetPath);
+  if (metadata.size > maxBytes) {
+    return {
+      path: relativePath,
+      kind: `${kind}-presence`,
+      size: metadata.size,
+      sha256: null,
+      hashSkipped: "size-above-local-hash-threshold",
+    };
+  }
   return {
     path: relativePath,
-    kind: "file-hash",
+    kind,
+    size: metadata.size,
     sha256: await sha256File(targetPath),
   };
 };
 
-const directoryInventory = async (relativeDir) => {
-  const directory = path.join(rootDir, relativeDir);
-  if (!(await exists(directory))) {
-    return null;
+const shinyliveAssetAnchors = async () => {
+  const cacheRoot = path.join(rootDir, ".shinylive-cache");
+  if (!(await exists(cacheRoot))) {
+    return [
+      ".shinylive-cache/shinylive-<version>/shinylive/shinylive.js",
+      ".shinylive-cache/shinylive-<version>/shinylive/shinylive.css",
+      ".shinylive-cache/shinylive-<version>/shinylive/webr/R.wasm",
+    ];
   }
-  let totalSize = 0;
-  let fileCount = 0;
-  for (const file of (await listFiles(directory)).sort()) {
-    const metadata = await fsStat(path.join(directory, file));
-    fileCount += 1;
-    totalSize += metadata.size;
-  }
-  return {
-    path: relativeDir,
-    kind: "directory-inventory",
-    fileCount,
-    totalSize,
-  };
-};
-
-const hashMatchedAssets = async (relativeDir, suffixes) => {
-  const directory = path.join(rootDir, relativeDir);
-  if (!(await exists(directory))) {
-    return [];
-  }
-  const files = (await listFiles(directory))
-    .map(toPosix)
-    .filter((file) => suffixes.some((suffix) => file.endsWith(suffix)))
+  const versions = (await readdir(cacheRoot, { withFileTypes: true }))
+    .filter((entry) => entry.isDirectory() && /^shinylive-\d+\.\d+\.\d+/.test(entry.name))
+    .map((entry) => entry.name)
     .sort();
-
-  return Promise.all(
-    files.map(async (file) => ({
-      path: toPosix(path.join(relativeDir, file)),
-      kind: "asset-anchor-hash",
-      sha256: await sha256File(path.join(directory, file)),
-    })),
-  );
+  if (versions.length === 0) {
+    return [
+      ".shinylive-cache/shinylive-<version>/shinylive/shinylive.js",
+      ".shinylive-cache/shinylive-<version>/shinylive/shinylive.css",
+      ".shinylive-cache/shinylive-<version>/shinylive/webr/R.wasm",
+    ];
+  }
+  const version = versions.at(-1);
+  return [
+    `.shinylive-cache/${version}/shinylive/shinylive.js`,
+    `.shinylive-cache/${version}/shinylive/shinylive.css`,
+    `.shinylive-cache/${version}/shinylive/webr/R.wasm`,
+  ];
 };
 
 const readRenvPackages = async () => {
@@ -197,12 +197,13 @@ export const createReproducibilityReport = async ({
       ].map(hashIfExists),
     )),
   ].filter(Boolean);
+  const requiredAssetAnchors = await shinyliveAssetAnchors();
   const assetHashes = includeAssetHashes
     ? [
-        await hashIfExists(".shinylive-cache/shinylive/shinylive.js"),
-        await hashIfExists(".shinylive-cache/shinylive/shinylive.css"),
-        await hashIfExists(".shinylive-cache/shinylive/webr/R.wasm"),
-        await hashIfExists(".shinylive-cache/shinylive/webr/library.data.gz"),
+        ...(await Promise.all(requiredAssetAnchors.map((assetPath) => hashIfExists(assetPath, {
+          kind: "asset-anchor",
+          maxBytes: 0,
+        })))),
         await hashIfExists("dist/harness-bundle-manifest.json"),
         await hashIfExists("dist/checksums/SHA256SUMS"),
       ].filter(Boolean)
@@ -240,6 +241,7 @@ export const createReproducibilityReport = async ({
           "dist/harness-bundle-manifest.json",
           "dist/checksums/SHA256SUMS",
           "apps",
+          ...requiredAssetAnchors,
         ].map(async (relativePath) => ({
           path: relativePath,
           ok: await exists(path.join(rootDir, relativePath)),
