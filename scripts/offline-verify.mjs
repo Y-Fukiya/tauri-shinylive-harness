@@ -7,6 +7,13 @@ import { distRoot, exists, reportsRoot, rootDir, toPosix, writeJson } from "./ha
 
 const inspectedExtensions = new Set([".html", ".js", ".css", ".json", ".mjs", ".cjs"]);
 const externalUrlPattern = /\bhttps?:\/\/(?!(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?(?:[/?#]|$))[^\s"'<>\\)]+/gi;
+const allowedStaticUrlPatterns = [
+  /^http:\/\/www\.w3\.org\/(?:1999\/xhtml|2000\/svg|1998\/Math\/MathML|1999\/xlink|XML\/1998\/namespace)$/i,
+  /^https:\/\/react\.dev\/errors\/?$/i,
+  /^https:\/\/webr\.r-wasm\.org\/v[\d.]+\/?$/i,
+  /^https:\/\/repo\.r-wasm\.org\/?$/i,
+];
+const isAllowedStaticUrl = (url) => allowedStaticUrlPatterns.some((pattern) => pattern.test(url));
 const shouldInspect = (file) => {
   const normalized = toPosix(file);
   if (normalized.includes("/shinylive/") || normalized.includes("/webr/")) {
@@ -80,7 +87,9 @@ export const verifyOfflineBundle = async ({
       continue;
     }
     const contents = await readFile(absolutePath, "utf8");
-    const found = [...contents.matchAll(externalUrlPattern)].map((match) => match[0]);
+    const found = [...contents.matchAll(externalUrlPattern)]
+      .map((match) => match[0])
+      .filter((url) => !isAllowedStaticUrl(url));
     for (const url of found) {
       const item = {
         path: toPosix(path.relative(rootDir, absolutePath)),
