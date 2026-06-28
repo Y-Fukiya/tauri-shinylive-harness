@@ -17,7 +17,7 @@ import {
 } from "./harness-core.mjs";
 
 const clinicalUseLimitation =
-  "Synthetic demo and technical evaluation only. Not for clinical decision making.";
+  "This harness and bundled demo applications are for technical evaluation, workflow prototyping, training, and synthetic-data demonstration only. They are not validated medical devices, are not clinical decision support tools, and must not be used for diagnosis, treatment, patient management, or regulatory submission unless separately validated and approved by the responsible organization.";
 const reportTemplatesRoot = path.join(rootDir, "templates", "reports");
 const reportExportRoot = path.join(reportsRoot, "exported");
 

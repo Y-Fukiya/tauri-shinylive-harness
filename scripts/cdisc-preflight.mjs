@@ -304,6 +304,12 @@ export const runCdiscPreflight = async ({
     },
     sourceSchema: mapping.sourceSchema ?? null,
     targetStandard: mapping.targetStandard ?? { name: "unknown", version: "unknown", note: "" },
+    controlledTerminology: {
+      source: "local-demo",
+      cdiscCtVersion: "demo-subset",
+      lastReviewed: "2026-06-28",
+      notFullCdiscCtPackage: true,
+    },
     coverage,
     pinnacle21,
     limitations: [

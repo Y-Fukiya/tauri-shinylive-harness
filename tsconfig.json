@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
-    "target": "ES2022",
+    "target": "ES2020",
     "useDefineForClassFields": true,
-    "lib": ["DOM", "DOM.Iterable", "ES2022"],
+    "lib": ["DOM", "DOM.Iterable", "ES2020"],
     "allowJs": false,
     "skipLibCheck": true,
     "esModuleInterop": true,
@@ -10,13 +10,23 @@
     "strict": true,
     "forceConsistentCasingInFileNames": true,
     "module": "ESNext",
-    "moduleResolution": "Bundler",
+    "moduleResolution": "Node",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "types": ["vite/client", "react", "react-dom"],
     "jsx": "react-jsx"
   },
-  "include": ["src"],
-  "references": []
+  "include": ["src", "vite.config.ts"],
+  "exclude": [
+    "apps",
+    "dist",
+    "release",
+    "reports",
+    "node_modules",
+    "src-tauri",
+    "crates",
+    "data-packs",
+    "shinylive-src",
+    "templates"
+  ]
 }

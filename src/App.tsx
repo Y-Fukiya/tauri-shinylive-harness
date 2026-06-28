@@ -125,7 +125,7 @@ type BrowserDiagnostics = {
 };
 
 const clinicalUseLimitation =
-  "Synthetic demo and technical evaluation only. Not for clinical decision making.";
+  "This harness and bundled demo applications are for technical evaluation, workflow prototyping, training, and synthetic-data demonstration only. They are not validated medical devices, are not clinical decision support tools, and must not be used for diagnosis, treatment, patient management, or regulatory submission unless separately validated and approved by the responsible organization.";
 
 const unique = <T,>(values: T[]): T[] => Array.from(new Set(values));
 
@@ -375,6 +375,24 @@ export const App = () => {
             <h2>Clinical Use Limitation</h2>
           </div>
           <p>{clinicalUseLimitation}</p>
+        </section>
+
+        <section className="panel clinical-review" aria-label="Clinical review sandbox">
+          <div className="panel-heading">
+            <h2>Clinical Review</h2>
+            <StatusPill ok label="sandbox" />
+          </div>
+          <Field label="Audience" value="Medical Monitor / Safety Reviewer / Data Manager" />
+          <Field label="Scenario" value="Synthetic subject-level safety review" />
+          <div className="review-task-list" aria-label="Review tasks">
+            <span>Review tasks</span>
+            <ol>
+              <li>Check exposure-AE timeline</li>
+              <li>Review lab abnormality</li>
+              <li>Export subject snapshot</li>
+            </ol>
+          </div>
+          <p className="boundary-note">Synthetic data only. Not for clinical decision making.</p>
         </section>
 
         <section className="panel">

@@ -878,6 +878,18 @@ const createLicenseReport = async (config) => {
 };
 
 export const verifyBundleArtifacts = async (config = null) => {
+  if (!(await exists(path.join(distRoot, "harness-bundle-manifest.json")))) {
+    throw new Error(
+      [
+        "dist/ is missing prepared bundle artifacts.",
+        "Run:",
+        "  npm run export",
+        "  npm run build:all",
+        "then retry:",
+        "  npm run verify:static",
+      ].join("\n"),
+    );
+  }
   const nextConfig = config ?? (await readConfig());
   const bundleManifestPath = path.join(distRoot, "harness-bundle-manifest.json");
   const manifestPath = path.join(distRoot, "manifest.json");
