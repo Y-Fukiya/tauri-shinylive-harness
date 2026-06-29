@@ -85,7 +85,7 @@ jobs:
             fi
           fi
           if [ -z "$APPLE_INSTALLER_SIGNING_IDENTITY" ]; then
-            INSTALLER_IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" | awk -F '"' '/Developer ID Installer/ { print $2; exit }')"
+            INSTALLER_IDENTITY="$(security find-identity -v "$KEYCHAIN_PATH" | awk -F '"' '/Developer ID Installer/ { print $2; exit }')"
             if [ -n "$INSTALLER_IDENTITY" ]; then
               echo "APPLE_INSTALLER_SIGNING_IDENTITY=$INSTALLER_IDENTITY" >> "$GITHUB_ENV"
             fi
@@ -108,6 +108,10 @@ jobs:
           name: macos-release-candidate
           path: |
             release/
+            reports/release-gate.json
+            reports/release-artifact-verification.json
+            reports/release-doctor.json
+            reports/phase3-preflight.json
             reports/local-release-audit*.json
             docs/generated/local-release-audit*.md
 
@@ -176,6 +180,10 @@ jobs:
           name: windows-release-candidate
           path: |
             release/
+            reports/release-gate.json
+            reports/release-artifact-verification.json
+            reports/release-doctor.json
+            reports/phase3-preflight.json
             reports/local-release-audit*.json
             docs/generated/local-release-audit*.md
 

@@ -128,7 +128,6 @@ release/
   clinical-shinylive-desktop-portal-<version>.dmg
   clinical-shinylive-desktop-portal-<version>.pkg
   clinical-shinylive-desktop-portal-<version>-windows-nsis-setup.exe
-  clinical-shinylive-desktop-portal-<version>-windows-portable.exe
   RELEASE_NOTES.md
   SHA256SUMS
   validation-pack/

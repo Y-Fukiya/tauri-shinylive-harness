@@ -341,7 +341,12 @@ test("release smoke plan captures platform install, offline, and app smoke evide
   const plan = buildReleaseSmokePlan({
     config: {
       project: { bundleName: "Demo Harness", version: "1.0.0" },
-      distribution: { artifactName: "demo-harness", releaseChannel: "internal" },
+      distribution: {
+        artifactName: "demo-harness",
+        releaseChannel: "internal",
+        macBundles: ["app", "dmg", "pkg"],
+        windowsBundles: ["nsis"],
+      },
       apps: [
         {
           id: "subject-profile-reference",
@@ -364,7 +369,9 @@ test("release smoke plan captures platform install, offline, and app smoke evide
   assert.equal(plan.schemaVersion, 1);
   assert.equal(plan.platform, "windows");
   assert.equal(plan.apps[0].smokeText.length, 2);
+  assert.deepEqual(plan.expectedArtifacts, ["demo-harness-1.0.0-windows-nsis-setup.exe"]);
   assert.match(markdown, /Install the NSIS setup executable/);
+  assert.doesNotMatch(markdown, /windows-portable\.exe/);
   assert.match(markdown, /Disable network access/);
   assert.match(markdown, /\/__harness\/integrity/);
   assert.match(markdown, /SUBJ-001 AE count: 3/);

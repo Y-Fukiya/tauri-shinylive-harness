@@ -105,7 +105,7 @@ npm run phase3:release-draft
 
 The stable macOS packaging path asks Tauri to create the `.app` bundle only. `phase3:package` then creates the DMG with `hdiutil`, creates the pkg with `pkgbuild`, signs the DMG when `APPLE_SIGNING_IDENTITY` is set, and submits/staples the DMG when notarization credentials are set.
 
-The stable Windows packaging path asks Tauri to create NSIS installer artifacts. `phase3:package:windows` then collects the installer, optional MSI, optional portable executable, release notes, checksums, and validation pack.
+The stable Windows packaging path asks Tauri to create NSIS installer artifacts. `phase3:package:windows` then collects the configured installer artifacts, release notes, checksums, and validation pack. Portable executables are not copied unless they become an explicit configured and audited bundle type.
 
 ## Release Contents
 
@@ -116,7 +116,6 @@ The stable Windows packaging path asks Tauri to create NSIS installer artifacts.
 - pkg generated with `pkgbuild`
 - Windows NSIS setup executable
 - optional Windows MSI
-- optional Windows portable executable
 - `RELEASE_NOTES.md`
 - `SHA256SUMS`
 - bundle manifest and dist checksums
@@ -137,7 +136,15 @@ The stable Windows packaging path asks Tauri to create NSIS installer artifacts.
 
 Do not publish `v1.0.0-rc.1` as signed/notarized unless `phase3:preflight` reports signing and notarization readiness and the resulting artifacts have been built with credentials.
 
-The GitHub Actions release workflow uploads macOS and Windows `release/` directories as artifacts and creates a combined draft release on `v*` tags.
+The GitHub Actions release workflow uploads macOS and Windows `release/` directories plus the gate reports that explain how the candidate was produced:
+
+- `reports/release-gate.json`
+- `reports/release-artifact-verification.json`
+- `reports/release-doctor.json`
+- `reports/phase3-preflight.json`
+- `reports/local-release-audit*.json`
+
+`gate:release` treats the Tauri build output as the final bundle input. Because Tauri runs `beforeBuildCommand`, the gate repeats static verification, PHI/PII release scanning, offline verification, E2E diagnostics, reproducibility evidence, review sign-off, and evidence index generation after the Tauri build and before `phase3:package`.
 
 ## Boundary
 

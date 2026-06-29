@@ -209,27 +209,35 @@ const apple = {
 const commands = {
   codesign: summarizeCommand(await runCapture("xcrun", ["-f", "codesign"])),
   securityIdentities: summarizeCommand(await runCapture("security", ["find-identity", "-v", "-p", "codesigning"])),
+  securityAllIdentities: summarizeCommand(await runCapture("security", ["find-identity", "-v"])),
   notarytool: summarizeCommand(await runCapture("xcrun", ["-f", "notarytool"])),
   stapler: summarizeCommand(await runCapture("xcrun", ["-f", "stapler"])),
   pkgbuild: summarizeCommand(await runCapture("xcrun", ["-f", "pkgbuild"])),
   ghAuth: summarizeCommand(await runCapture("gh", ["auth", "status"])),
 };
 
-const identities = extractIdentities(commands.securityIdentities.stdout);
-const localIdentityInstalled =
-  !apple.localSigningIdentity ||
+const identities = [
+  ...new Set([
+    ...extractIdentities(commands.securityIdentities.stdout),
+    ...extractIdentities(commands.securityAllIdentities.stdout),
+  ]),
+];
+const identityInstalled = (configuredIdentity) =>
+  !configuredIdentity ||
   identities.some(
     (identity) =>
-      identity === process.env.APPLE_SIGNING_IDENTITY ||
-      identity.includes(process.env.APPLE_SIGNING_IDENTITY) ||
-      process.env.APPLE_SIGNING_IDENTITY.includes(identity),
+      identity === configuredIdentity ||
+      identity.includes(configuredIdentity) ||
+      configuredIdentity.includes(identity),
   );
+const localIdentityInstalled = identityInstalled(process.env.APPLE_SIGNING_IDENTITY);
+const installerIdentityInstalled = identityInstalled(process.env.APPLE_INSTALLER_SIGNING_IDENTITY);
 const signingReady =
   (apple.localSigningIdentity && localIdentityInstalled) ||
   (apple.certificateP12 && apple.certificatePassword && apple.keychainPassword);
 const installerSigningReady =
   !config.distribution.macBundles.includes("pkg") ||
-  present("APPLE_INSTALLER_SIGNING_IDENTITY");
+  (present("APPLE_INSTALLER_SIGNING_IDENTITY") && installerIdentityInstalled);
 const notarizationReady = apple.appStoreConnectApi || apple.appleIdNotary;
 const githubReady = commands.ghAuth.ok || present("GITHUB_TOKEN");
 const toolingReady =
@@ -244,6 +252,9 @@ if (apple.localSigningIdentity && !localIdentityInstalled) {
 }
 if (config.phase3.signingRequired && config.distribution.macBundles.includes("pkg") && !installerSigningReady) {
   issues.push("APPLE_INSTALLER_SIGNING_IDENTITY is required when mac_bundles includes pkg and signing_required is true.");
+}
+if (present("APPLE_INSTALLER_SIGNING_IDENTITY") && !installerIdentityInstalled) {
+  issues.push("APPLE_INSTALLER_SIGNING_IDENTITY is set but was not found in `security find-identity -v`.");
 }
 if (config.phase3.notarizationRequired && !notarizationReady) {
   issues.push("Missing notarization credentials: set App Store Connect API variables or APPLE_ID + APPLE_PASSWORD + APPLE_TEAM_ID.");
@@ -268,6 +279,7 @@ const report = {
   phase3: config.phase3,
   signingReady,
   installerSigningReady,
+  installerIdentityInstalled,
   notarizationReady,
   githubReady,
   toolingReady,

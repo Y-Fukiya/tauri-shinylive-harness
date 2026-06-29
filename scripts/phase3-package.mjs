@@ -535,17 +535,6 @@ const packageWindows = async (config) => {
   await rm(releaseRoot, { recursive: true, force: true });
   await mkdir(releaseRoot, { recursive: true });
 
-  const portableExe = await findFirst(
-    windowsReleaseRoot,
-    (name) => name.endsWith(".exe") && !name.toLowerCase().includes("setup"),
-  );
-  if (portableExe) {
-    await cp(
-      portableExe,
-      path.join(releaseRoot, `${config.distribution.artifactName}-${config.project.version}-windows-portable.exe`),
-    );
-  }
-
   const nsisInstallers = await findAll(nsisRoot, (name) => name.endsWith(".exe"));
   const msiInstallers = await findAll(msiRoot, (name) => name.endsWith(".msi"));
   if (config.distribution.windowsBundles.includes("nsis") && nsisInstallers.length === 0) {

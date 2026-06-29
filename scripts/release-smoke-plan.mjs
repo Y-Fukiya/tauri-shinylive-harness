@@ -1,33 +1,51 @@
 const clinicalUseLimitation =
   "This harness and its bundled synthetic demo apps are for technical evaluation only. They are not validated medical devices and are not for clinical decision making unless an organization completes its own regulated validation and approval.";
 
-const platformInstallSteps = (platform) =>
-  platform === "windows"
-    ? [
-        "Verify release/SHA256SUMS before installation.",
-        "Install the NSIS setup executable on a clean Windows account or VM.",
-        "Launch the installed app from the Start menu.",
-        "Record Windows Defender SmartScreen behavior for the release type.",
-      ]
-    : [
-        "Verify release/SHA256SUMS before installation.",
-        "Install the pkg or open the dmg on a clean macOS account or VM.",
-        "Launch the app from Finder.",
-        "Record Gatekeeper behavior for the release type.",
-      ];
+const platformInstallSteps = (platform, config) => {
+  if (platform === "windows") {
+    const bundles = config.distribution.windowsBundles ?? [];
+    const installerStep = bundles.includes("nsis")
+      ? "Install the NSIS setup executable on a clean Windows account or VM."
+      : "Install the configured Windows installer artifact on a clean Windows account or VM.";
+    return [
+      "Verify release/SHA256SUMS before installation.",
+      installerStep,
+      "Launch the installed app from the Start menu.",
+      "Record Windows Defender SmartScreen behavior for the release type.",
+    ];
+  }
 
-const artifactPatterns = (platform, artifactName, version) =>
-  platform === "windows"
-    ? [
-        `${artifactName}-${version}-windows-nsis-setup.exe`,
-        `${artifactName}-${version}-windows*.msi`,
-        `${artifactName}-${version}-windows-portable.exe`,
-      ]
-    : [
-        `${artifactName}-${version}-macos-app.zip`,
-        `${artifactName}-${version}.dmg`,
-        `${artifactName}-${version}.pkg`,
-      ];
+  return [
+    "Verify release/SHA256SUMS before installation.",
+    "Install the pkg or open the dmg on a clean macOS account or VM.",
+    "Launch the app from Finder.",
+    "Record Gatekeeper behavior for the release type.",
+  ];
+};
+
+const artifactPatterns = (platform, artifactName, version, config) => {
+  if (platform === "windows") {
+    const bundles = config.distribution.windowsBundles ?? [];
+    const patterns = [];
+    if (bundles.includes("nsis")) {
+      patterns.push(`${artifactName}-${version}-windows-nsis-setup.exe`);
+    }
+    if (bundles.includes("msi")) {
+      patterns.push(`${artifactName}-${version}-windows*.msi`);
+    }
+    return patterns;
+  }
+
+  const bundles = config.distribution.macBundles ?? [];
+  const patterns = [`${artifactName}-${version}-macos-app.zip`];
+  if (bundles.includes("dmg")) {
+    patterns.push(`${artifactName}-${version}.dmg`);
+  }
+  if (bundles.includes("pkg")) {
+    patterns.push(`${artifactName}-${version}.pkg`);
+  }
+  return patterns;
+};
 
 export const buildReleaseSmokePlan = ({ config, context, platform }) => {
   const apps = config.apps.map((app) => ({
@@ -53,8 +71,8 @@ export const buildReleaseSmokePlan = ({ config, context, platform }) => {
     },
     context,
     clinicalUseLimitation,
-    expectedArtifacts: artifactPatterns(platform, config.distribution.artifactName, config.project.version),
-    installSteps: platformInstallSteps(platform),
+    expectedArtifacts: artifactPatterns(platform, config.distribution.artifactName, config.project.version, config),
+    installSteps: platformInstallSteps(platform, config),
     runtimeChecks: [
       "Portal opens on 127.0.0.1.",
       "/__harness/health reports ok: true.",

@@ -128,7 +128,7 @@ Expected on Windows:
 
 - Full Phase 2 verification passes.
 - Tauri creates a Windows NSIS setup executable under `src-tauri/target/release/bundle/nsis/`.
-- `phase3:package:windows` collects the installer, optional portable executable, optional MSI, checksums, and validation pack into `release/`.
+- `phase3:package:windows` collects the configured installer artifacts, checksums, and validation pack into `release/`.
 - Launching the installed app starts a `127.0.0.1` listener.
 - `/__harness/health`, `/__harness/integrity`, `/manifest.json`, app boot JS, and `R.wasm` are served from bundled resources.
 
