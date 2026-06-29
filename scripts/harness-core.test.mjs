@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import os from "node:os";
@@ -83,6 +84,33 @@ const applyFixtureMutations = async (dataDir, mutations = []) => {
   for (const mutation of mutations) {
     await applyFixtureMutation(dataDir, mutation);
   }
+};
+
+const runNodeScript = (args, options = {}) =>
+  new Promise((resolve) => {
+    const child = spawn(process.execPath, args, {
+      cwd: rootDir,
+      stdio: ["ignore", "pipe", "pipe"],
+      ...options,
+    });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk.toString();
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk.toString();
+    });
+    child.on("error", (error) => {
+      resolve({ code: null, stdout, stderr: error.message });
+    });
+    child.on("exit", (code) => {
+      resolve({ code, stdout, stderr });
+    });
+  });
+
+const writeExecutable = async (filePath, contents) => {
+  await writeFile(filePath, contents, { mode: 0o755 });
 };
 
 test("parseHarnessToml preserves quoted commas and hashes inside arrays", () => {
@@ -632,6 +660,66 @@ test("phase3 preflight readiness blocks signed macOS release without credentials
     "Missing notarization credentials",
   ]);
   assert.equal(result.shouldFail, true);
+});
+
+test("phase3-preflight CLI allows internal macOS with fake packaging tools", { skip: process.platform === "win32" }, async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "harness-phase3-cli-test-"));
+  const fakeBin = path.join(tempRoot, "bin");
+  await mkdir(fakeBin, { recursive: true });
+  await writeExecutable(path.join(fakeBin, "ditto"), "#!/bin/sh\nexit 0\n");
+  await writeExecutable(path.join(fakeBin, "hdiutil"), "#!/bin/sh\nexit 0\n");
+  await writeExecutable(
+    path.join(fakeBin, "which"),
+    `#!/bin/sh
+case "$1" in
+  ditto|hdiutil)
+    echo "${fakeBin}/$1"
+    exit 0
+    ;;
+  *)
+    exit 1
+    ;;
+esac
+`,
+  );
+
+  const result = await runNodeScript(
+    ["scripts/phase3-preflight.mjs", "--platform", "macos", "--internal", "--allow-missing-credentials"],
+    {
+      env: {
+        PATH: fakeBin,
+        HOME: process.env.HOME,
+      },
+    },
+  );
+  const report = JSON.parse(result.stdout);
+
+  assert.equal(result.code, 0, result.stderr);
+  assert.equal(report.ok, true);
+  assert.equal(report.internalReady, true);
+  assert.equal(report.externalReady, false);
+  assert.deepEqual(report.issues, []);
+  assert.deepEqual(report.internalBlockingItems, []);
+});
+
+test("phase3-preflight CLI blocks internal macOS without packaging tools", { skip: process.platform === "win32" }, async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "harness-phase3-cli-missing-test-"));
+  const fakeBin = path.join(tempRoot, "bin");
+  await mkdir(fakeBin, { recursive: true });
+  await writeExecutable(path.join(fakeBin, "which"), "#!/bin/sh\nexit 1\n");
+
+  const result = await runNodeScript(
+    ["scripts/phase3-preflight.mjs", "--platform", "macos", "--internal", "--allow-missing-credentials"],
+    {
+      env: {
+        PATH: fakeBin,
+        HOME: process.env.HOME,
+      },
+    },
+  );
+
+  assert.equal(result.code, 1);
+  assert.match(result.stderr, /macOS internal packaging tooling is incomplete/);
 });
 
 test("package scripts expose explicit phase3 preflight aliases", async () => {

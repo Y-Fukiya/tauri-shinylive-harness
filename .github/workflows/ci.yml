@@ -92,6 +92,9 @@ jobs:
             Write-Host "build:all stability run $_"
             $env:HARNESS_RELEASE_MODE = "true"
             npm run build:all
+            if ($LASTEXITCODE -ne 0) {
+              throw "build:all stability run $_ failed with exit code $LASTEXITCODE"
+            }
           }
       - run: npx playwright install chromium
       - run: npm run doctor

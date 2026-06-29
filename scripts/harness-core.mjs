@@ -622,6 +622,8 @@ export const writeJson = async (targetPath, value) => {
 export const isTransientFsError = (error) =>
   Boolean(error && typeof error === "object" && TRANSIENT_FS_ERROR_CODES.has(error.code));
 
+// Use this only for copy/listing operations where a just-created or just-removed
+// asset can be transiently invisible. A real missing file still fails after retries.
 export const retryTransientFs = async (operation, { attempts = 6, delayMs = 40 } = {}) => {
   let lastError = null;
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
