@@ -1,0 +1,153 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/tauri-shinylive-harness/schemas/harness.schema.json",
+  "title": "Tauri Shinylive Harness Configuration",
+  "description": "Structural contract for harness.toml after TOML-to-object normalization.",
+  "type": "object",
+  "required": ["project", "distribution", "phase3", "apps"],
+  "additionalProperties": false,
+  "properties": {
+    "project": {
+      "type": "object",
+      "required": ["name", "version", "portalTitle", "portalSubtitle", "bundleName"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$"
+        },
+        "portalTitle": { "type": "string", "minLength": 1 },
+        "portalSubtitle": { "type": "string" },
+        "bundleName": { "type": "string", "minLength": 1 }
+      }
+    },
+    "distribution": {
+      "type": "object",
+      "required": [
+        "artifactName",
+        "releaseChannel",
+        "releaseDraft",
+        "requireOffline",
+        "macBundles",
+        "windowsBundles",
+        "githubRepo"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "artifactName": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]*$"
+        },
+        "releaseChannel": { "type": "string", "minLength": 1 },
+        "releaseDraft": { "type": "boolean" },
+        "requireOffline": { "type": "boolean" },
+        "macBundles": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "enum": ["app", "dmg", "pkg"] }
+        },
+        "windowsBundles": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "enum": ["nsis", "msi"] }
+        },
+        "githubRepo": {
+          "type": "string",
+          "pattern": "^$|^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+        }
+      }
+    },
+    "phase3": {
+      "type": "object",
+      "required": [
+        "signingRequired",
+        "notarizationRequired",
+        "validationPackRequired",
+        "releaseDraftDefault"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "signingRequired": { "type": "boolean" },
+        "notarizationRequired": { "type": "boolean" },
+        "validationPackRequired": { "type": "boolean" },
+        "releaseDraftDefault": { "type": "boolean" }
+      }
+    },
+    "apps": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/app" }
+    }
+  },
+  "$defs": {
+    "relativePath": {
+      "type": "string",
+      "minLength": 1
+    },
+    "app": {
+      "type": "object",
+      "required": [
+        "id",
+        "title",
+        "description",
+        "kind",
+        "source",
+        "output",
+        "path",
+        "offlineRequired",
+        "smokeText",
+        "headerProbes",
+        "domProbes",
+        "reportTemplates",
+        "dataPack",
+        "dataPackSource",
+        "dataPaths"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]*$"
+        },
+        "title": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" },
+        "kind": { "enum": ["shinylive-r", "shinylive-python"] },
+        "source": { "$ref": "#/$defs/relativePath" },
+        "output": { "$ref": "#/$defs/relativePath" },
+        "path": {
+          "type": "string",
+          "pattern": "^/apps/[a-z0-9][a-z0-9._-]*/index\\.html$"
+        },
+        "offlineRequired": { "type": "boolean" },
+        "smokeText": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "headerProbes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "domProbes": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "reportTemplates": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9._-]*$"
+          }
+        },
+        "dataPack": { "type": "string" },
+        "dataPackSource": { "type": "string" },
+        "dataPaths": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/relativePath" }
+        }
+      }
+    }
+  }
+}

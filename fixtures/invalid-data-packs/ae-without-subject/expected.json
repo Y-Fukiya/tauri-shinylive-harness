@@ -1,0 +1,9 @@
+{
+  "expectedOk": false,
+  "expectedCodes": [
+    "unknown-subject-reference"
+  ],
+  "expectedSeverities": [
+    "error"
+  ]
+}

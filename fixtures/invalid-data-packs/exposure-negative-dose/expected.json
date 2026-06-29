@@ -1,0 +1,9 @@
+{
+  "expectedOk": false,
+  "expectedCodes": [
+    "negative-exposure-dose"
+  ],
+  "expectedSeverities": [
+    "error"
+  ]
+}

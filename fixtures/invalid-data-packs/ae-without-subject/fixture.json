@@ -1,0 +1,11 @@
+{
+  "baseDataPack": "clinical-demo-subject-profile-v1",
+  "mutations": [
+    {
+      "type": "replaceText",
+      "file": "adverse_events.csv",
+      "search": "SUBJ-001,AE-001,",
+      "replace": "SUBJ-999,AE-001,"
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "expectedOk": false,
+  "expectedCodes": [
+    "csv-row-field-count-mismatch"
+  ],
+  "expectedSeverities": [
+    "error"
+  ]
+}
