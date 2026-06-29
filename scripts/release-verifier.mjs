@@ -11,6 +11,7 @@ export const requiredReleaseFiles = [
   "release-summary.json",
   "validation-pack.zip",
   "validation-pack/evidence-index.json",
+  "validation-pack/validation-summary.md",
   "validation-pack/release-smoke-plan.json",
   "validation-pack/release-smoke-test.md",
   "validation-pack/evidence/static-verification.json",

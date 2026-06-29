@@ -63,3 +63,4 @@ jobs:
           path: |
             release/
             reports/
+            docs/generated/local-release-audit*.md

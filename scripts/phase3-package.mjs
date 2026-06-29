@@ -492,12 +492,36 @@ const writeFinalChecksums = async () => {
   const finalFiles = (await listFiles(releaseRoot))
     .filter((file) => file !== "SHA256SUMS")
     .sort();
-  const checksumLines = [];
+  const entries = [];
   for (const file of finalFiles) {
-    checksumLines.push(`${await sha256File(path.join(releaseRoot, file))}  ${toPosix(file)}`);
+    entries.push({
+      path: toPosix(file),
+      sha256: await sha256File(path.join(releaseRoot, file)),
+    });
   }
+  const checksumLines = entries.map((entry) => `${entry.sha256}  ${entry.path}`);
   await writeFile(path.join(releaseRoot, "SHA256SUMS"), `${checksumLines.join("\n")}\n`);
-  return { finalFiles, checksumLines };
+  return { finalFiles, checksumLines, entries };
+};
+
+const refreshReleaseSummaryWithFinalChecksums = async () => {
+  const summaryPath = path.join(releaseRoot, "release-summary.json");
+  if (!(await exists(summaryPath))) {
+    return { finalFiles: [], checksumLines: [], entries: [] };
+  }
+
+  const firstPass = await writeFinalChecksums();
+  const releaseSummary = JSON.parse(await readFile(summaryPath, "utf8"));
+  releaseSummary.finalChecksumManifest = {
+    path: "SHA256SUMS",
+    generatedAt: new Date().toISOString(),
+    preSummaryReleaseFingerprint: sha256Text(firstPass.checksumLines.join("\n")),
+    authoritative: true,
+    note: "SHA256SUMS is the authoritative final release checksum manifest. finalReleaseChecksums excludes release-summary.json to avoid self-referential checksum drift.",
+  };
+  releaseSummary.finalReleaseChecksums = firstPass.entries.filter((entry) => entry.path !== "release-summary.json");
+  await writeFile(summaryPath, `${JSON.stringify(releaseSummary, null, 2)}\n`);
+  return writeFinalChecksums();
 };
 
 const packageWindows = async (config) => {
@@ -548,7 +572,7 @@ const packageWindows = async (config) => {
   const releaseNoteAssets = await collectReleaseAssets();
   await writeReleaseNotes(config, releaseNoteAssets, "windows");
 
-  const { finalFiles, checksumLines } = await writeFinalChecksums();
+  const { finalFiles, checksumLines } = await refreshReleaseSummaryWithFinalChecksums();
   await appendAudit("phase3-package", "ok", {
     platform: "windows",
     releaseRoot,
@@ -643,14 +667,7 @@ for (const file of releaseNoteAssetFiles) {
 }
 await writeReleaseNotes(config, releaseNoteAssets, "macos");
 
-const finalFiles = (await listFiles(releaseRoot))
-  .filter((file) => file !== "SHA256SUMS")
-  .sort();
-const checksumLines = [];
-for (const file of finalFiles) {
-  checksumLines.push(`${await sha256File(path.join(releaseRoot, file))}  ${toPosix(file)}`);
-}
-await writeFile(path.join(releaseRoot, "SHA256SUMS"), `${checksumLines.join("\n")}\n`);
+const { finalFiles, checksumLines } = await refreshReleaseSummaryWithFinalChecksums();
 
 await appendAudit("phase3-package", "ok", {
   platform: "macos",

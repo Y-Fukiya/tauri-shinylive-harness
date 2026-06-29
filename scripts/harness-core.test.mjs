@@ -10,7 +10,7 @@ import { validateClinicalDataPack } from "./clinical-data-pack-validator.mjs";
 import { buildReleaseSmokePlan, renderReleaseSmokeMarkdown } from "./release-smoke-plan.mjs";
 import { verifyReleaseArtifacts } from "./release-verifier.mjs";
 import { auditTauriSecurity } from "./tauri-security-audit.mjs";
-import { createReproducibilityReport } from "./reproducibility-report.mjs";
+import { createReproducibilityReport, resolveShinyliveAssetAnchors } from "./reproducibility-report.mjs";
 import { runCdiscPreflight } from "./cdisc-preflight.mjs";
 import { exportReportPdfs } from "./pdf-report-exporter.mjs";
 import { generateEvidenceIndex, writeReviewSignoff } from "./review-evidence.mjs";
@@ -369,6 +369,23 @@ test("release smoke plan captures platform install, offline, and app smoke evide
   assert.match(markdown, /SUBJ-001 AE count: 3/);
 });
 
+test("Shinylive asset anchors use the renv.lock pin instead of cache directory ordering", () => {
+  const anchors = resolveShinyliveAssetAnchors({
+    shinylive: {
+      pinned: "0.5.0",
+      source: "Repository",
+      repository: "CRAN",
+    },
+  });
+
+  assert.deepEqual(anchors, [
+    ".shinylive-cache/shinylive-0.5.0/export_template/index.html",
+    ".shinylive-cache/shinylive-0.5.0/shinylive/shinylive.js",
+    ".shinylive-cache/shinylive-0.5.0/shinylive/shinylive.css",
+    ".shinylive-cache/shinylive-0.5.0/shinylive/webr/R.wasm",
+  ]);
+});
+
 test("verifyReleaseArtifacts validates checksums and required validation-pack evidence", async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), "harness-release-verify-test-"));
   const releaseRoot = path.join(tempRoot, "release");
@@ -383,6 +400,7 @@ test("verifyReleaseArtifacts validates checksums and required validation-pack ev
       ["sbom.json", "{}\n"],
       ["licenses.md", "# Licenses\n"],
       ["validation-pack.zip", "zip-placeholder\n"],
+      ["validation-pack/validation-summary.md", "# Validation Summary\n"],
       ["validation-pack/release-smoke-plan.json", JSON.stringify({ schemaVersion: 1, apps: [] }, null, 2)],
       ["validation-pack/release-smoke-test.md", "# Smoke\n"],
       ["validation-pack/evidence-index.json", "{}\n"],
@@ -451,6 +469,7 @@ test("verifyReleaseArtifacts rejects unchecksummed release files", async () => {
       ["sbom.json", "{}\n"],
       ["licenses.md", "# Licenses\n"],
       ["validation-pack.zip", "zip-placeholder\n"],
+      ["validation-pack/validation-summary.md", "# Validation Summary\n"],
       ["validation-pack/release-smoke-plan.json", JSON.stringify({ schemaVersion: 1, apps: [] }, null, 2)],
       ["validation-pack/release-smoke-test.md", "# Smoke\n"],
       ["validation-pack/evidence-index.json", "{}\n"],

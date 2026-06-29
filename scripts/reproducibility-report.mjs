@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import { readdir, readFile, stat as fsStat } from "node:fs/promises";
+import { readFile, stat as fsStat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
@@ -142,29 +142,9 @@ const treeHashIfExists = async (relativeRoot, { kind = "directory-tree-hash", ma
   };
 };
 
-const shinyliveAssetAnchors = async () => {
-  const cacheRoot = path.join(rootDir, ".shinylive-cache");
-  if (!(await exists(cacheRoot))) {
-    return [
-      ".shinylive-cache/shinylive-<version>/export_template/index.html",
-      ".shinylive-cache/shinylive-<version>/shinylive/shinylive.js",
-      ".shinylive-cache/shinylive-<version>/shinylive/shinylive.css",
-      ".shinylive-cache/shinylive-<version>/shinylive/webr/R.wasm",
-    ];
-  }
-  const versions = (await readdir(cacheRoot, { withFileTypes: true }))
-    .filter((entry) => entry.isDirectory() && /^shinylive-\d+\.\d+\.\d+/.test(entry.name))
-    .map((entry) => entry.name)
-    .sort();
-  if (versions.length === 0) {
-    return [
-      ".shinylive-cache/shinylive-<version>/export_template/index.html",
-      ".shinylive-cache/shinylive-<version>/shinylive/shinylive.js",
-      ".shinylive-cache/shinylive-<version>/shinylive/shinylive.css",
-      ".shinylive-cache/shinylive-<version>/shinylive/webr/R.wasm",
-    ];
-  }
-  const version = versions.at(-1);
+export const resolveShinyliveAssetAnchors = (renvPackages = {}) => {
+  const pinnedVersion = renvPackages.shinylive?.pinned;
+  const version = pinnedVersion ? `shinylive-${pinnedVersion}` : "shinylive-<renv-lock-missing>";
   return [
     `.shinylive-cache/${version}/export_template/index.html`,
     `.shinylive-cache/${version}/shinylive/shinylive.js`,
@@ -213,6 +193,7 @@ export const createReproducibilityReport = async ({
   const pinnedR = await readTrimmed(".R-version");
   const rustToolchainText = await readTrimmed("rust-toolchain.toml");
   const rustChannel = rustToolchainText?.match(/channel\s*=\s*"([^"]+)"/)?.[1] ?? null;
+  const renvPackages = await readRenvPackages();
   const sourceFiles = [
     ...(await Promise.all(
       [
@@ -229,7 +210,7 @@ export const createReproducibilityReport = async ({
       ].map(hashIfExists),
     )),
   ].filter(Boolean);
-  const requiredAssetAnchors = await shinyliveAssetAnchors();
+  const requiredAssetAnchors = resolveShinyliveAssetAnchors(renvPackages);
   const exportTemplateRoot = requiredAssetAnchors.find((assetPath) => assetPath.endsWith("/export_template/index.html"))
     ?.replace(/\/index\.html$/, "");
   const assetHashes = includeAssetHashes
@@ -253,7 +234,6 @@ export const createReproducibilityReport = async ({
     cargo: includeObservedVersions ? await commandVersion("cargo", ["--version"], { timeout: 60_000 }) : { ok: true, raw: "skipped" },
     rscript: includeObservedVersions ? await commandVersion("Rscript") : { ok: true, raw: "skipped" },
   };
-  const renvPackages = await readRenvPackages();
   const rPackages = {
     shinylive: await rPackageVersion("shinylive"),
   };
