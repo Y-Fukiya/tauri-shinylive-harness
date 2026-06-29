@@ -122,7 +122,10 @@ npm run gate:internal-release
 `gate:internal-release` には unsigned platform build、Phase 3 packaging、
 artifact doctor checks、`verify:release`、strict local release audit が含まれます。
 特定 platform を指定して実行する場合は `HARNESS_TARGET_PLATFORM=macos` または
-`HARNESS_TARGET_PLATFORM=windows` を設定してください。
+`HARNESS_TARGET_PLATFORM=windows` を設定してください。これは release gate の
+対象 platform を選ぶための指定であり、Tauri のクロスビルド環境を自動で用意する
+ものではありません。明示的に cross-build tooling を構成していない限り、通常は
+対象 platform に一致する macOS / Windows runner 上で実行してください。
 
 資格情報ありの signed/notarized release candidate:
 

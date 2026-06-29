@@ -164,9 +164,11 @@ npm run gate:internal-release
 ```
 
 Set `HARNESS_TARGET_PLATFORM=macos` or `HARNESS_TARGET_PLATFORM=windows` when
-running the internal gate outside the matching host platform. GitHub Actions
-uses the `Internal Candidate` workflow to run the same gate on macOS and
-Windows runners.
+you need to select the release gate target platform. This does not provide
+cross-platform Tauri packaging by itself; run the gate on a matching macOS or
+Windows runner unless you have explicitly configured cross-build tooling.
+GitHub Actions uses the `Internal Candidate` workflow to run the same gate on
+macOS and Windows runners.
 
 Signed release candidates should use strict preflight through `gate:release`; missing signing or notarization credentials are expected to fail the gate:
 

@@ -122,7 +122,10 @@ npm run gate:internal-release
 `gate:internal-release` includes the unsigned platform build, Phase 3 packaging,
 artifact doctor checks, `verify:release`, and the strict local release audit.
 Set `HARNESS_TARGET_PLATFORM=macos` or `HARNESS_TARGET_PLATFORM=windows` when
-you need to run the internal gate for a specific target.
+you need to run the internal gate for a specific target. This selects the gate's
+target platform; it does not provide cross-platform Tauri packaging by itself.
+Run the gate on a matching macOS or Windows runner unless you have explicitly
+configured cross-build tooling.
 
 Signed/notarized release candidate:
 
