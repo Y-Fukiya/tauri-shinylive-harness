@@ -601,6 +601,15 @@ export const exists = async (targetPath) => {
   }
 };
 
+export const removeTree = async (targetPath) => {
+  await rm(targetPath, {
+    recursive: true,
+    force: true,
+    maxRetries: 8,
+    retryDelay: 150,
+  });
+};
+
 export const readJson = async (targetPath) => JSON.parse(await readFile(targetPath, "utf8"));
 
 export const writeJson = async (targetPath, value) => {
@@ -648,7 +657,7 @@ export const prepareDist = async (config = null) => {
   }
 
   await mkdir(distRoot, { recursive: true });
-  await rm(appsDist, { recursive: true, force: true });
+  await removeTree(appsDist);
   await copyFiltered(appsSource, appsDist);
 
   if (!(await exists(portalDist))) {

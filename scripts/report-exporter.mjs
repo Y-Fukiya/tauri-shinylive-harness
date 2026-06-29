@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { createHash } from "node:crypto";
-import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -9,6 +9,7 @@ import {
   appToManifest,
   exists,
   readConfig,
+  removeTree,
   reportsRoot,
   rootDir,
   sha256File,
@@ -544,14 +545,14 @@ export const exportReports = async ({ appId = null, subjectId = null, allSubject
     throw new Error(`No report-enabled app matched: ${appId}`);
   }
 
-  await rm(reportExportRoot, { recursive: true, force: true });
+  await removeTree(reportExportRoot);
   await mkdir(reportExportRoot, { recursive: true });
   const generatedAt = new Date().toISOString();
   const appResults = [];
 
   for (const app of apps) {
     const appOutputRoot = path.join(reportExportRoot, app.id);
-    await rm(appOutputRoot, { recursive: true, force: true });
+    await removeTree(appOutputRoot);
     await mkdir(appOutputRoot, { recursive: true });
     const data = await readClinicalData(app);
     const appManifest = await appToManifest(app);

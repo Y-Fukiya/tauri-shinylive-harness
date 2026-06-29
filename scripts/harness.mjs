@@ -15,7 +15,6 @@ import {
   commandForPlatform,
   configPath,
   exists,
-  prepareDist,
   readConfig,
   reportsRoot,
   rootDir,
@@ -873,8 +872,7 @@ const exportApps = async (appId) => {
 };
 
 const buildPortalAndPrepare = async () => {
-  await runCommand("npm", ["run", "build:portal"]);
-  await prepareDist();
+  await runCommand("npm", ["run", "build:all"]);
   await appendAudit("prepare", "ok");
 };
 

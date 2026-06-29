@@ -19,6 +19,7 @@ import { scanPhiPii } from "./phi-pii-guard.mjs";
 import { verifyOfflineBundle } from "./offline-verify.mjs";
 import { validateJsonSchema } from "./lib/schema-validation.mjs";
 import { cleanTauriBundles } from "./clean-tauri-bundles.mjs";
+import { buildSteps } from "./release-gate.mjs";
 
 const invalidClinicalFixtureIds = [
   "missing-required-column",
@@ -414,6 +415,42 @@ test("cleanTauriBundles removes stale Tauri bundle outputs before release packag
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
   }
+});
+
+test("release gate orders final verification after Tauri build and before release packaging", () => {
+  const stepNames = buildSteps({ platform: "macos", internal: false }).map((step) => step.name);
+  const indexOf = (name) => {
+    const index = stepNames.indexOf(name);
+    assert.notEqual(index, -1, `Expected release gate step ${name}`);
+    return index;
+  };
+
+  const cleanIndex = indexOf("clean:tauri-bundles");
+  const tauriIndex = indexOf("tauri:build:app");
+  const staticIndex = indexOf("verify:static:strict:final");
+  const phiIndex = indexOf("guard:phi:release:final");
+  const offlineIndex = indexOf("verify:offline:final");
+  const e2eIndex = indexOf("verify:e2e:final");
+  const reproducibilityIndex = indexOf("audit:reproducibility:strict:final");
+  const evidenceIndex = indexOf("evidence:index:final");
+  const packageIndex = indexOf("phase3:package:macos");
+  const releaseVerifyIndex = indexOf("verify:release");
+  const auditIndex = indexOf("local:audit:macos:strict");
+
+  assert.equal(cleanIndex < tauriIndex, true);
+  for (const finalIndex of [
+    staticIndex,
+    phiIndex,
+    offlineIndex,
+    e2eIndex,
+    reproducibilityIndex,
+    evidenceIndex,
+  ]) {
+    assert.equal(tauriIndex < finalIndex, true);
+    assert.equal(finalIndex < packageIndex, true);
+  }
+  assert.equal(packageIndex < releaseVerifyIndex, true);
+  assert.equal(releaseVerifyIndex < auditIndex, true);
 });
 
 test("verifyReleaseArtifacts validates checksums and required validation-pack evidence", async () => {

@@ -31,7 +31,7 @@ const normalizePlatform = (value) => {
   return platform;
 };
 
-const buildSteps = ({ platform, internal }) => {
+export const buildSteps = ({ platform, internal }) => {
   const preflightStep = internal
     ? {
         name: `phase3:preflight:${platform}:internal`,

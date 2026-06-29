@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-import { exists, parseHarnessToml, runCommand } from "./harness-core.mjs";
+import { exists, parseHarnessToml, removeTree, runCommand } from "./harness-core.mjs";
 
 const smokeRoot = await mkdtemp(path.join(os.tmpdir(), "tauri-shinylive-harness-smoke-"));
 const target = path.join(smokeRoot, "generated-harness");
@@ -78,7 +78,7 @@ try {
   }
 } finally {
   if (!process.argv.includes("--keep")) {
-    await rm(smokeRoot, { recursive: true, force: true });
+    await removeTree(smokeRoot);
   } else {
     console.error(`Kept smoke directory: ${smokeRoot}`);
   }

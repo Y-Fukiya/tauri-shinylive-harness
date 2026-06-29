@@ -1,9 +1,8 @@
 #!/usr/bin/env node
-import { rm } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { rootDir, toPosix } from "./harness-core.mjs";
+import { removeTree, rootDir, toPosix } from "./harness-core.mjs";
 
 export const tauriBundleTargets = [
   "src-tauri/target/release/bundle/macos",
@@ -14,7 +13,7 @@ export const tauriBundleTargets = [
 
 export const cleanTauriBundles = async ({ baseRoot = rootDir, targets = tauriBundleTargets } = {}) => {
   await Promise.all(
-    targets.map((target) => rm(path.join(baseRoot, target), { recursive: true, force: true })),
+    targets.map((target) => removeTree(path.join(baseRoot, target))),
   );
   return {
     ok: true,

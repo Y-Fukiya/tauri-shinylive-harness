@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-import { cp, mkdir, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-import { rootDir } from "./harness-core.mjs";
+import { removeTree, rootDir } from "./harness-core.mjs";
 
 const domains = [
   "demographics",
@@ -300,7 +300,7 @@ const generatePack = ({ id, scenario, count, description }) => {
 };
 
 const writePack = async (targetDir, pack) => {
-  await rm(targetDir, { recursive: true, force: true });
+  await removeTree(targetDir);
   await mkdir(targetDir, { recursive: true });
   await writeFile(path.join(targetDir, "clinical-demo-data-pack.json"), `${JSON.stringify(pack.metadata, null, 2)}\n`);
   await writeCsv(

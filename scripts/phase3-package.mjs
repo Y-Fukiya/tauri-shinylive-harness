@@ -12,6 +12,7 @@ import {
   exists,
   listFiles,
   readConfig,
+  removeTree,
   reportsRoot,
   rootDir,
   runCommand,
@@ -245,7 +246,7 @@ const notarizeIfConfigured = async (artifactPath) => {
 
 const createDmgFromAppBundle = async (config, appBundle, destination) => {
   const stagingRoot = path.join(releaseRoot, "dmg-staging");
-  await rm(stagingRoot, { recursive: true, force: true });
+  await removeTree(stagingRoot);
   await mkdir(stagingRoot, { recursive: true });
   await cp(appBundle, path.join(stagingRoot, path.basename(appBundle)), {
     recursive: true,
@@ -273,7 +274,7 @@ const createDmgFromAppBundle = async (config, appBundle, destination) => {
       destination,
     ]);
   } finally {
-    await rm(stagingRoot, { recursive: true, force: true });
+    await removeTree(stagingRoot);
   }
 
   if (process.env.APPLE_SIGNING_IDENTITY) {
@@ -305,7 +306,7 @@ const createValidationPack = async (config, assets, platform = "macos") => {
     submissionReady: false,
     artifactSha256: assets.map((asset) => ({ path: asset.name, sha256: asset.sha256 })),
   };
-  await rm(validationRoot, { recursive: true, force: true });
+  await removeTree(validationRoot);
   await mkdir(evidenceRoot, { recursive: true });
   await writeFile(path.join(releaseRoot, "release-summary.json"), `${JSON.stringify(releaseSummary, null, 2)}\n`);
   await writeFile(path.join(evidenceRoot, "release-summary.json"), `${JSON.stringify(releaseSummary, null, 2)}\n`);
@@ -532,7 +533,7 @@ const refreshReleaseSummaryWithFinalChecksums = async () => {
 };
 
 const packageWindows = async (config) => {
-  await rm(releaseRoot, { recursive: true, force: true });
+  await removeTree(releaseRoot);
   await mkdir(releaseRoot, { recursive: true });
 
   const nsisInstallers = await findAll(nsisRoot, (name) => name.endsWith(".exe"));
@@ -585,7 +586,7 @@ if (targetPlatform === "windows") {
   process.exit(0);
 }
 
-await rm(releaseRoot, { recursive: true, force: true });
+await removeTree(releaseRoot);
 await mkdir(releaseRoot, { recursive: true });
 
 const appBundle = await findFirst(macosBundleRoot, (name) => name.endsWith(".app"));

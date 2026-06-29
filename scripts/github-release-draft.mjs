@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-import { appendAudit, exists, listFiles, readConfig, rootDir, runCommand } from "./harness-core.mjs";
+import { appendAudit, exists, listFiles, readConfig, removeTree, rootDir, runCommand } from "./harness-core.mjs";
 
 const options = new Set(process.argv.slice(2));
 const config = await readConfig();
@@ -18,7 +18,7 @@ if (!(await exists(releaseRoot))) {
 }
 
 const uploadRoot = path.join(rootDir, ".release-upload");
-await rm(uploadRoot, { recursive: true, force: true });
+await removeTree(uploadRoot);
 await mkdir(uploadRoot, { recursive: true });
 
 const releaseFiles = (await listFiles(releaseRoot)).sort();

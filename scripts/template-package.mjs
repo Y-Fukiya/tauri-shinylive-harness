@@ -3,7 +3,7 @@ import { cp, mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promi
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { appendAudit, exists, listFiles, readConfig, rootDir, runCommand, sha256File, toPosix, writeJson } from "./harness-core.mjs";
+import { appendAudit, exists, listFiles, readConfig, removeTree, rootDir, runCommand, sha256File, toPosix, writeJson } from "./harness-core.mjs";
 
 const defaultOutputRoot = path.join(rootDir, "artifacts", "starter-template");
 const defaultReportPath = path.join(rootDir, "reports", "template-package-manifest.json");
@@ -169,7 +169,7 @@ export const createTemplatePackage = async ({
   const config = await readConfig();
   const starterName = `${config.distribution.artifactName}-starter`;
   const starterRoot = path.join(outputRoot, starterName);
-  await rm(starterRoot, { recursive: true, force: true });
+  await removeTree(starterRoot);
   await mkdir(starterRoot, { recursive: true });
   await copySelected(includePaths, starterRoot);
   await writeTemplateReadme(starterRoot, config);

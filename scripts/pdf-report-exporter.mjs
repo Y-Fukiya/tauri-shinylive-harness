@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 import { createHash } from "node:crypto";
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { appendAudit, exists, reportsRoot, rootDir, sha256File, toPosix, writeJson } from "./harness-core.mjs";
+import { appendAudit, exists, removeTree, reportsRoot, rootDir, sha256File, toPosix, writeJson } from "./harness-core.mjs";
 
 const defaultReportManifestPath = path.join(reportsRoot, "report-export-manifest.json");
 const defaultOutputRoot = path.join(reportsRoot, "exported-pdf");
@@ -195,7 +195,7 @@ export const exportReportPdfs = async ({
   const appResults = [];
 
   if (writeOutputs) {
-    await rm(outputRoot, { recursive: true, force: true });
+    await removeTree(outputRoot);
     await mkdir(outputRoot, { recursive: true });
   }
 
