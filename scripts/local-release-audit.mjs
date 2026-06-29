@@ -73,6 +73,8 @@ const summarizeCommand = (result) => ({
   stderr: result.stderr.slice(0, 4000),
 });
 
+export const shouldFailStrictAudit = ({ strict = false, ok = false } = {}) => Boolean(strict && !ok);
+
 const readTextIfExists = async (targetPath) =>
   (await exists(targetPath)) ? readFile(targetPath, "utf8") : "";
 
@@ -425,6 +427,6 @@ await appendAudit("local-release-audit", status, {
 
 console.log(JSON.stringify(report, null, 2));
 
-if (options.strict && !externalDistributionReady) {
+if (shouldFailStrictAudit({ strict: options.strict, ok })) {
   process.exit(1);
 }

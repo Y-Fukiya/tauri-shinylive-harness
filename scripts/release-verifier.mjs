@@ -2,6 +2,7 @@
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { isDeepStrictEqual } from "node:util";
 
 import { exists, listFiles, reportsRoot, rootDir, sha256File, toPosix, writeJson } from "./harness-core.mjs";
 
@@ -203,6 +204,7 @@ export const verifyReleaseArtifacts = async ({
   }
 
   const releaseSummaryPath = path.join(resolvedReleaseRoot, "release-summary.json");
+  const embeddedReleaseSummaryPath = path.join(resolvedReleaseRoot, "validation-pack", "evidence", "release-summary.json");
   let releaseSummary = null;
   if (await exists(releaseSummaryPath)) {
     try {
@@ -241,6 +243,20 @@ export const verifyReleaseArtifacts = async ({
       }
     } catch (error) {
       issues.push(issue("error", "release-summary-json", "release-summary.json is not valid JSON.", {
+        message: error instanceof Error ? error.message : String(error),
+      }));
+    }
+  }
+  if (releaseSummary && await exists(embeddedReleaseSummaryPath)) {
+    try {
+      const embeddedReleaseSummary = JSON.parse(await readFile(embeddedReleaseSummaryPath, "utf8"));
+      if (!isDeepStrictEqual(embeddedReleaseSummary, releaseSummary)) {
+        issues.push(issue("error", "embedded-release-summary-mismatch", "validation-pack/evidence/release-summary.json must match the top-level release-summary.json.", {
+          path: "validation-pack/evidence/release-summary.json",
+        }));
+      }
+    } catch (error) {
+      issues.push(issue("error", "embedded-release-summary-json", "validation-pack/evidence/release-summary.json is not valid JSON.", {
         message: error instanceof Error ? error.message : String(error),
       }));
     }

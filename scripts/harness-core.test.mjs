@@ -496,6 +496,7 @@ test("release gate orders final verification after Tauri build and before releas
 test("internal release gate passes internal flag to phase3 package step", () => {
   const packageStep = buildSteps({ platform: "macos", internal: true }).find((step) => step.name === "phase3:package:macos");
   const preflightStep = buildSteps({ platform: "macos", internal: true }).find((step) => step.name === "phase3:preflight:macos:internal");
+  const auditStep = buildSteps({ platform: "macos", internal: true }).find((step) => step.name === "local:audit:macos:internal-strict");
 
   assert.deepEqual(preflightStep.args, [
     "scripts/phase3-preflight.mjs",
@@ -506,6 +507,19 @@ test("internal release gate passes internal flag to phase3 package step", () => 
   ]);
   assert.equal(packageStep.command, "node");
   assert.deepEqual(packageStep.args, ["scripts/phase3-package.mjs", "--platform", "macos", "--internal"]);
+  assert.equal(auditStep.command, "npm");
+  assert.deepEqual(auditStep.args, ["run", "local:audit:macos", "--", "--strict"]);
+});
+
+test("internal release gate runs local audit as a strict internal-aware gate", () => {
+  for (const platform of ["macos", "windows"]) {
+    const auditStep = buildSteps({ platform, internal: true }).find(
+      (step) => step.name === `local:audit:${platform}:internal-strict`,
+    );
+
+    assert.equal(auditStep.command, "npm");
+    assert.deepEqual(auditStep.args, ["run", `local:audit:${platform}`, "--", "--strict"]);
+  }
 });
 
 test("release gate separates strict and internal phase3 preflight execution", () => {
@@ -974,6 +988,29 @@ test("verifyReleaseArtifacts rejects self-referential release summary finalRelea
       result.issues.some((issue) => issue.code === "release-summary-final-checksum-self-referential-entry"),
       true,
     );
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("verifyReleaseArtifacts rejects embedded release summary drift", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "harness-embedded-release-summary-test-"));
+  const releaseRoot = path.join(tempRoot, "release");
+
+  try {
+    await createMinimalReleaseFixture(releaseRoot, {
+      "release-summary.json": JSON.stringify({ releaseType: "unsigned-internal-candidate", finalReleaseChecksums: [] }, null, 2),
+      "validation-pack/evidence/release-summary.json": JSON.stringify({ releaseType: "stale", finalReleaseChecksums: [] }, null, 2),
+    });
+
+    const result = await verifyReleaseArtifacts({
+      releaseRoot,
+      reportPath: path.join(tempRoot, "release-artifact-verification.json"),
+      writeReport: true,
+    });
+
+    assert.equal(result.ok, false);
+    assert.equal(result.issues.some((issue) => issue.code === "embedded-release-summary-mismatch"), true);
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
   }

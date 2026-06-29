@@ -67,14 +67,14 @@ export const buildSteps = ({ platform, internal }) => {
       };
   const localAuditStep = platform === "windows"
     ? {
-        name: internal ? "local:audit:windows" : "local:audit:windows:strict",
+        name: internal ? "local:audit:windows:internal-strict" : "local:audit:windows:strict",
         command: "npm",
-        args: ["run", "local:audit:windows", ...(internal ? [] : ["--", "--strict"])],
+        args: ["run", "local:audit:windows", "--", "--strict"],
       }
     : {
-        name: internal ? "local:audit:macos" : "local:audit:macos:strict",
+        name: internal ? "local:audit:macos:internal-strict" : "local:audit:macos:strict",
         command: "npm",
-        args: ["run", "local:audit:macos", ...(internal ? [] : ["--", "--strict"])],
+        args: ["run", "local:audit:macos", "--", "--strict"],
       };
 
   return [
