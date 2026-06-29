@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 import { appendAudit, exists, readConfig, reportsRoot, rootDir } from "./harness-core.mjs";
+import { evaluatePhase3Readiness } from "./lib/phase3-readiness.mjs";
 
 const runCapture = (command, args, options = {}) =>
   new Promise((resolve) => {
@@ -146,17 +147,20 @@ if (targetPlatform === "windows") {
   const internalBlockingItems = [
     ...(!toolingReady ? ["Windows package tooling is incomplete. Check PowerShell availability."] : []),
   ];
-  const externalReady = externalBlockingItems.length === 0;
-  const internalReady = internalRelease && internalBlockingItems.length === 0;
-  const ok = internalRelease ? internalReady : externalReady;
+  const readiness = evaluatePhase3Readiness({
+    internalRelease,
+    externalBlockingItems,
+    internalBlockingItems,
+    allowedMissingCredentials,
+  });
 
   const report = {
     schemaVersion: 1,
     platform: "windows",
     releaseType,
-    ok,
-    internalReady,
-    externalReady,
+    ok: readiness.ok,
+    internalReady: readiness.internalReady,
+    externalReady: readiness.externalReady,
     allowedMissingCredentials,
     checkedAt: new Date().toISOString(),
     project: config.project,
@@ -168,7 +172,7 @@ if (targetPlatform === "windows") {
     toolingReady,
     windowsEnvironment: windows,
     commands,
-    issues: internalRelease ? internalBlockingItems : issues,
+    issues: readiness.issues,
     internalBlockingItems,
     externalBlockingItems,
   };
@@ -185,8 +189,8 @@ if (targetPlatform === "windows") {
       `Release type: ${releaseType}`,
       `Checked: ${report.checkedAt}`,
       `Host: ${os.hostname()}`,
-      `Internal ready: ${internalReady}`,
-      `External ready: ${externalReady}`,
+      `Internal ready: ${readiness.internalReady}`,
+      `External ready: ${readiness.externalReady}`,
       "",
       "| Area | Ready |",
       "| --- | --- |",
@@ -206,16 +210,15 @@ if (targetPlatform === "windows") {
   await appendAudit("phase3-preflight", report.ok ? "ok" : "blocked", {
     platform: "windows",
     releaseType,
-    internalReady,
-    externalReady,
+    internalReady: readiness.internalReady,
+    externalReady: readiness.externalReady,
     signingReady,
     githubReady,
     toolingReady,
     issueCount: report.issues.length,
   });
 
-  const shouldFail = internalRelease ? !internalReady : !externalReady && !allowedMissingCredentials;
-  if (shouldFail) {
+  if (readiness.shouldFail) {
     console.error(report.issues.join("\n"));
     process.exit(1);
   }
@@ -318,17 +321,20 @@ const externalBlockingItems = [...issues];
 const internalBlockingItems = [
   ...(!internalToolingReady ? ["macOS internal packaging tooling is incomplete. Check ditto and hdiutil."] : []),
 ];
-const externalReady = externalBlockingItems.length === 0;
-const internalReady = internalRelease && internalBlockingItems.length === 0;
-const ok = internalRelease ? internalReady : externalReady;
+const readiness = evaluatePhase3Readiness({
+  internalRelease,
+  externalBlockingItems,
+  internalBlockingItems,
+  allowedMissingCredentials,
+});
 
 const report = {
   schemaVersion: 1,
   platform: "macos",
   releaseType,
-  ok,
-  internalReady,
-  externalReady,
+  ok: readiness.ok,
+  internalReady: readiness.internalReady,
+  externalReady: readiness.externalReady,
   allowedMissingCredentials,
   checkedAt: new Date().toISOString(),
   project: config.project,
@@ -349,7 +355,7 @@ const report = {
     ...commands,
     ...internalPackagingCommands,
   },
-  issues: internalRelease ? internalBlockingItems : issues,
+  issues: readiness.issues,
   internalBlockingItems,
   externalBlockingItems,
 };
@@ -365,8 +371,8 @@ await writeFile(
     "Platform: macOS",
     `Release type: ${releaseType}`,
     `Checked: ${report.checkedAt}`,
-    `Internal ready: ${internalReady}`,
-    `External ready: ${externalReady}`,
+    `Internal ready: ${readiness.internalReady}`,
+    `External ready: ${readiness.externalReady}`,
     "",
     "| Area | Ready |",
     "| --- | --- |",
@@ -391,8 +397,8 @@ await writeFile(
 );
 await appendAudit("phase3-preflight", report.ok ? "ok" : "blocked", {
   releaseType,
-  internalReady,
-  externalReady,
+  internalReady: readiness.internalReady,
+  externalReady: readiness.externalReady,
   signingReady,
   installerSigningReady,
   notarizationReady,
@@ -403,8 +409,7 @@ await appendAudit("phase3-preflight", report.ok ? "ok" : "blocked", {
   issueCount: report.issues.length,
 });
 
-const shouldFail = internalRelease ? !internalReady : !externalReady && !allowedMissingCredentials;
-if (shouldFail) {
+if (readiness.shouldFail) {
   console.error(report.issues.join("\n"));
   process.exit(1);
 }

@@ -1,7 +1,0 @@
-{
-  "id": "subject-snapshot",
-  "title": "Subject Snapshot Report",
-  "description": "Concise subject-level profile summary with KPI tiles, narrative, and traceable source rows.",
-  "kind": "subject-level",
-  "defaultFile": "subject-snapshot.html"
-}

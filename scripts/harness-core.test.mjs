@@ -18,6 +18,7 @@ import { createTemplatePackage } from "./template-package.mjs";
 import { scanPhiPii } from "./phi-pii-guard.mjs";
 import { verifyOfflineBundle } from "./offline-verify.mjs";
 import { validateJsonSchema } from "./lib/schema-validation.mjs";
+import { evaluatePhase3Readiness } from "./lib/phase3-readiness.mjs";
 import { cleanTauriBundles } from "./clean-tauri-bundles.mjs";
 import { buildSteps } from "./release-gate.mjs";
 import { selectCandidateReleaseAssets } from "./github-release-draft.mjs";
@@ -542,6 +543,58 @@ test("release gate separates strict and internal phase3 preflight execution", ()
       "--allow-missing-credentials",
     ]);
   }
+});
+
+test("phase3 preflight readiness allows internal macOS without external credentials", () => {
+  const result = evaluatePhase3Readiness({
+    internalRelease: true,
+    internalBlockingItems: [],
+    externalBlockingItems: [
+      "Missing signing input",
+      "Missing notarization credentials",
+    ],
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.internalReady, true);
+  assert.equal(result.externalReady, false);
+  assert.deepEqual(result.issues, []);
+  assert.equal(result.shouldFail, false);
+});
+
+test("phase3 preflight readiness blocks internal macOS when packaging tooling is missing", () => {
+  const result = evaluatePhase3Readiness({
+    internalRelease: true,
+    allowedMissingCredentials: true,
+    internalBlockingItems: ["macOS internal packaging tooling is incomplete. Check ditto and hdiutil."],
+    externalBlockingItems: ["Missing signing input"],
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.internalReady, false);
+  assert.equal(result.externalReady, false);
+  assert.deepEqual(result.issues, ["macOS internal packaging tooling is incomplete. Check ditto and hdiutil."]);
+  assert.equal(result.shouldFail, true);
+});
+
+test("phase3 preflight readiness blocks signed macOS release without credentials", () => {
+  const result = evaluatePhase3Readiness({
+    internalRelease: false,
+    internalBlockingItems: [],
+    externalBlockingItems: [
+      "Missing signing input",
+      "Missing notarization credentials",
+    ],
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.internalReady, false);
+  assert.equal(result.externalReady, false);
+  assert.deepEqual(result.issues, [
+    "Missing signing input",
+    "Missing notarization credentials",
+  ]);
+  assert.equal(result.shouldFail, true);
 });
 
 test("package scripts expose explicit phase3 preflight aliases", async () => {

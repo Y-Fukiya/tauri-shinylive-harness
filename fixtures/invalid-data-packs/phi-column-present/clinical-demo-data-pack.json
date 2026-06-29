@@ -1,8 +1,0 @@
-{
-  "id": "invalid-phi-column-present",
-  "version": "1.0.0",
-  "synthetic": true,
-  "description": "Invalid fixture containing PHI-like columns for guard testing.",
-  "primarySubject": "SUBJ-001",
-  "domains": ["demographics"]
-}

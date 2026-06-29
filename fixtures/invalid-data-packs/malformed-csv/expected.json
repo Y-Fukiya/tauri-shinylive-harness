@@ -1,9 +1,0 @@
-{
-  "expectedOk": false,
-  "expectedCodes": [
-    "invalid-csv"
-  ],
-  "expectedSeverities": [
-    "error"
-  ]
-}

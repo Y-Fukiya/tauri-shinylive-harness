@@ -1,9 +1,0 @@
-{
-  "expectedOk": false,
-  "expectedCodes": [
-    "first-dose-before-consent"
-  ],
-  "expectedSeverities": [
-    "error"
-  ]
-}

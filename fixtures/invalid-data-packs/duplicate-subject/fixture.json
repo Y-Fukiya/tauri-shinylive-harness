@@ -1,9 +1,0 @@
-{
-  "baseDataPack": "clinical-demo-subject-profile-v1",
-  "mutations": [
-    {
-      "type": "duplicateFirstDataRow",
-      "file": "demographics.csv"
-    }
-  ]
-}
