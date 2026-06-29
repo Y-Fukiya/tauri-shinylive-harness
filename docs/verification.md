@@ -154,16 +154,19 @@ Informational preflight can be used to document missing credentials without trea
 npm run phase3:preflight:info
 ```
 
-Unsigned internal candidates should use the internal release gate:
+Unsigned internal candidates should use the internal release gate. The gate runs
+the unsigned platform build, Phase 3 packaging, artifact doctor checks,
+`verify:release`, and the strict local release audit; do not run those steps as a
+separate manual chain unless you are debugging a failed gate step.
 
 ```sh
 npm run gate:internal-release
-npm run tauri:build:app:no-sign
-npm run phase3:package
-npm run tauri:build:windows:no-sign
-npm run phase3:package:windows
-npm run verify:release
 ```
+
+Set `HARNESS_TARGET_PLATFORM=macos` or `HARNESS_TARGET_PLATFORM=windows` when
+running the internal gate outside the matching host platform. GitHub Actions
+uses the `Internal Candidate` workflow to run the same gate on macOS and
+Windows runners.
 
 Signed release candidates should use strict preflight through `gate:release`; missing signing or notarization credentials are expected to fail the gate:
 

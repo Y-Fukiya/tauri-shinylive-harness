@@ -116,10 +116,13 @@ Phase 3 has three preflight modes:
 Unsigned internal candidate:
 
 ```sh
-npm run build:release-local
-npm run build:release-windows-local
-npm run verify:release
+npm run gate:internal-release
 ```
+
+`gate:internal-release` includes the unsigned platform build, Phase 3 packaging,
+artifact doctor checks, `verify:release`, and the strict local release audit.
+Set `HARNESS_TARGET_PLATFORM=macos` or `HARNESS_TARGET_PLATFORM=windows` when
+you need to run the internal gate for a specific target.
 
 Signed/notarized release candidate:
 

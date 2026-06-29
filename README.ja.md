@@ -116,10 +116,13 @@ Phase 3 の preflight は3種類に分けています。
 資格情報なしの unsigned internal candidate:
 
 ```sh
-npm run build:release-local
-npm run build:release-windows-local
-npm run verify:release
+npm run gate:internal-release
 ```
+
+`gate:internal-release` には unsigned platform build、Phase 3 packaging、
+artifact doctor checks、`verify:release`、strict local release audit が含まれます。
+特定 platform を指定して実行する場合は `HARNESS_TARGET_PLATFORM=macos` または
+`HARNESS_TARGET_PLATFORM=windows` を設定してください。
 
 資格情報ありの signed/notarized release candidate:
 
