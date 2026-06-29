@@ -298,6 +298,39 @@ const createDmgFromAppBundle = async (config, appBundle, destination, { internal
   }
 };
 
+const rebuildValidationPackEvidenceIndex = async (config, context, validationRoot) => {
+  const evidenceFiles = (await listFiles(validationRoot))
+    .filter((file) => toPosix(file) !== "evidence-index.json")
+    .sort();
+  const evidence = [];
+  for (const file of evidenceFiles) {
+    const fullPath = path.join(validationRoot, file);
+    const metadata = await stat(fullPath);
+    evidence.push({
+      path: toPosix(file),
+      size: metadata.size,
+      sha256: await sha256File(fullPath),
+    });
+  }
+
+  await writeFile(
+    path.join(validationRoot, "evidence-index.json"),
+    `${JSON.stringify(
+      {
+        schemaVersion: 1,
+        generatedAt: new Date().toISOString(),
+        project: config.project,
+        distribution: config.distribution,
+        context,
+        evidence,
+      },
+      null,
+      2,
+    )}\n`,
+  );
+  return evidence;
+};
+
 const createValidationPack = async (config, assets, platform = "macos") => {
   const validationRoot = path.join(releaseRoot, "validation-pack");
   const evidenceRoot = path.join(validationRoot, "evidence");
@@ -371,34 +404,6 @@ const createValidationPack = async (config, assets, platform = "macos") => {
     `${JSON.stringify(releaseSmokePlan, null, 2)}\n`,
   );
   await writeFile(path.join(validationRoot, "release-smoke-test.md"), renderReleaseSmokeMarkdown(releaseSmokePlan));
-
-  const evidenceFiles = (await listFiles(validationRoot)).sort();
-  const evidence = [];
-  for (const file of evidenceFiles) {
-    const fullPath = path.join(validationRoot, file);
-    const metadata = await stat(fullPath);
-    evidence.push({
-      path: toPosix(file),
-      size: metadata.size,
-      sha256: await sha256File(fullPath),
-    });
-  }
-
-  await writeFile(
-    path.join(validationRoot, "evidence-index.json"),
-    `${JSON.stringify(
-      {
-        schemaVersion: 1,
-        generatedAt: new Date().toISOString(),
-        project: config.project,
-        distribution: config.distribution,
-        context,
-        evidence,
-      },
-      null,
-      2,
-    )}\n`,
-  );
   await writeFile(
     path.join(validationRoot, "validation-summary.md"),
     [
@@ -470,7 +475,8 @@ const createValidationPack = async (config, assets, platform = "macos") => {
       "",
       "## Included Evidence",
       "",
-      ...evidence.map((item) => `- ${item.path} (${item.sha256})`),
+      "The authoritative evidence inventory is `evidence-index.json`.",
+      "The authoritative release artifact checksum manifest is `../SHA256SUMS`.",
       "",
       "## Release Assets",
       "",
@@ -478,6 +484,7 @@ const createValidationPack = async (config, assets, platform = "macos") => {
       "",
     ].join("\n"),
   );
+  await rebuildValidationPackEvidenceIndex(config, context, validationRoot);
 };
 
 const createZip = async (source, destination) => {
@@ -537,10 +544,22 @@ const writeFinalChecksums = async () => {
   return { finalFiles, checksumLines, entries };
 };
 
-const refreshReleaseSummaryWithFinalChecksums = async () => {
+const refreshReleaseSummaryWithFinalChecksums = async (config) => {
   const summaryPath = path.join(releaseRoot, "release-summary.json");
   if (!(await exists(summaryPath))) {
     return { finalFiles: [], checksumLines: [], entries: [] };
+  }
+
+  const validationRoot = path.join(releaseRoot, "validation-pack");
+  const evidenceIndexPath = path.join(validationRoot, "evidence-index.json");
+  let context = await releaseContext(config);
+  try {
+    if (await exists(evidenceIndexPath)) {
+      const existingIndex = JSON.parse(await readFile(evidenceIndexPath, "utf8"));
+      context = existingIndex.context ?? context;
+    }
+  } catch {
+    context = await releaseContext(config);
   }
 
   const firstPass = await writeFinalChecksums();
@@ -560,8 +579,9 @@ const refreshReleaseSummaryWithFinalChecksums = async () => {
     ].includes(entry.path),
   );
   await writeFile(summaryPath, `${JSON.stringify(releaseSummary, null, 2)}\n`);
-  await copyIfExists(summaryPath, path.join(releaseRoot, "validation-pack", "evidence", "release-summary.json"));
-  await createZip(path.join(releaseRoot, "validation-pack"), path.join(releaseRoot, "validation-pack.zip"));
+  await copyIfExists(summaryPath, path.join(validationRoot, "evidence", "release-summary.json"));
+  await rebuildValidationPackEvidenceIndex(config, context, validationRoot);
+  await createZip(validationRoot, path.join(releaseRoot, "validation-pack.zip"));
   return writeFinalChecksums();
 };
 
@@ -601,7 +621,7 @@ const packageWindows = async (config) => {
 
   await writeReleaseNotes(config, "windows");
 
-  const { finalFiles, checksumLines } = await refreshReleaseSummaryWithFinalChecksums();
+  const { finalFiles, checksumLines } = await refreshReleaseSummaryWithFinalChecksums(config);
   await appendAudit("phase3-package", "ok", {
     platform: "windows",
     releaseType,
@@ -681,7 +701,7 @@ await createZip(path.join(releaseRoot, "validation-pack"), path.join(releaseRoot
 
 await writeReleaseNotes(config, "macos");
 
-const { finalFiles, checksumLines } = await refreshReleaseSummaryWithFinalChecksums();
+const { finalFiles, checksumLines } = await refreshReleaseSummaryWithFinalChecksums(config);
 
 await appendAudit("phase3-package", "ok", {
   platform: "macos",

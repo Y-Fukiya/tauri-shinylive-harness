@@ -99,6 +99,15 @@ const safeReleasePath = (releaseRoot, relativePath) => {
   return resolved;
 };
 
+const safeChildPath = (rootDirectory, relativePath, label) => {
+  const resolved = path.resolve(rootDirectory, relativePath);
+  const root = path.resolve(rootDirectory);
+  if (resolved !== root && !resolved.startsWith(`${root}${path.sep}`)) {
+    throw new Error(`${label} path escapes root: ${relativePath}`);
+  }
+  return resolved;
+};
+
 export const verifyReleaseArtifacts = async ({
   releaseRoot = path.join(rootDir, "release"),
   reportPath = path.join(reportsRoot, "release-artifact-verification.json"),
@@ -186,6 +195,53 @@ export const verifyReleaseArtifacts = async ({
     }
   }
 
+  const validationRoot = path.join(resolvedReleaseRoot, "validation-pack");
+  const evidenceIndexPath = path.join(validationRoot, "evidence-index.json");
+  let validationPackEvidenceIndex = null;
+  if (await exists(evidenceIndexPath)) {
+    try {
+      validationPackEvidenceIndex = JSON.parse(await readFile(evidenceIndexPath, "utf8"));
+      if (validationPackEvidenceIndex.schemaVersion !== 1) {
+        issues.push(issue("error", "validation-pack-evidence-index-schema", "validation-pack/evidence-index.json must declare schemaVersion: 1."));
+      }
+      if (!Array.isArray(validationPackEvidenceIndex.evidence)) {
+        issues.push(issue("error", "validation-pack-evidence-index-evidence", "validation-pack/evidence-index.json must include an evidence array."));
+      } else {
+        for (const entry of validationPackEvidenceIndex.evidence) {
+          if (!entry || typeof entry.path !== "string") {
+            issues.push(issue("error", "validation-pack-evidence-index-entry", "Evidence index entry must include a path.", { entry }));
+            continue;
+          }
+          let targetPath;
+          try {
+            targetPath = safeChildPath(validationRoot, entry.path, "Validation pack evidence index");
+          } catch (error) {
+            issues.push(issue("error", "validation-pack-evidence-index-path-escape", error instanceof Error ? error.message : String(error), { path: entry.path }));
+            continue;
+          }
+          if (!(await exists(targetPath))) {
+            issues.push(issue("error", "validation-pack-evidence-index-target-missing", "validation-pack/evidence-index.json references a missing file.", { path: entry.path }));
+            continue;
+          }
+          const metadata = await stat(targetPath);
+          if (typeof entry.size === "number" && metadata.size !== entry.size) {
+            issues.push(issue("error", "validation-pack-evidence-index-size-mismatch", "validation-pack/evidence-index.json size does not match the evidence file.", { path: entry.path, expected: entry.size, actual: metadata.size }));
+          }
+          if (typeof entry.sha256 === "string") {
+            const actual = await sha256File(targetPath);
+            if (actual !== entry.sha256.toLowerCase()) {
+              issues.push(issue("error", "validation-pack-evidence-index-hash-mismatch", "validation-pack/evidence-index.json hash does not match the evidence file.", { path: entry.path, expected: entry.sha256.toLowerCase(), actual }));
+            }
+          }
+        }
+      }
+    } catch (error) {
+      issues.push(issue("error", "validation-pack-evidence-index-json", "validation-pack/evidence-index.json is not valid JSON.", {
+        message: error instanceof Error ? error.message : String(error),
+      }));
+    }
+  }
+
   const smokePlanPath = path.join(resolvedReleaseRoot, "validation-pack", "release-smoke-plan.json");
   let releaseSmokePlan = null;
   if (await exists(smokePlanPath)) {
@@ -220,6 +276,7 @@ export const verifyReleaseArtifacts = async ({
     },
     files,
     checksumEntries,
+    validationPackEvidenceIndex,
     releaseSmokePlan,
     issues,
   };
