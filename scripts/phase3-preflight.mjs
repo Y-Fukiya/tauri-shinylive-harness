@@ -169,6 +169,7 @@ if (targetPlatform === "windows") {
     windowsEnvironment: windows,
     commands,
     issues: internalRelease ? internalBlockingItems : issues,
+    internalBlockingItems,
     externalBlockingItems,
   };
 
@@ -349,6 +350,7 @@ const report = {
     ...internalPackagingCommands,
   },
   issues: internalRelease ? internalBlockingItems : issues,
+  internalBlockingItems,
   externalBlockingItems,
 };
 

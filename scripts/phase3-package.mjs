@@ -544,6 +544,13 @@ const writeFinalChecksums = async () => {
   return { finalFiles, checksumLines, entries };
 };
 
+const selfReferentialReleaseSummaryExclusions = new Set([
+  "release-summary.json",
+  "validation-pack.zip",
+  "validation-pack/evidence/release-summary.json",
+  "validation-pack/evidence-index.json",
+]);
+
 const refreshReleaseSummaryWithFinalChecksums = async (config) => {
   const summaryPath = path.join(releaseRoot, "release-summary.json");
   if (!(await exists(summaryPath))) {
@@ -569,14 +576,11 @@ const refreshReleaseSummaryWithFinalChecksums = async (config) => {
     generatedAt: new Date().toISOString(),
     preSummaryReleaseFingerprint: sha256Text(firstPass.checksumLines.join("\n")),
     authoritative: true,
-    note: "SHA256SUMS is the authoritative final release checksum manifest. finalReleaseChecksums excludes self-referential summary and validation-pack zip artifacts.",
+    note:
+      "SHA256SUMS is the authoritative final release checksum manifest. finalReleaseChecksums excludes self-referential release summary, validation-pack zip, validation-pack evidence index, and embedded release summary artifacts.",
   };
   releaseSummary.finalReleaseChecksums = firstPass.entries.filter(
-    (entry) => ![
-      "release-summary.json",
-      "validation-pack.zip",
-      "validation-pack/evidence/release-summary.json",
-    ].includes(entry.path),
+    (entry) => !selfReferentialReleaseSummaryExclusions.has(entry.path),
   );
   await writeFile(summaryPath, `${JSON.stringify(releaseSummary, null, 2)}\n`);
   await copyIfExists(summaryPath, path.join(validationRoot, "evidence", "release-summary.json"));

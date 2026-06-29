@@ -108,6 +108,13 @@ const safeChildPath = (rootDirectory, relativePath, label) => {
   return resolved;
 };
 
+export const selfReferentialFinalChecksumEntries = new Set([
+  "release-summary.json",
+  "validation-pack.zip",
+  "validation-pack/evidence/release-summary.json",
+  "validation-pack/evidence-index.json",
+]);
+
 export const verifyReleaseArtifacts = async ({
   releaseRoot = path.join(rootDir, "release"),
   reportPath = path.join(reportsRoot, "release-artifact-verification.json"),
@@ -195,6 +202,50 @@ export const verifyReleaseArtifacts = async ({
     }
   }
 
+  const releaseSummaryPath = path.join(resolvedReleaseRoot, "release-summary.json");
+  let releaseSummary = null;
+  if (await exists(releaseSummaryPath)) {
+    try {
+      releaseSummary = JSON.parse(await readFile(releaseSummaryPath, "utf8"));
+      if (releaseSummary.finalReleaseChecksums !== undefined) {
+        if (!Array.isArray(releaseSummary.finalReleaseChecksums)) {
+          issues.push(issue("error", "release-summary-final-checksum-list", "release-summary.json finalReleaseChecksums must be an array."));
+        } else {
+          for (const entry of releaseSummary.finalReleaseChecksums) {
+            if (!entry || typeof entry.path !== "string" || typeof entry.sha256 !== "string") {
+              issues.push(issue("error", "release-summary-final-checksum-entry", "release-summary.json finalReleaseChecksums entries must include path and sha256.", { entry }));
+              continue;
+            }
+            const entryPath = toPosix(entry.path);
+            if (selfReferentialFinalChecksumEntries.has(entryPath)) {
+              issues.push(issue("error", "release-summary-final-checksum-self-referential-entry", "release-summary.json finalReleaseChecksums must not include self-referential release evidence.", { path: entryPath }));
+              continue;
+            }
+            let targetPath;
+            try {
+              targetPath = safeReleasePath(resolvedReleaseRoot, entryPath);
+            } catch (error) {
+              issues.push(issue("error", "release-summary-final-checksum-path-escape", error instanceof Error ? error.message : String(error), { path: entryPath }));
+              continue;
+            }
+            if (!(await exists(targetPath))) {
+              issues.push(issue("error", "release-summary-final-checksum-target-missing", "release-summary.json finalReleaseChecksums references a missing release file.", { path: entryPath }));
+              continue;
+            }
+            const actual = await sha256File(targetPath);
+            if (actual !== entry.sha256.toLowerCase()) {
+              issues.push(issue("error", "release-summary-final-checksum-mismatch", "release-summary.json finalReleaseChecksums hash does not match the release file.", { path: entryPath, expected: entry.sha256.toLowerCase(), actual }));
+            }
+          }
+        }
+      }
+    } catch (error) {
+      issues.push(issue("error", "release-summary-json", "release-summary.json is not valid JSON.", {
+        message: error instanceof Error ? error.message : String(error),
+      }));
+    }
+  }
+
   const validationRoot = path.join(resolvedReleaseRoot, "validation-pack");
   const evidenceIndexPath = path.join(validationRoot, "evidence-index.json");
   let validationPackEvidenceIndex = null;
@@ -276,6 +327,7 @@ export const verifyReleaseArtifacts = async ({
     },
     files,
     checksumEntries,
+    releaseSummary,
     validationPackEvidenceIndex,
     releaseSmokePlan,
     issues,
