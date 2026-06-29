@@ -667,6 +667,71 @@ test("verifyReleaseArtifacts rejects unchecksummed release files", async () => {
   }
 });
 
+test("verifyReleaseArtifacts rejects stale release notes hash table entries", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "harness-release-notes-hash-test-"));
+  const releaseRoot = path.join(tempRoot, "release");
+  const evidenceRoot = path.join(releaseRoot, "validation-pack", "evidence");
+
+  try {
+    await mkdir(evidenceRoot, { recursive: true });
+    const files = new Map([
+      ["RELEASE_NOTES.md", "# Demo\n\nNot for clinical decision making.\n\n| Asset | SHA-256 |\n| --- | --- |\n| release-summary.json | 0000000000000000000000000000000000000000000000000000000000000000 |\n"],
+      ["release-summary.json", "{\"ok\":true}\n"],
+      ["sbom.json", "{}\n"],
+      ["licenses.md", "# Licenses\n"],
+      ["validation-pack.zip", "zip-placeholder\n"],
+      ["validation-pack/validation-summary.md", "# Validation Summary\n"],
+      ["validation-pack/release-smoke-plan.json", JSON.stringify({ schemaVersion: 1, apps: [] }, null, 2)],
+      ["validation-pack/release-smoke-test.md", "# Smoke\n"],
+      ["validation-pack/evidence-index.json", "{}\n"],
+      ["validation-pack/evidence/static-verification.json", "{}\n"],
+      ["validation-pack/evidence/e2e-diagnostics.json", "{}\n"],
+      ["validation-pack/evidence/bundle-integrity.json", "{}\n"],
+      ["validation-pack/evidence/tauri-security-audit.json", "{}\n"],
+      ["validation-pack/evidence/phi-pii-scan.json", "{}\n"],
+      ["validation-pack/evidence/reproducibility.json", "{}\n"],
+      ["validation-pack/evidence/offline-verification.json", "{}\n"],
+      ["validation-pack/evidence/harness-config-validation.json", "{}\n"],
+      ["validation-pack/evidence/clinical-data-pack-validation.json", "{}\n"],
+      ["validation-pack/evidence/clinical-data-dictionary.md", "# Dictionary\n"],
+      ["validation-pack/evidence/cdisc-bridge-preflight.json", "{}\n"],
+      ["validation-pack/evidence/pdf-report-export-manifest.json", "{}\n"],
+      ["validation-pack/evidence/review-signoff.json", "{}\n"],
+      ["validation-pack/evidence/review-signoff-history.jsonl", "{}\n"],
+      ["validation-pack/evidence/evidence-index.html", "<!doctype html>\n"],
+      ["validation-pack/evidence/sbom.json", "{}\n"],
+      ["validation-pack/evidence/licenses.md", "# Licenses\n"],
+      ["validation-pack/evidence/portal-manifest.json", "{}\n"],
+      ["validation-pack/evidence/harness-bundle-manifest.json", "{}\n"],
+      ["validation-pack/evidence/release-summary.json", "{}\n"],
+    ]);
+
+    for (const [relativePath, contents] of files) {
+      const targetPath = path.join(releaseRoot, relativePath);
+      await mkdir(path.dirname(targetPath), { recursive: true });
+      await writeFile(targetPath, contents);
+    }
+
+    const checksumLines = [];
+    for (const relativePath of files.keys()) {
+      const targetPath = path.join(releaseRoot, relativePath);
+      checksumLines.push(`${createHash("sha256").update(await readFile(targetPath)).digest("hex")}  ${relativePath}`);
+    }
+    await writeFile(path.join(releaseRoot, "SHA256SUMS"), `${checksumLines.join("\n")}\n`);
+
+    const result = await verifyReleaseArtifacts({
+      releaseRoot,
+      reportPath: path.join(tempRoot, "release-artifact-verification.json"),
+      writeReport: true,
+    });
+
+    assert.equal(result.ok, false);
+    assert.equal(result.issues.some((issue) => issue.code === "release-notes-hash-table-mismatch"), true);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
 test("static verifier rejects unexpected generated files under dist reports", async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), "harness-static-verify-test-"));
 

@@ -122,7 +122,7 @@ const releaseContext = async (config) => ({
   platform: `${os.platform()} ${os.release()} ${os.arch()}`,
 });
 
-const writeReleaseNotes = async (config, assets, platform = "macos") => {
+const writeReleaseNotes = async (config, platform = "macos") => {
   const staticReportPath = path.join(reportsRoot, "static-verification.json");
   const e2eReportPath = path.join(reportsRoot, "e2e-diagnostics.json");
   const staticReport = (await exists(staticReportPath))
@@ -167,9 +167,13 @@ const writeReleaseNotes = async (config, assets, platform = "macos") => {
     "",
     "## Assets",
     "",
-    "| Asset | SHA-256 |",
-    "| --- | --- |",
-    ...assets.map((asset) => `| ${asset.name} | ${asset.sha256} |`),
+    "Release artifact checksums are authoritative in `SHA256SUMS`.",
+    "",
+    "See:",
+    "",
+    "- `SHA256SUMS`",
+    "- `release-summary.json`",
+    "- `validation-pack.zip`",
     "",
     "## Phase 3 Notes",
     "",
@@ -595,8 +599,7 @@ const packageWindows = async (config) => {
   await createValidationPack(config, assets, "windows");
   await createZip(path.join(releaseRoot, "validation-pack"), path.join(releaseRoot, "validation-pack.zip"));
 
-  const releaseNoteAssets = await collectReleaseAssets();
-  await writeReleaseNotes(config, releaseNoteAssets, "windows");
+  await writeReleaseNotes(config, "windows");
 
   const { finalFiles, checksumLines } = await refreshReleaseSummaryWithFinalChecksums();
   await appendAudit("phase3-package", "ok", {
@@ -676,19 +679,7 @@ for (const file of assetFiles) {
 await createValidationPack(config, assets, "macos");
 await createZip(path.join(releaseRoot, "validation-pack"), path.join(releaseRoot, "validation-pack.zip"));
 
-const releaseNoteAssetFiles = (await listFiles(releaseRoot))
-  .filter((file) => !["RELEASE_NOTES.md", "SHA256SUMS"].includes(file))
-  .filter((file) => !file.startsWith(`validation-pack${path.sep}`))
-  .sort();
-const releaseNoteAssets = [];
-for (const file of releaseNoteAssetFiles) {
-  const fullPath = path.join(releaseRoot, file);
-  releaseNoteAssets.push({
-    name: toPosix(file),
-    sha256: await sha256File(fullPath),
-  });
-}
-await writeReleaseNotes(config, releaseNoteAssets, "macos");
+await writeReleaseNotes(config, "macos");
 
 const { finalFiles, checksumLines } = await refreshReleaseSummaryWithFinalChecksums();
 

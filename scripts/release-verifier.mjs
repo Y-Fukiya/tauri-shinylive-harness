@@ -78,6 +78,18 @@ const parseChecksums = (text) =>
       };
     });
 
+const parseReleaseNotesHashRows = (text) =>
+  text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .map((line) => line.match(/^\|\s*`?([^`|]+?)`?\s*\|\s*`?([a-f0-9]{64})`?\s*\|$/i))
+    .filter(Boolean)
+    .map((match) => ({
+      path: toPosix(match[1].trim()),
+      sha256: match[2].toLowerCase(),
+    }))
+    .filter((entry) => entry.path !== "---" && entry.path.toLowerCase() !== "asset");
+
 const safeReleasePath = (releaseRoot, relativePath) => {
   const resolved = path.resolve(releaseRoot, relativePath);
   const root = path.resolve(releaseRoot);
@@ -148,6 +160,28 @@ export const verifyReleaseArtifacts = async ({
     for (const file of actualReleaseFiles) {
       if (!validChecksumPaths.has(file)) {
         issues.push(issue("error", "release-file-missing-checksum", "Release file is not listed in SHA256SUMS.", { path: file }));
+      }
+    }
+  }
+
+  const releaseNotesPath = path.join(resolvedReleaseRoot, "RELEASE_NOTES.md");
+  if (await exists(releaseNotesPath)) {
+    const releaseNoteHashRows = parseReleaseNotesHashRows(await readFile(releaseNotesPath, "utf8"));
+    for (const row of releaseNoteHashRows) {
+      let targetPath;
+      try {
+        targetPath = safeReleasePath(resolvedReleaseRoot, row.path);
+      } catch (error) {
+        issues.push(issue("error", "release-notes-hash-table-path-escape", error instanceof Error ? error.message : String(error), { path: row.path }));
+        continue;
+      }
+      if (!(await exists(targetPath))) {
+        issues.push(issue("error", "release-notes-hash-table-target-missing", "RELEASE_NOTES.md SHA-256 table references a missing release file.", { path: row.path }));
+        continue;
+      }
+      const actual = await sha256File(targetPath);
+      if (actual !== row.sha256) {
+        issues.push(issue("error", "release-notes-hash-table-mismatch", "RELEASE_NOTES.md SHA-256 table does not match the final release file.", { path: row.path, expected: row.sha256, actual }));
       }
     }
   }
