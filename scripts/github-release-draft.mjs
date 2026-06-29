@@ -8,7 +8,7 @@ import { appendAudit, exists, listFiles, readConfig, removeTree, rootDir, runCom
 const releaseAssetSuffixes = [".zip", ".dmg", ".pkg", ".json", ".md", ".exe", ".msi", "SHA256SUMS"];
 
 export const isCandidateReleaseAsset = (entry) => {
-  const parts = entry.split(path.sep);
+  const parts = entry.split(/[\\/]+/);
   if (parts.includes("validation-pack") || parts.includes("reports")) {
     return false;
   }
