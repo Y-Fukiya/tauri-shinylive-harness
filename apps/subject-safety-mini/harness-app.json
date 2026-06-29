@@ -1,0 +1,22 @@
+{
+  "id": "subject-safety-mini",
+  "title": "Subject Safety Mini Dashboard",
+  "path": "/apps/subject-safety-mini/index.html",
+  "description": "Clinical smoke app for validating Shinylive/webR runtime requirements.",
+  "kind": "shinylive-r",
+  "offlineRequired": true,
+  "source": "shinylive-src/subject-safety-mini",
+  "output": "apps/subject-safety-mini",
+  "smokeText": [
+    "Subject Safety Mini Dashboard",
+    "R smoke result",
+    "SUBJ-001"
+  ],
+  "headerProbes": [
+    "/apps/subject-safety-mini/index.html",
+    "/apps/subject-safety-mini/harness-boot.js",
+    "/apps/subject-safety-mini/shinylive/webr/R.wasm"
+  ],
+  "domProbes": [],
+  "reportTemplates": []
+}

@@ -1,0 +1,9 @@
+{
+  "expectedOk": false,
+  "expectedCodes": [
+    "unknown-visit-reference"
+  ],
+  "expectedSeverities": [
+    "error"
+  ]
+}

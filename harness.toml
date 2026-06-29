@@ -1,0 +1,50 @@
+[project]
+name = "tauri-shinylive-harness"
+version = "0.9.1"
+portal_title = "Clinical Shinylive Portal"
+portal_subtitle = "Localhost runtime harness"
+bundle_name = "Clinical Shinylive Desktop Portal"
+
+[distribution]
+artifact_name = "clinical-shinylive-desktop-portal"
+release_channel = "internal"
+release_draft = true
+require_offline = true
+mac_bundles = ["app", "dmg", "pkg"]
+windows_bundles = ["nsis"]
+github_repo = "Y-Fukiya/tauri-shinylive-harness"
+
+[phase3]
+signing_required = true
+notarization_required = true
+validation_pack_required = true
+release_draft_default = true
+
+[[apps]]
+id = "subject-safety-mini"
+title = "Subject Safety Mini Dashboard"
+description = "Clinical smoke app for validating Shinylive/webR runtime requirements."
+kind = "shinylive-r"
+source = "shinylive-src/subject-safety-mini"
+output = "apps/subject-safety-mini"
+path = "/apps/subject-safety-mini/index.html"
+offline_required = true
+smoke_text = ["Subject Safety Mini Dashboard", "R smoke result", "SUBJ-001"]
+header_probes = ["index.html", "harness-boot.js", "shinylive/webr/R.wasm"]
+
+[[apps]]
+id = "subject-profile-reference"
+title = "Subject Profile Reference App"
+description = "Synthetic subject profile reference app with overview, timeline, labs, adverse events, meds, and exposure."
+kind = "shinylive-r"
+source = "shinylive-src/subject-profile-reference"
+output = "apps/subject-profile-reference"
+path = "/apps/subject-profile-reference/index.html"
+offline_required = true
+smoke_text = ["Subject Profile Reference App", "SUBJ-001 AE count: 3", "Data pack hash"]
+dom_probes = ["#overview_lab_trend img", "#exposure_ae_timeline img", "#data_pack_hash_value[data-harness-status=\"resolved\"]", "#snapshot_report_table table", "#safety_review_table table", "#listing_visits table"]
+report_templates = ["subject-snapshot", "safety-review", "data-listing"]
+data_pack = "clinical-demo-subject-profile-v1"
+data_pack_source = "data-packs/clinical-demo-subject-profile-v1"
+data_paths = ["shinylive-src/subject-profile-reference/data/clinical-demo-data-pack.json", "shinylive-src/subject-profile-reference/data/demographics.csv", "shinylive-src/subject-profile-reference/data/visits.csv", "shinylive-src/subject-profile-reference/data/labs.csv", "shinylive-src/subject-profile-reference/data/vitals.csv", "shinylive-src/subject-profile-reference/data/adverse_events.csv", "shinylive-src/subject-profile-reference/data/concomitant_meds.csv", "shinylive-src/subject-profile-reference/data/exposure.csv"]
+header_probes = ["index.html", "harness-boot.js", "shinylive/webr/R.wasm"]

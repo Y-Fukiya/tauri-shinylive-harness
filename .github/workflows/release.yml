@@ -1,0 +1,221 @@
+name: Release Candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Publish release instead of keeping it as draft/prerelease"
+        required: false
+        default: "false"
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  macos-release:
+    runs-on: macos-latest
+    env:
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+      APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+      APPLE_API_KEY_PATH: ${{ secrets.APPLE_API_KEY_PATH }}
+      APPLE_API_PRIVATE_KEY: ${{ secrets.APPLE_API_PRIVATE_KEY }}
+      APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+      APPLE_INSTALLER_SIGNING_IDENTITY: ${{ secrets.APPLE_INSTALLER_SIGNING_IDENTITY }}
+      APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+      KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+      GITHUB_TOKEN: ${{ github.token }}
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@1.93.1
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: "4.6.0"
+
+      - run: npm ci
+
+      - name: Install locked R packages for release gate
+        run: |
+          Rscript -e 'install.packages("renv", repos = "https://cloud.r-project.org")'
+          Rscript -e 'renv::restore(lockfile = "renv.lock", library = .libPaths()[1], prompt = FALSE)'
+          Rscript -e 'stopifnot(as.character(packageVersion("shinylive")) == "0.5.0")'
+
+      - uses: actions/cache@v5
+        with:
+          path: .shinylive-cache
+          key: shinylive-assets-0.10.12-${{ runner.os }}-${{ hashFiles('renv.lock') }}
+
+      - name: Cache Shinylive assets
+        run: npm run cache:shinylive-assets
+
+      - run: npx playwright install chromium
+
+      - name: Import Apple Developer ID certificate
+        if: ${{ env.APPLE_CERTIFICATE != '' }}
+        run: |
+          CERTIFICATE_PATH="$RUNNER_TEMP/build_certificate.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain-db"
+          echo -n "$APPLE_CERTIFICATE" | base64 --decode -o "$CERTIFICATE_PATH"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security default-keychain -s "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security import "$CERTIFICATE_PATH" -P "$APPLE_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
+          if [ -z "$APPLE_SIGNING_IDENTITY" ]; then
+            APP_IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" | awk -F '"' '/Developer ID Application/ { print $2; exit }')"
+            if [ -n "$APP_IDENTITY" ]; then
+              echo "APPLE_SIGNING_IDENTITY=$APP_IDENTITY" >> "$GITHUB_ENV"
+            fi
+          fi
+          if [ -z "$APPLE_INSTALLER_SIGNING_IDENTITY" ]; then
+            INSTALLER_IDENTITY="$(security find-identity -v "$KEYCHAIN_PATH" | awk -F '"' '/Developer ID Installer/ { print $2; exit }')"
+            if [ -n "$INSTALLER_IDENTITY" ]; then
+              echo "APPLE_INSTALLER_SIGNING_IDENTITY=$INSTALLER_IDENTITY" >> "$GITHUB_ENV"
+            fi
+          fi
+
+      - name: Materialize App Store Connect API key
+        if: ${{ env.APPLE_API_PRIVATE_KEY != '' && env.APPLE_API_KEY_PATH == '' }}
+        run: |
+          API_KEY_PATH="$RUNNER_TEMP/AuthKey_${APPLE_API_KEY}.p8"
+          printf "%s" "$APPLE_API_PRIVATE_KEY" > "$API_KEY_PATH"
+          echo "APPLE_API_KEY_PATH=$API_KEY_PATH" >> "$GITHUB_ENV"
+
+      - name: Release gate
+        env:
+          HARNESS_TARGET_PLATFORM: macos
+        run: npm run gate:release
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: macos-release-candidate
+          path: |
+            release/
+            reports/release-gate.json
+            reports/release-artifact-verification.json
+            reports/release-doctor.json
+            reports/phase3-preflight.json
+            reports/local-release-audit*.json
+            docs/generated/local-release-audit*.md
+
+  windows-release:
+    runs-on: windows-latest
+    env:
+      WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+      WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+      WINDOWS_CERTIFICATE_THUMBPRINT: ${{ secrets.WINDOWS_CERTIFICATE_THUMBPRINT }}
+      WINDOWS_SIGN_COMMAND: ${{ secrets.WINDOWS_SIGN_COMMAND }}
+      WINDOWS_TIMESTAMP_URL: ${{ secrets.WINDOWS_TIMESTAMP_URL }}
+      GITHUB_TOKEN: ${{ github.token }}
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@1.93.1
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: "4.6.0"
+
+      - run: npm ci
+
+      - name: Install locked R packages for release gate
+        run: |
+          Rscript -e 'install.packages("renv", repos = "https://cloud.r-project.org")'
+          Rscript -e 'renv::restore(lockfile = "renv.lock", library = .libPaths()[1], prompt = FALSE)'
+          Rscript -e 'stopifnot(as.character(packageVersion("shinylive")) == "0.5.0")'
+
+      - uses: actions/cache@v5
+        with:
+          path: .shinylive-cache
+          key: shinylive-assets-0.10.12-${{ runner.os }}-${{ hashFiles('renv.lock') }}
+
+      - name: Cache Shinylive assets
+        run: npm run cache:shinylive-assets
+
+      - run: npx playwright install chromium
+
+      - name: Import Windows signing certificate
+        if: ${{ env.WINDOWS_CERTIFICATE != '' }}
+        shell: pwsh
+        run: |
+          $certificatePath = Join-Path $env:RUNNER_TEMP "windows-signing.pfx"
+          [IO.File]::WriteAllBytes($certificatePath, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE))
+          $securePassword = ConvertTo-SecureString -String $env:WINDOWS_CERTIFICATE_PASSWORD -AsPlainText -Force
+          $cert = Import-PfxCertificate -FilePath $certificatePath -CertStoreLocation Cert:\CurrentUser\My -Password $securePassword
+          if (-not $env:WINDOWS_CERTIFICATE_THUMBPRINT) {
+            "WINDOWS_CERTIFICATE_THUMBPRINT=$($cert.Thumbprint)" | Out-File -FilePath $env:GITHUB_ENV -Append
+          }
+
+      - name: Release gate
+        env:
+          HARNESS_TARGET_PLATFORM: windows
+        run: npm run gate:release
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: windows-release-candidate
+          path: |
+            release/
+            reports/release-gate.json
+            reports/release-artifact-verification.json
+            reports/release-doctor.json
+            reports/phase3-preflight.json
+            reports/local-release-audit*.json
+            docs/generated/local-release-audit*.md
+
+  draft-release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs:
+      - macos-release
+      - windows-release
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - uses: actions/download-artifact@v8
+        with:
+          path: release
+          merge-multiple: false
+
+      - name: Create GitHub draft release
+        run: |
+          if [ "${{ github.event.inputs.publish }}" = "true" ]; then
+            node scripts/github-release-draft.mjs --verify-tag --publish
+          else
+            node scripts/github-release-draft.mjs --verify-tag
+          fi

@@ -1,0 +1,10 @@
+{
+  "baseDataPack": "clinical-demo-subject-profile-v1",
+  "mutations": [
+    {
+      "type": "removeColumn",
+      "file": "demographics.csv",
+      "column": "age"
+    }
+  ]
+}

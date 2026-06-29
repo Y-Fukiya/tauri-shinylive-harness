@@ -1,0 +1,10 @@
+{
+  "baseDataPack": "clinical-demo-subject-profile-v1",
+  "mutations": [
+    {
+      "type": "writeFile",
+      "file": "demographics.csv",
+      "contents": "subject_id,site_id,arm,sex,age,race,ethnicity,region,consent_date,first_dose_date,last_contact_date,study_status\nSUBJ-001,SITE-001,Active,F,54,\"unterminated,Not Hispanic or Latino,Europe,2025-01-02,2025-01-10,2025-04-11,On study\n"
+    }
+  ]
+}

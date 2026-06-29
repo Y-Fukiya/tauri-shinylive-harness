@@ -1,0 +1,11 @@
+{
+  "baseDataPack": "clinical-demo-subject-profile-v1",
+  "mutations": [
+    {
+      "type": "replaceText",
+      "file": "labs.csv",
+      "search": "SUBJ-001,Baseline,1,",
+      "replace": "SUBJ-001,Unscheduled,1,"
+    }
+  ]
+}

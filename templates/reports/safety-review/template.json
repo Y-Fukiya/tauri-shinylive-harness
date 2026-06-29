@@ -1,0 +1,7 @@
+{
+  "id": "safety-review",
+  "title": "Safety Review Worksheet",
+  "description": "Signal-oriented safety review worksheet covering AE, lab, and exposure follow-up items.",
+  "kind": "review-workflow",
+  "defaultFile": "safety-review.html"
+}

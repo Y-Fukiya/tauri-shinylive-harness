@@ -1,0 +1,7 @@
+{
+  "id": "data-listing",
+  "title": "Subject Data Listing Pack",
+  "description": "Compact audit-style listings for visits, exposure, adverse events, and abnormal labs.",
+  "kind": "listing",
+  "defaultFile": "data-listing.html"
+}

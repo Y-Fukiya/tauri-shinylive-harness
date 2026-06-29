@@ -1,0 +1,11 @@
+{
+  "baseDataPack": "clinical-demo-subject-profile-v1",
+  "mutations": [
+    {
+      "type": "replaceText",
+      "file": "demographics.csv",
+      "search": "SUBJ-001,SITE-203,Active,F,54,Asian,Not Hispanic or Latino,Europe,61.0,22.7,2025-01-02,2025-01-10,2025-04-11,On study",
+      "replace": "SUBJ-001,SITE-203,Active,F,54,Asian,Not Hispanic or Latino,Europe,61.0,22.7,2025-01-02,2024-12-31,2025-04-11,On study"
+    }
+  ]
+}

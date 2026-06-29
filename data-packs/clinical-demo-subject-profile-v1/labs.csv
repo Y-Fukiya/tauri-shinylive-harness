@@ -1,0 +1,295 @@
+subject_id,visit,visit_day,lab_test,lab_value,unit,low,high,flag
+SUBJ-001,Baseline,1,ALT,28,U/L,0,45,Normal
+SUBJ-001,Baseline,1,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-001,Week 2,15,ALT,36,U/L,0,45,Normal
+SUBJ-001,Week 2,15,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-001,Week 4,29,ALT,52,U/L,0,45,High
+SUBJ-001,Week 4,29,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-001,Week 8,57,ALT,46,U/L,0,45,High
+SUBJ-001,Week 8,57,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-001,Week 12,85,ALT,37,U/L,0,45,Normal
+SUBJ-001,Week 12,85,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-002,Baseline,1,ALT,26,U/L,0,45,Normal
+SUBJ-002,Baseline,1,HGB,13.8,g/dL,12.5,17,Normal
+SUBJ-002,Week 2,15,ALT,28,U/L,0,45,Normal
+SUBJ-002,Week 2,15,HGB,13.4,g/dL,12.5,17,Normal
+SUBJ-002,Week 4,29,ALT,30,U/L,0,45,Normal
+SUBJ-002,Week 4,29,HGB,13.6,g/dL,12.5,17,Normal
+SUBJ-002,Week 8,57,ALT,31,U/L,0,45,Normal
+SUBJ-002,Week 8,57,HGB,13.8,g/dL,12.5,17,Normal
+SUBJ-002,Week 12,85,ALT,29,U/L,0,45,Normal
+SUBJ-002,Week 12,85,HGB,13.4,g/dL,12.5,17,Normal
+SUBJ-003,Baseline,1,ALT,29,U/L,0,45,Normal
+SUBJ-003,Baseline,1,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-003,Week 2,15,ALT,31,U/L,0,45,Normal
+SUBJ-003,Week 2,15,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-003,Week 4,29,ALT,33,U/L,0,45,Normal
+SUBJ-003,Week 4,29,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-003,Week 8,57,ALT,34,U/L,0,45,Normal
+SUBJ-003,Week 8,57,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-003,Week 12,85,ALT,32,U/L,0,45,Normal
+SUBJ-003,Week 12,85,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-004,Baseline,1,ALT,32,U/L,0,45,Normal
+SUBJ-004,Baseline,1,HGB,13.6,g/dL,12.5,17,Normal
+SUBJ-004,Week 2,15,ALT,40,U/L,0,45,Normal
+SUBJ-004,Week 2,15,HGB,13.8,g/dL,12.5,17,Normal
+SUBJ-004,Week 4,29,ALT,56,U/L,0,45,High
+SUBJ-004,Week 4,29,HGB,13.4,g/dL,12.5,17,Normal
+SUBJ-004,Week 8,57,ALT,50,U/L,0,45,High
+SUBJ-004,Week 8,57,HGB,13.6,g/dL,12.5,17,Normal
+SUBJ-004,Week 12,85,ALT,41,U/L,0,45,Normal
+SUBJ-004,Week 12,85,HGB,13.8,g/dL,12.5,17,Normal
+SUBJ-005,Baseline,1,ALT,35,U/L,0,45,Normal
+SUBJ-005,Baseline,1,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-005,Week 2,15,ALT,37,U/L,0,45,Normal
+SUBJ-005,Week 2,15,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-005,Week 4,29,ALT,39,U/L,0,45,Normal
+SUBJ-005,Week 4,29,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-005,Week 8,57,ALT,40,U/L,0,45,Normal
+SUBJ-005,Week 8,57,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-005,Week 12,85,ALT,38,U/L,0,45,Normal
+SUBJ-005,Week 12,85,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-006,Baseline,1,ALT,38,U/L,0,45,Normal
+SUBJ-006,Baseline,1,HGB,13.4,g/dL,12.5,17,Normal
+SUBJ-006,Week 2,15,ALT,40,U/L,0,45,Normal
+SUBJ-006,Week 2,15,HGB,13.6,g/dL,12.5,17,Normal
+SUBJ-006,Week 4,29,ALT,42,U/L,0,45,Normal
+SUBJ-006,Week 4,29,HGB,13.8,g/dL,12.5,17,Normal
+SUBJ-006,Week 8,57,ALT,43,U/L,0,45,Normal
+SUBJ-006,Week 8,57,HGB,13.4,g/dL,12.5,17,Normal
+SUBJ-006,Week 12,85,ALT,41,U/L,0,45,Normal
+SUBJ-006,Week 12,85,HGB,13.6,g/dL,12.5,17,Normal
+SUBJ-007,Baseline,1,ALT,41,U/L,0,45,Normal
+SUBJ-007,Baseline,1,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-007,Week 2,15,ALT,49,U/L,0,45,High
+SUBJ-007,Week 2,15,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-007,Week 4,29,ALT,65,U/L,0,45,High
+SUBJ-007,Week 4,29,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-007,Week 8,57,ALT,59,U/L,0,45,High
+SUBJ-007,Week 8,57,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-007,Week 12,85,ALT,50,U/L,0,45,High
+SUBJ-007,Week 12,85,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-008,Baseline,1,ALT,22,U/L,0,45,Normal
+SUBJ-008,Baseline,1,HGB,13.8,g/dL,12.5,17,Normal
+SUBJ-008,Week 2,15,ALT,30,U/L,0,45,Normal
+SUBJ-008,Week 2,15,HGB,13.4,g/dL,12.5,17,Normal
+SUBJ-008,Week 4,29,ALT,46,U/L,0,45,High
+SUBJ-008,Week 4,29,HGB,13.6,g/dL,12.5,17,Normal
+SUBJ-008,Week 8,57,ALT,40,U/L,0,45,Normal
+SUBJ-008,Week 8,57,HGB,13.8,g/dL,12.5,17,Normal
+SUBJ-008,Week 12,85,ALT,31,U/L,0,45,Normal
+SUBJ-008,Week 12,85,HGB,13.4,g/dL,12.5,17,Normal
+SUBJ-009,Baseline,1,ALT,25,U/L,0,45,Normal
+SUBJ-009,Baseline,1,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-009,Week 2,15,ALT,27,U/L,0,45,Normal
+SUBJ-009,Week 2,15,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-009,Week 4,29,ALT,29,U/L,0,45,Normal
+SUBJ-009,Week 4,29,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-009,Week 8,57,ALT,30,U/L,0,45,Normal
+SUBJ-009,Week 8,57,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-009,Week 12,85,ALT,28,U/L,0,45,Normal
+SUBJ-009,Week 12,85,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-010,Baseline,1,ALT,28,U/L,0,45,Normal
+SUBJ-010,Baseline,1,HGB,13.6,g/dL,12.5,17,Normal
+SUBJ-010,Week 2,15,ALT,30,U/L,0,45,Normal
+SUBJ-010,Week 2,15,HGB,13.8,g/dL,12.5,17,Normal
+SUBJ-010,Week 4,29,ALT,32,U/L,0,45,Normal
+SUBJ-010,Week 4,29,HGB,13.4,g/dL,12.5,17,Normal
+SUBJ-010,Week 8,57,ALT,33,U/L,0,45,Normal
+SUBJ-010,Week 8,57,HGB,13.6,g/dL,12.5,17,Normal
+SUBJ-010,Week 12,85,ALT,31,U/L,0,45,Normal
+SUBJ-010,Week 12,85,HGB,13.8,g/dL,12.5,17,Normal
+SUBJ-011,Baseline,1,ALT,31,U/L,0,45,Normal
+SUBJ-011,Baseline,1,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-011,Week 2,15,ALT,33,U/L,0,45,Normal
+SUBJ-011,Week 2,15,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-011,Week 4,29,ALT,35,U/L,0,45,Normal
+SUBJ-011,Week 4,29,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-011,Week 8,57,ALT,36,U/L,0,45,Normal
+SUBJ-011,Week 8,57,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-012,Baseline,1,ALT,34,U/L,0,45,Normal
+SUBJ-012,Baseline,1,HGB,13.4,g/dL,12.5,17,Normal
+SUBJ-012,Week 2,15,ALT,42,U/L,0,45,Normal
+SUBJ-012,Week 2,15,HGB,13.6,g/dL,12.5,17,Normal
+SUBJ-012,Week 4,29,ALT,58,U/L,0,45,High
+SUBJ-012,Week 4,29,HGB,13.8,g/dL,12.5,17,Normal
+SUBJ-012,Week 8,57,ALT,52,U/L,0,45,High
+SUBJ-012,Week 8,57,HGB,13.4,g/dL,12.5,17,Normal
+SUBJ-012,Week 12,85,ALT,43,U/L,0,45,Normal
+SUBJ-012,Week 12,85,HGB,13.6,g/dL,12.5,17,Normal
+SUBJ-013,Baseline,1,ALT,37,U/L,0,45,Normal
+SUBJ-013,Baseline,1,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-013,Week 2,15,ALT,39,U/L,0,45,Normal
+SUBJ-013,Week 2,15,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-013,Week 4,29,ALT,41,U/L,0,45,Normal
+SUBJ-013,Week 4,29,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-013,Week 8,57,ALT,42,U/L,0,45,Normal
+SUBJ-013,Week 8,57,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-013,Week 12,85,ALT,40,U/L,0,45,Normal
+SUBJ-013,Week 12,85,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-014,Baseline,1,ALT,40,U/L,0,45,Normal
+SUBJ-014,Baseline,1,HGB,13.8,g/dL,12.5,17,Normal
+SUBJ-014,Week 2,15,ALT,48,U/L,0,45,High
+SUBJ-014,Week 2,15,HGB,13.4,g/dL,12.5,17,Normal
+SUBJ-014,Week 4,29,ALT,64,U/L,0,45,High
+SUBJ-014,Week 4,29,HGB,13.6,g/dL,12.5,17,Normal
+SUBJ-014,Week 8,57,ALT,58,U/L,0,45,High
+SUBJ-014,Week 8,57,HGB,13.8,g/dL,12.5,17,Normal
+SUBJ-014,Week 12,85,ALT,49,U/L,0,45,High
+SUBJ-014,Week 12,85,HGB,13.4,g/dL,12.5,17,Normal
+SUBJ-015,Baseline,1,ALT,21,U/L,0,45,Normal
+SUBJ-015,Baseline,1,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-015,Week 2,15,ALT,23,U/L,0,45,Normal
+SUBJ-015,Week 2,15,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-015,Week 4,29,ALT,25,U/L,0,45,Normal
+SUBJ-015,Week 4,29,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-015,Week 8,57,ALT,26,U/L,0,45,Normal
+SUBJ-015,Week 8,57,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-015,Week 12,85,ALT,24,U/L,0,45,Normal
+SUBJ-015,Week 12,85,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-016,Baseline,1,ALT,24,U/L,0,45,Normal
+SUBJ-016,Baseline,1,HGB,13.6,g/dL,12.5,17,Normal
+SUBJ-016,Week 2,15,ALT,32,U/L,0,45,Normal
+SUBJ-016,Week 2,15,HGB,13.8,g/dL,12.5,17,Normal
+SUBJ-016,Week 4,29,ALT,48,U/L,0,45,High
+SUBJ-016,Week 4,29,HGB,13.4,g/dL,12.5,17,Normal
+SUBJ-016,Week 8,57,ALT,42,U/L,0,45,Normal
+SUBJ-016,Week 8,57,HGB,13.6,g/dL,12.5,17,Normal
+SUBJ-016,Week 12,85,ALT,33,U/L,0,45,Normal
+SUBJ-016,Week 12,85,HGB,13.8,g/dL,12.5,17,Normal
+SUBJ-017,Baseline,1,ALT,27,U/L,0,45,Normal
+SUBJ-017,Baseline,1,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-017,Week 2,15,ALT,29,U/L,0,45,Normal
+SUBJ-017,Week 2,15,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-017,Week 4,29,ALT,31,U/L,0,45,Normal
+SUBJ-017,Week 4,29,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-017,Week 8,57,ALT,32,U/L,0,45,Normal
+SUBJ-017,Week 8,57,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-018,Baseline,1,ALT,30,U/L,0,45,Normal
+SUBJ-018,Baseline,1,HGB,13.4,g/dL,12.5,17,Normal
+SUBJ-018,Week 2,15,ALT,32,U/L,0,45,Normal
+SUBJ-018,Week 2,15,HGB,13.6,g/dL,12.5,17,Normal
+SUBJ-018,Week 4,29,ALT,34,U/L,0,45,Normal
+SUBJ-018,Week 4,29,HGB,13.8,g/dL,12.5,17,Normal
+SUBJ-018,Week 8,57,ALT,35,U/L,0,45,Normal
+SUBJ-018,Week 8,57,HGB,13.4,g/dL,12.5,17,Normal
+SUBJ-018,Week 12,85,ALT,33,U/L,0,45,Normal
+SUBJ-018,Week 12,85,HGB,13.6,g/dL,12.5,17,Normal
+SUBJ-019,Baseline,1,ALT,33,U/L,0,45,Normal
+SUBJ-019,Baseline,1,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-019,Week 2,15,ALT,35,U/L,0,45,Normal
+SUBJ-019,Week 2,15,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-019,Week 4,29,ALT,37,U/L,0,45,Normal
+SUBJ-019,Week 4,29,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-019,Week 8,57,ALT,38,U/L,0,45,Normal
+SUBJ-019,Week 8,57,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-019,Week 12,85,ALT,36,U/L,0,45,Normal
+SUBJ-019,Week 12,85,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-020,Baseline,1,ALT,36,U/L,0,45,Normal
+SUBJ-020,Baseline,1,HGB,13.8,g/dL,12.5,17,Normal
+SUBJ-020,Week 2,15,ALT,44,U/L,0,45,Normal
+SUBJ-020,Week 2,15,HGB,13.4,g/dL,12.5,17,Normal
+SUBJ-020,Week 4,29,ALT,60,U/L,0,45,High
+SUBJ-020,Week 4,29,HGB,13.6,g/dL,12.5,17,Normal
+SUBJ-020,Week 8,57,ALT,54,U/L,0,45,High
+SUBJ-020,Week 8,57,HGB,13.8,g/dL,12.5,17,Normal
+SUBJ-020,Week 12,85,ALT,45,U/L,0,45,Normal
+SUBJ-020,Week 12,85,HGB,13.4,g/dL,12.5,17,Normal
+SUBJ-021,Baseline,1,ALT,39,U/L,0,45,Normal
+SUBJ-021,Baseline,1,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-021,Week 2,15,ALT,47,U/L,0,45,High
+SUBJ-021,Week 2,15,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-021,Week 4,29,ALT,63,U/L,0,45,High
+SUBJ-021,Week 4,29,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-021,Week 8,57,ALT,57,U/L,0,45,High
+SUBJ-021,Week 8,57,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-021,Week 12,85,ALT,48,U/L,0,45,High
+SUBJ-021,Week 12,85,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-022,Baseline,1,ALT,20,U/L,0,45,Normal
+SUBJ-022,Baseline,1,HGB,13.6,g/dL,12.5,17,Normal
+SUBJ-022,Week 2,15,ALT,22,U/L,0,45,Normal
+SUBJ-022,Week 2,15,HGB,13.8,g/dL,12.5,17,Normal
+SUBJ-022,Week 4,29,ALT,24,U/L,0,45,Normal
+SUBJ-022,Week 4,29,HGB,13.4,g/dL,12.5,17,Normal
+SUBJ-022,Week 8,57,ALT,25,U/L,0,45,Normal
+SUBJ-022,Week 8,57,HGB,13.6,g/dL,12.5,17,Normal
+SUBJ-023,Baseline,1,ALT,23,U/L,0,45,Normal
+SUBJ-023,Baseline,1,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-023,Week 2,15,ALT,25,U/L,0,45,Normal
+SUBJ-023,Week 2,15,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-023,Week 4,29,ALT,27,U/L,0,45,Normal
+SUBJ-023,Week 4,29,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-023,Week 8,57,ALT,28,U/L,0,45,Normal
+SUBJ-023,Week 8,57,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-023,Week 12,85,ALT,26,U/L,0,45,Normal
+SUBJ-023,Week 12,85,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-024,Baseline,1,ALT,26,U/L,0,45,Normal
+SUBJ-024,Baseline,1,HGB,13.4,g/dL,12.5,17,Normal
+SUBJ-024,Week 2,15,ALT,34,U/L,0,45,Normal
+SUBJ-024,Week 2,15,HGB,13.6,g/dL,12.5,17,Normal
+SUBJ-024,Week 4,29,ALT,50,U/L,0,45,High
+SUBJ-024,Week 4,29,HGB,13.8,g/dL,12.5,17,Normal
+SUBJ-024,Week 8,57,ALT,44,U/L,0,45,Normal
+SUBJ-024,Week 8,57,HGB,13.4,g/dL,12.5,17,Normal
+SUBJ-024,Week 12,85,ALT,35,U/L,0,45,Normal
+SUBJ-024,Week 12,85,HGB,13.6,g/dL,12.5,17,Normal
+SUBJ-025,Baseline,1,ALT,29,U/L,0,45,Normal
+SUBJ-025,Baseline,1,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-025,Week 2,15,ALT,31,U/L,0,45,Normal
+SUBJ-025,Week 2,15,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-025,Week 4,29,ALT,33,U/L,0,45,Normal
+SUBJ-025,Week 4,29,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-025,Week 8,57,ALT,34,U/L,0,45,Normal
+SUBJ-025,Week 8,57,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-025,Week 12,85,ALT,32,U/L,0,45,Normal
+SUBJ-025,Week 12,85,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-026,Baseline,1,ALT,32,U/L,0,45,Normal
+SUBJ-026,Baseline,1,HGB,13.8,g/dL,12.5,17,Normal
+SUBJ-026,Week 2,15,ALT,34,U/L,0,45,Normal
+SUBJ-026,Week 2,15,HGB,13.4,g/dL,12.5,17,Normal
+SUBJ-026,Week 4,29,ALT,36,U/L,0,45,Normal
+SUBJ-026,Week 4,29,HGB,13.6,g/dL,12.5,17,Normal
+SUBJ-026,Week 8,57,ALT,37,U/L,0,45,Normal
+SUBJ-026,Week 8,57,HGB,13.8,g/dL,12.5,17,Normal
+SUBJ-026,Week 12,85,ALT,35,U/L,0,45,Normal
+SUBJ-026,Week 12,85,HGB,13.4,g/dL,12.5,17,Normal
+SUBJ-027,Baseline,1,ALT,35,U/L,0,45,Normal
+SUBJ-027,Baseline,1,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-027,Week 2,15,ALT,37,U/L,0,45,Normal
+SUBJ-027,Week 2,15,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-027,Week 4,29,ALT,39,U/L,0,45,Normal
+SUBJ-027,Week 4,29,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-027,Week 8,57,ALT,40,U/L,0,45,Normal
+SUBJ-027,Week 8,57,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-027,Week 12,85,ALT,38,U/L,0,45,Normal
+SUBJ-027,Week 12,85,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-028,Baseline,1,ALT,38,U/L,0,45,Normal
+SUBJ-028,Baseline,1,HGB,13.6,g/dL,12.5,17,Normal
+SUBJ-028,Week 2,15,ALT,46,U/L,0,45,High
+SUBJ-028,Week 2,15,HGB,13.8,g/dL,12.5,17,Normal
+SUBJ-028,Week 4,29,ALT,62,U/L,0,45,High
+SUBJ-028,Week 4,29,HGB,13.4,g/dL,12.5,17,Normal
+SUBJ-028,Week 8,57,ALT,56,U/L,0,45,High
+SUBJ-028,Week 8,57,HGB,13.6,g/dL,12.5,17,Normal
+SUBJ-028,Week 12,85,ALT,47,U/L,0,45,High
+SUBJ-028,Week 12,85,HGB,13.8,g/dL,12.5,17,Normal
+SUBJ-029,Baseline,1,ALT,41,U/L,0,45,Normal
+SUBJ-029,Baseline,1,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-029,Week 2,15,ALT,43,U/L,0,45,Normal
+SUBJ-029,Week 2,15,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-029,Week 4,29,ALT,45,U/L,0,45,Normal
+SUBJ-029,Week 4,29,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-029,Week 8,57,ALT,46,U/L,0,45,High
+SUBJ-029,Week 8,57,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-029,Week 12,85,ALT,44,U/L,0,45,Normal
+SUBJ-029,Week 12,85,HGB,12.4,g/dL,11.5,15.5,Normal
+SUBJ-030,Baseline,1,ALT,22,U/L,0,45,Normal
+SUBJ-030,Baseline,1,HGB,13.4,g/dL,12.5,17,Normal
+SUBJ-030,Week 2,15,ALT,24,U/L,0,45,Normal
+SUBJ-030,Week 2,15,HGB,13.6,g/dL,12.5,17,Normal
+SUBJ-030,Week 4,29,ALT,26,U/L,0,45,Normal
+SUBJ-030,Week 4,29,HGB,13.8,g/dL,12.5,17,Normal
+SUBJ-030,Week 8,57,ALT,27,U/L,0,45,Normal
+SUBJ-030,Week 8,57,HGB,13.4,g/dL,12.5,17,Normal
+SUBJ-030,Week 12,85,ALT,25,U/L,0,45,Normal
+SUBJ-030,Week 12,85,HGB,13.6,g/dL,12.5,17,Normal

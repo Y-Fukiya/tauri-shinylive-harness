@@ -1,0 +1,7 @@
+{
+  "expectedOk": false,
+  "expectedCodes": [
+    "phi-pii-column",
+    "email-like-value"
+  ]
+}
