@@ -143,6 +143,7 @@ const buildMarkdown = (report) => [
   "",
   `- Internal release candidate ready: ${report.internalDistributionReady}`,
   `- External distribution ready: ${report.externalDistributionReady}`,
+  `- Audit OK: ${report.ok}`,
   `- Manual clean install verified: ${report.manualCleanInstallVerified}`,
   `- Status: ${report.status}`,
   "",
@@ -162,6 +163,7 @@ const buildMarkdown = (report) => [
   "",
   `- SHA256SUMS verified: ${report.checksums.ok}`,
   `- Entries checked: ${report.checksums.entries.length}`,
+  `- Release summary ready: ${report.releaseSummaryReady}`,
   "",
   "## Signing And Platform Checks",
   "",
@@ -211,6 +213,8 @@ try {
 }
 const releaseType = releaseSummary?.releaseType ?? "unknown";
 const internalRelease = releaseType === "unsigned-internal-candidate";
+const signedRelease = releaseType === "signed-release-candidate";
+const releaseSummaryReady = Boolean(releaseSummary && (internalRelease || signedRelease));
 const validationSummary = await readTextIfExists(path.join(releaseRoot, "validation-pack", "validation-summary.md"));
 const portalSource = await readTextIfExists(path.join(rootDir, "src", "App.tsx"));
 const clinicalUseLimitation = {
@@ -339,6 +343,9 @@ if (platform === "windows") {
 if (!checksumReport.ok) {
   internalBlockingItems.push("Release checksums are missing or do not match release/SHA256SUMS.");
 }
+if (!releaseSummaryReady) {
+  internalBlockingItems.push("Release summary is missing or has an unknown releaseType.");
+}
 for (const artifact of artifacts) {
   if (!artifact.ok) {
     internalBlockingItems.push(`Missing release artifact: ${artifact.label}.`);
@@ -362,11 +369,14 @@ const disclaimerReady =
   clinicalUseLimitation.portal &&
   clinicalUseLimitation.releaseNotes &&
   clinicalUseLimitation.validationSummary;
-const internalDistributionReady = requiredArtifactsReady && checksumReport.ok && disclaimerReady;
+const internalDistributionReady = releaseSummaryReady && requiredArtifactsReady && checksumReport.ok && disclaimerReady;
 const externalDistributionReady = internalDistributionReady && hostCompatible && signing.ok;
 const issues = internalRelease
   ? [...internalBlockingItems]
   : [...internalBlockingItems, ...externalBlockingItems];
+const ok = internalRelease
+  ? internalDistributionReady && internalBlockingItems.length === 0
+  : externalDistributionReady && internalBlockingItems.length === 0 && externalBlockingItems.length === 0;
 const status = externalDistributionReady
   ? "external-ready"
   : internalDistributionReady
@@ -374,6 +384,7 @@ const status = externalDistributionReady
     : "blocked";
 const report = {
   schemaVersion: 1,
+  ok,
   checkedAt: new Date().toISOString(),
   platform,
   hostCompatible,
@@ -384,6 +395,7 @@ const report = {
   project: config.project,
   distribution: config.distribution,
   releaseType,
+  releaseSummaryReady,
   clinicalUseLimitation,
   artifacts,
   checksums: checksumReport,

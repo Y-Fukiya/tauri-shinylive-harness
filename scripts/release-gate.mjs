@@ -119,7 +119,17 @@ export const buildSteps = ({ platform, internal }) => {
   ];
 };
 
-const buildReport = ({ ok, status, startedAt, results, platform, internal }) => ({
+const nextActionForStatus = (status, failedStep = null) => {
+  if (status === "passed") {
+    return "Release gate passed. Continue with artifact publication or manual clean-machine smoke testing as applicable.";
+  }
+  if (failedStep) {
+    return `Inspect the ${failedStep} output and reports/release-gate.json, fix the issue, then rerun this gate.`;
+  }
+  return "Release gate is running. If it stops, inspect reports/release-gate.json for the failed step.";
+};
+
+const buildReport = ({ ok, status, startedAt, results, platform, internal, failedStep = null }) => ({
   schemaVersion: 1,
   ok,
   status,
@@ -130,6 +140,8 @@ const buildReport = ({ ok, status, startedAt, results, platform, internal }) => 
   releaseType: internal ? "unsigned-internal-candidate" : "signed-release-candidate",
   regulatedUse: false,
   submissionReady: false,
+  failedStep,
+  nextAction: nextActionForStatus(status, failedStep),
   results,
 });
 
@@ -141,13 +153,14 @@ const runCli = async () => {
   const startedAt = new Date().toISOString();
   const results = [];
   const reportPath = path.join(reportsRoot, "release-gate.json");
-  const writeGateReport = async (ok, status) => {
-    await writeJson(reportPath, buildReport({ ok, status, startedAt, results, platform, internal }));
+  const writeGateReport = async (ok, status, failedStep = null) => {
+    await writeJson(reportPath, buildReport({ ok, status, startedAt, results, platform, internal, failedStep }));
   };
 
   await writeGateReport(false, "running");
 
-  for (const step of steps) {
+  for (const [stepIndex, step] of steps.entries()) {
+    console.log(`[release-gate] ${stepIndex + 1}/${steps.length} ${step.name}`);
     const stepStartedAt = new Date().toISOString();
     const result = {
       name: step.name,
@@ -173,7 +186,7 @@ const runCli = async () => {
       result.status = "failed";
       result.completedAt = new Date().toISOString();
       result.error = error instanceof Error ? error.message : String(error);
-      await writeGateReport(false, "failed");
+      await writeGateReport(false, "failed", step.name);
       console.error(`Release gate failed at ${step.name}. See ${toPosix(path.relative(rootDir, reportPath))}`);
       process.exit(1);
     }

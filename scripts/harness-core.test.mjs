@@ -508,6 +508,49 @@ test("internal release gate passes internal flag to phase3 package step", () => 
   assert.deepEqual(packageStep.args, ["scripts/phase3-package.mjs", "--platform", "macos", "--internal"]);
 });
 
+test("release gate separates strict and internal phase3 preflight execution", () => {
+  for (const platform of ["macos", "windows"]) {
+    const strictPreflight = buildSteps({ platform, internal: false }).find(
+      (step) => step.name === `phase3:preflight:${platform}:strict`,
+    );
+    const internalPreflight = buildSteps({ platform, internal: true }).find(
+      (step) => step.name === `phase3:preflight:${platform}:internal`,
+    );
+
+    assert.equal(strictPreflight.command, "node");
+    assert.deepEqual(strictPreflight.args, ["scripts/phase3-preflight.mjs", "--platform", platform]);
+    assert.equal(internalPreflight.command, "node");
+    assert.deepEqual(internalPreflight.args, [
+      "scripts/phase3-preflight.mjs",
+      "--platform",
+      platform,
+      "--internal",
+      "--allow-missing-credentials",
+    ]);
+  }
+});
+
+test("package scripts expose explicit phase3 preflight aliases", async () => {
+  const packageJson = JSON.parse(await readFile(path.join(rootDir, "package.json"), "utf8"));
+
+  assert.equal(
+    packageJson.scripts["phase3:preflight:strict:macos"],
+    "node scripts/phase3-preflight.mjs --platform macos",
+  );
+  assert.equal(
+    packageJson.scripts["phase3:preflight:strict:windows"],
+    "node scripts/phase3-preflight.mjs --platform windows",
+  );
+  assert.equal(
+    packageJson.scripts["phase3:preflight:internal:macos"],
+    "node scripts/phase3-preflight.mjs --platform macos --internal --allow-missing-credentials",
+  );
+  assert.equal(
+    packageJson.scripts["phase3:preflight:internal:windows"],
+    "node scripts/phase3-preflight.mjs --platform windows --internal --allow-missing-credentials",
+  );
+});
+
 test("GitHub release draft excludes diagnostic reports from downloaded artifacts", () => {
   const tempReleaseRoot = path.join(os.tmpdir(), "release");
   const selected = selectCandidateReleaseAssets(
