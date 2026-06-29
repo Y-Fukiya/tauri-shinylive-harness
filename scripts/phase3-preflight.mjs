@@ -77,6 +77,13 @@ const summarizeCommand = (result) => ({
   stderr: redactOutput(result.stderr).slice(0, 4000),
 });
 
+const formatBlockingSection = (title, items) => [
+  `## ${title}`,
+  "",
+  ...(items.length > 0 ? items.map((item) => `- ${item}`) : ["- None"]),
+  "",
+];
+
 const extractIdentities = (securityOutput) =>
   securityOutput
     .split(/\r?\n/)
@@ -174,8 +181,11 @@ if (targetPlatform === "windows") {
       "# Phase 3 Readiness",
       "",
       `Platform: Windows`,
+      `Release type: ${releaseType}`,
       `Checked: ${report.checkedAt}`,
       `Host: ${os.hostname()}`,
+      `Internal ready: ${internalReady}`,
+      `External ready: ${externalReady}`,
       "",
       "| Area | Ready |",
       "| --- | --- |",
@@ -184,10 +194,12 @@ if (targetPlatform === "windows") {
       `| GitHub release | ${githubReady} |`,
       `| Windows tooling | ${toolingReady} |`,
       "",
-      "## Issues",
-      "",
-      ...(issues.length > 0 ? issues.map((issue) => `- ${issue}`) : ["- None"]),
-      "",
+      ...(internalRelease
+        ? [
+            ...formatBlockingSection("Internal Blocking Items", internalBlockingItems),
+            ...formatBlockingSection("External Distribution Blocking Items", externalBlockingItems),
+          ]
+        : formatBlockingSection("Blocking Items", issues)),
     ].join("\n"),
   );
   await appendAudit("phase3-preflight", report.ok ? "ok" : "blocked", {
@@ -201,8 +213,9 @@ if (targetPlatform === "windows") {
     issueCount: report.issues.length,
   });
 
-  if (!report.ok && !allowedMissingCredentials) {
-    console.error(issues.join("\n"));
+  const shouldFail = internalRelease ? !internalReady : !externalReady && !allowedMissingCredentials;
+  if (shouldFail) {
+    console.error(report.issues.join("\n"));
     process.exit(1);
   }
 
@@ -240,14 +253,17 @@ const identities = [
     ...extractIdentities(commands.securityAllIdentities.stdout),
   ]),
 ];
-const identityInstalled = (configuredIdentity) =>
-  !configuredIdentity ||
-  identities.some(
+const identityInstalled = (configuredIdentity) => {
+  if (!configuredIdentity) {
+    return null;
+  }
+  return identities.some(
     (identity) =>
       identity === configuredIdentity ||
       identity.includes(configuredIdentity) ||
       configuredIdentity.includes(identity),
   );
+};
 const localIdentityInstalled = identityInstalled(process.env.APPLE_SIGNING_IDENTITY);
 const installerIdentityInstalled = identityInstalled(process.env.APPLE_INSTALLER_SIGNING_IDENTITY);
 const signingReady =
@@ -258,8 +274,19 @@ const installerSigningReady =
   (present("APPLE_INSTALLER_SIGNING_IDENTITY") && installerIdentityInstalled);
 const notarizationReady = apple.appStoreConnectApi || apple.appleIdNotary;
 const githubReady = commands.ghAuth.ok || present("GITHUB_TOKEN");
-const toolingReady =
-  commands.codesign.ok && commands.notarytool.ok && commands.stapler.ok && commands.pkgbuild.ok;
+const internalPackagingCommands = {
+  ditto: summarizeCommand(await runCapture("which", ["ditto"])),
+  hdiutil: summarizeCommand(await runCapture("which", ["hdiutil"])),
+};
+const internalToolingReady =
+  internalPackagingCommands.ditto.ok &&
+  (!config.distribution.macBundles.includes("dmg") || internalPackagingCommands.hdiutil.ok);
+const externalToolingReady =
+  commands.codesign.ok &&
+  commands.notarytool.ok &&
+  commands.stapler.ok &&
+  (!config.distribution.macBundles.includes("pkg") || commands.pkgbuild.ok);
+const toolingReady = internalRelease ? internalToolingReady : externalToolingReady;
 
 const issues = [];
 if (config.phase3.signingRequired && !signingReady) {
@@ -283,12 +310,12 @@ if (present("APPLE_API_KEY_PATH") && !apiKeyPathExists) {
 if (!githubReady) {
   issues.push("GitHub release automation is not ready: gh auth status failed and GITHUB_TOKEN is absent.");
 }
-if (!toolingReady) {
+if (!externalToolingReady) {
   issues.push("macOS signing/notarization/package tooling is incomplete. Check codesign, xcrun notarytool, xcrun stapler, and xcrun pkgbuild.");
 }
 const externalBlockingItems = [...issues];
 const internalBlockingItems = [
-  ...(!toolingReady ? ["macOS signing/notarization/package tooling is incomplete. Check codesign, xcrun notarytool, xcrun stapler, and xcrun pkgbuild."] : []),
+  ...(!internalToolingReady ? ["macOS internal packaging tooling is incomplete. Check ditto and hdiutil."] : []),
 ];
 const externalReady = externalBlockingItems.length === 0;
 const internalReady = internalRelease && internalBlockingItems.length === 0;
@@ -308,13 +335,19 @@ const report = {
   phase3: config.phase3,
   signingReady,
   installerSigningReady,
+  installerIdentityConfigured: present("APPLE_INSTALLER_SIGNING_IDENTITY"),
   installerIdentityInstalled,
   notarizationReady,
   githubReady,
   toolingReady,
+  internalToolingReady,
+  externalToolingReady,
   appleEnvironment: apple,
   detectedSigningIdentities: identities,
-  commands,
+  commands: {
+    ...commands,
+    ...internalPackagingCommands,
+  },
   issues: internalRelease ? internalBlockingItems : issues,
   externalBlockingItems,
 };
@@ -328,7 +361,10 @@ await writeFile(
     "# Phase 3 Readiness",
     "",
     "Platform: macOS",
+    `Release type: ${releaseType}`,
     `Checked: ${report.checkedAt}`,
+    `Internal ready: ${internalReady}`,
+    `External ready: ${externalReady}`,
     "",
     "| Area | Ready |",
     "| --- | --- |",
@@ -336,12 +372,15 @@ await writeFile(
     `| Installer package signing | ${installerSigningReady} |`,
     `| Notarization | ${notarizationReady} |`,
     `| GitHub release | ${githubReady} |`,
-    `| macOS tooling | ${toolingReady} |`,
+    `| macOS internal packaging tooling | ${internalToolingReady} |`,
+    `| macOS external signing/notarization tooling | ${externalToolingReady} |`,
     "",
-    "## Issues",
-    "",
-    ...(issues.length > 0 ? issues.map((issue) => `- ${issue}`) : ["- None"]),
-    "",
+    ...(internalRelease
+      ? [
+          ...formatBlockingSection("Internal Blocking Items", internalBlockingItems),
+          ...formatBlockingSection("External Distribution Blocking Items", externalBlockingItems),
+        ]
+      : formatBlockingSection("Blocking Items", issues)),
     "## Detected Signing Identities",
     "",
     ...(identities.length > 0 ? identities.map((identity) => `- ${identity}`) : ["- None"]),
@@ -357,11 +396,14 @@ await appendAudit("phase3-preflight", report.ok ? "ok" : "blocked", {
   notarizationReady,
   githubReady,
   toolingReady,
+  internalToolingReady,
+  externalToolingReady,
   issueCount: report.issues.length,
 });
 
-if (!report.ok && !allowedMissingCredentials) {
-  console.error(issues.join("\n"));
+const shouldFail = internalRelease ? !internalReady : !externalReady && !allowedMissingCredentials;
+if (shouldFail) {
+  console.error(report.issues.join("\n"));
   process.exit(1);
 }
 

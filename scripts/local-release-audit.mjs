@@ -169,9 +169,13 @@ const buildMarkdown = (report) => [
     ([name, result]) => `- ${name}: ${result.ok} (${result.command})`,
   ),
   "",
-  "## Blocking Items",
+  "## Internal Blocking Items",
   "",
-  ...(report.issues.length > 0 ? report.issues.map((issue) => `- ${issue}`) : ["- None"]),
+  ...(report.internalBlockingItems.length > 0 ? report.internalBlockingItems.map((issue) => `- ${issue}`) : ["- None"]),
+  "",
+  "## External Distribution Blocking Items",
+  "",
+  ...(report.externalBlockingItems.length > 0 ? report.externalBlockingItems.map((issue) => `- ${issue}`) : ["- None"]),
   "",
   "## Manual Clean Install Sign-Off",
   "",
@@ -219,7 +223,8 @@ const releaseNotesArtifact = artifactStatus(files, (file) => file === "RELEASE_N
 const validationPackArtifact = artifactStatus(files, (file) => file === "validation-pack.zip", "Validation pack zip");
 const checksumsArtifact = artifactStatus(files, (file) => file === "SHA256SUMS", "Release checksums");
 
-const issues = [];
+const internalBlockingItems = [];
+const externalBlockingItems = [];
 let artifacts = [];
 let signing = { ok: false, commands: {}, notes: [] };
 let hostCompatible = true;
@@ -253,7 +258,7 @@ if (platform === "windows") {
     signing.ok = Boolean(signing.commands.signtoolVerify?.ok);
   } else {
     signing.notes.push("Windows signing verification requires a Windows host with signtool or PowerShell Authenticode checks.");
-    issues.push("Clean Windows install and Authenticode verification require a Windows machine or VM.");
+    externalBlockingItems.push("Clean Windows install and Authenticode verification require a Windows machine or VM.");
   }
 } else if (platform === "macos") {
   hostCompatible = process.platform === "darwin";
@@ -323,29 +328,29 @@ if (platform === "windows") {
     );
   } else {
     signing.notes.push("macOS signing and Gatekeeper verification require a macOS host.");
-    issues.push("Clean macOS install and Gatekeeper verification require a macOS machine or VM.");
+    externalBlockingItems.push("Clean macOS install and Gatekeeper verification require a macOS machine or VM.");
   }
 } else {
   hostCompatible = false;
   artifacts = [releaseNotesArtifact, validationPackArtifact, checksumsArtifact];
-  issues.push(`Unsupported local release audit platform: ${platform}.`);
+  internalBlockingItems.push(`Unsupported local release audit platform: ${platform}.`);
 }
 
 if (!checksumReport.ok) {
-  issues.push("Release checksums are missing or do not match release/SHA256SUMS.");
+  internalBlockingItems.push("Release checksums are missing or do not match release/SHA256SUMS.");
 }
 for (const artifact of artifacts) {
   if (!artifact.ok) {
-    issues.push(`Missing release artifact: ${artifact.label}.`);
+    internalBlockingItems.push(`Missing release artifact: ${artifact.label}.`);
   }
 }
 for (const [key, present] of Object.entries(clinicalUseLimitation)) {
   if (key !== "phrase" && !present) {
-    issues.push(`Clinical use limitation is missing from ${key}.`);
+    internalBlockingItems.push(`Clinical use limitation is missing from ${key}.`);
   }
 }
 if (!signing.ok) {
-  issues.push(
+  externalBlockingItems.push(
     platform === "windows"
       ? "Windows Authenticode verification is not complete for external distribution."
       : "macOS signing and Gatekeeper verification is not complete for external distribution.",
@@ -359,6 +364,9 @@ const disclaimerReady =
   clinicalUseLimitation.validationSummary;
 const internalDistributionReady = requiredArtifactsReady && checksumReport.ok && disclaimerReady;
 const externalDistributionReady = internalDistributionReady && hostCompatible && signing.ok;
+const issues = internalRelease
+  ? [...internalBlockingItems]
+  : [...internalBlockingItems, ...externalBlockingItems];
 const status = externalDistributionReady
   ? "external-ready"
   : internalDistributionReady
@@ -386,6 +394,8 @@ const report = {
   manualCleanInstallRequired: true,
   status,
   issues,
+  internalBlockingItems,
+  externalBlockingItems,
 };
 
 await mkdir(reportsRoot, { recursive: true });
