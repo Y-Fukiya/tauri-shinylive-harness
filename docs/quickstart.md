@@ -11,6 +11,7 @@
   - Windows: WebView2 and MSVC Build Tools.
   - Linux: webkit2gtk, librsvg, and related Tauri system packages.
 - First Shinylive export may need network access to download Shinylive web assets into `.shinylive-cache`.
+- CI setup may restore locked R packages and populate `.shinylive-cache` before release gates run. Inside the release gate, `HARNESS_RELEASE_MODE=true` requires pre-cached Shinylive assets and fails instead of downloading them.
 
 ## Use This Repository
 
@@ -34,6 +35,7 @@ Expected:
 - `verify` validates data packs, exports every configured app, builds the portal, runs TypeScript/Rust checks, runs static verification, and runs Playwright E2E with screenshots.
 - `build:release-local` creates an unsigned internal macOS app/DMG/pkg release candidate and validation evidence pack, including a release artifact smoke test plan.
 - `build:release-windows-local` creates an unsigned internal Windows installer release candidate on Windows.
+- Release gates run `clean:tauri-bundles` before Tauri builds so stale `.app`, `.dmg`, NSIS, or MSI outputs cannot be packaged into the candidate.
 - Local release packaging writes `reports/local-release-audit-<platform>.json` and includes `release/validation-pack/release-smoke-test.md`; external distribution still requires platform signing plus clean-machine install sign-off.
 - `verify:release` checks `release/SHA256SUMS`, `validation-pack.zip`, release smoke evidence, and required validation evidence files.
 - The bundled synthetic apps are not for clinical decision making without organization-specific validation and approval.

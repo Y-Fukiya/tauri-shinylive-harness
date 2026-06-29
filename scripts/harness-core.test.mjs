@@ -18,6 +18,7 @@ import { createTemplatePackage } from "./template-package.mjs";
 import { scanPhiPii } from "./phi-pii-guard.mjs";
 import { verifyOfflineBundle } from "./offline-verify.mjs";
 import { validateJsonSchema } from "./lib/schema-validation.mjs";
+import { cleanTauriBundles } from "./clean-tauri-bundles.mjs";
 
 const invalidClinicalFixtureIds = [
   "missing-required-column",
@@ -385,6 +386,27 @@ test("Shinylive asset anchors use the renv.lock pin instead of cache directory o
     ".shinylive-cache/shinylive-0.10.12/shinylive/shinylive.css",
     ".shinylive-cache/shinylive-0.10.12/shinylive/webr/R.wasm",
   ]);
+});
+
+test("cleanTauriBundles removes stale Tauri bundle outputs before release packaging", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "harness-clean-tauri-bundles-test-"));
+  const staleInstaller = path.join(tempRoot, "src-tauri", "target", "release", "bundle", "nsis", "old-setup.exe");
+  const staleDmg = path.join(tempRoot, "src-tauri", "target", "release", "bundle", "dmg", "old.dmg");
+
+  try {
+    await mkdir(path.dirname(staleInstaller), { recursive: true });
+    await mkdir(path.dirname(staleDmg), { recursive: true });
+    await writeFile(staleInstaller, "old installer\n");
+    await writeFile(staleDmg, "old dmg\n");
+
+    const result = await cleanTauriBundles({ baseRoot: tempRoot });
+
+    assert.equal(result.ok, true);
+    assert.equal(await exists(staleInstaller), false);
+    assert.equal(await exists(staleDmg), false);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
 });
 
 test("verifyReleaseArtifacts validates checksums and required validation-pack evidence", async () => {

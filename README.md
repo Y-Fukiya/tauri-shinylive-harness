@@ -69,7 +69,7 @@ The harness is now config-driven:
 - `dist/checksums/SHA256SUMS`, `dist/reports/sbom.json`, and `dist/reports/licenses.md` are generated during prepare.
 - Playwright E2E verifies portal diagnostics, Shiny smoke text, optional DOM probes, `R.wasm` range/cache behavior, screenshot evidence, and zero external HTTP(S) requests.
 - Phase 3 preflight checks macOS Apple signing/notarization, Windows code-signing, and GitHub release readiness without printing secrets.
-- `release/` packaging creates macOS app/DMG/pkg or Windows installer artifacts, checksums, release notes, and validation pack.
+- `clean:tauri-bundles` removes stale Tauri bundle outputs before release builds, and `release/` packaging creates macOS app/DMG/pkg or Windows installer artifacts, checksums, release notes, and validation pack.
 - GitHub Actions workflows are included for macOS and Windows CI/release-candidate builds.
 
 ## Commands
@@ -85,6 +85,7 @@ Prerequisites for the full local verification path:
   - Windows: WebView2 and MSVC Build Tools
   - Linux: webkit2gtk, librsvg, and related Tauri system packages
 - First Shinylive export may need network access to install R packages or download Shinylive web assets into `.shinylive-cache`
+- CI setup may restore locked R packages and populate `.shinylive-cache` before release gates run. Inside the release gate, `HARNESS_RELEASE_MODE=true` requires pre-cached Shinylive assets and fails instead of downloading them.
 
 Fast path for this repository:
 

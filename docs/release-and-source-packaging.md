@@ -38,6 +38,13 @@ npm run verify:release
 
 Release candidates include built app assets, reports, release artifacts,
 validation pack evidence, checksums, and platform-specific smoke-test material.
+Release gates run `npm run clean:tauri-bundles` before invoking Tauri so stale
+bundle outputs under `src-tauri/target/release/bundle/` cannot be reused by
+`phase3:package`.
+
+CI setup may restore locked R packages and populate `.shinylive-cache` before
+release gates run. Inside the release gate, `HARNESS_RELEASE_MODE=true` export
+requires pre-cached Shinylive assets and fails instead of downloading them.
 
 ## Static Verification Boundary
 

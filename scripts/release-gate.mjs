@@ -99,6 +99,7 @@ const buildSteps = ({ platform, internal }) => {
   },
   { name: "evidence:index", command: "npm", args: ["run", "evidence:index"] },
   preflightStep,
+  { name: "clean:tauri-bundles", command: "npm", args: ["run", "clean:tauri-bundles"] },
   tauriBuildStep,
   packageStep,
   { name: "doctor:artifacts", command: "npm", args: ["run", "doctor:artifacts"] },

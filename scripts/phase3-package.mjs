@@ -22,7 +22,6 @@ import { buildReleaseSmokePlan, renderReleaseSmokeMarkdown } from "./release-smo
 
 const releaseRoot = path.join(rootDir, "release");
 const macosBundleRoot = path.join(rootDir, "src-tauri", "target", "release", "bundle", "macos");
-const dmgRoot = path.join(rootDir, "src-tauri", "target", "release", "bundle", "dmg");
 const windowsReleaseRoot = path.join(rootDir, "src-tauri", "target", "release");
 const nsisRoot = path.join(windowsReleaseRoot, "bundle", "nsis");
 const msiRoot = path.join(windowsReleaseRoot, "bundle", "msi");
@@ -517,10 +516,18 @@ const refreshReleaseSummaryWithFinalChecksums = async () => {
     generatedAt: new Date().toISOString(),
     preSummaryReleaseFingerprint: sha256Text(firstPass.checksumLines.join("\n")),
     authoritative: true,
-    note: "SHA256SUMS is the authoritative final release checksum manifest. finalReleaseChecksums excludes release-summary.json to avoid self-referential checksum drift.",
+    note: "SHA256SUMS is the authoritative final release checksum manifest. finalReleaseChecksums excludes self-referential summary and validation-pack zip artifacts.",
   };
-  releaseSummary.finalReleaseChecksums = firstPass.entries.filter((entry) => entry.path !== "release-summary.json");
+  releaseSummary.finalReleaseChecksums = firstPass.entries.filter(
+    (entry) => ![
+      "release-summary.json",
+      "validation-pack.zip",
+      "validation-pack/evidence/release-summary.json",
+    ].includes(entry.path),
+  );
   await writeFile(summaryPath, `${JSON.stringify(releaseSummary, null, 2)}\n`);
+  await copyIfExists(summaryPath, path.join(releaseRoot, "validation-pack", "evidence", "release-summary.json"));
+  await createZip(path.join(releaseRoot, "validation-pack"), path.join(releaseRoot, "validation-pack.zip"));
   return writeFinalChecksums();
 };
 
@@ -621,16 +628,8 @@ if (config.distribution.macBundles.includes("pkg")) {
   await notarizeIfConfigured(pkgPath);
 }
 
-const dmg = await findFirst(
-  dmgRoot,
-  (name) => name.endsWith(".dmg") && name.includes(config.project.version),
-);
 const releaseDmg = path.join(releaseRoot, `${config.distribution.artifactName}-${config.project.version}.dmg`);
-if (dmg) {
-  await cp(dmg, releaseDmg);
-} else {
-  await createDmgFromAppBundle(config, appBundle, releaseDmg);
-}
+await createDmgFromAppBundle(config, appBundle, releaseDmg);
 
 await copyIfExists(path.join(distRoot, "harness-bundle-manifest.json"), path.join(releaseRoot, "harness-bundle-manifest.json"));
 await copyIfExists(path.join(distRoot, "checksums", "SHA256SUMS"), path.join(releaseRoot, "dist-SHA256SUMS"));
