@@ -11,6 +11,7 @@ import {
   stat,
   writeFile,
 } from "node:fs/promises";
+import { setTimeout as sleep } from "node:timers/promises";
 import { homedir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -24,6 +25,7 @@ export const distRoot = path.join(rootDir, "dist");
 export const reportsRoot = path.join(rootDir, "reports");
 
 const DUPLICATE_COPY_PATTERN = / \d+(?=(\.[^/.]+)?$)/;
+const TRANSIENT_FS_ERROR_CODES = new Set(["ENOENT", "EBUSY", "EMFILE", "ENFILE", "EPERM"]);
 const WINDOWS_COMMAND_SHIMS = new Map([
   ["npm", "npm.cmd"],
   ["npx", "npx.cmd"],
@@ -617,6 +619,25 @@ export const writeJson = async (targetPath, value) => {
   await writeFile(targetPath, `${JSON.stringify(value, null, 2)}\n`);
 };
 
+export const isTransientFsError = (error) =>
+  Boolean(error && typeof error === "object" && TRANSIENT_FS_ERROR_CODES.has(error.code));
+
+export const retryTransientFs = async (operation, { attempts = 6, delayMs = 40 } = {}) => {
+  let lastError = null;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      if (!isTransientFsError(error) || attempt === attempts) {
+        throw error;
+      }
+      await sleep(delayMs * attempt);
+    }
+  }
+  throw lastError;
+};
+
 const shouldCopy = (relativePath) => {
   const basename = path.basename(relativePath);
   return !DUPLICATE_COPY_PATTERN.test(basename) && basename !== ".DS_Store";
@@ -625,11 +646,11 @@ const shouldCopy = (relativePath) => {
 const copyFiltered = async (source, destination, relative = "") => {
   const sourcePath = path.join(source, relative);
   const destinationPath = path.join(destination, relative);
-  const metadata = await stat(sourcePath);
+  const metadata = await retryTransientFs(() => stat(sourcePath));
 
   if (metadata.isDirectory()) {
     await mkdir(destinationPath, { recursive: true });
-    for (const entry of await readdir(sourcePath)) {
+    for (const entry of await retryTransientFs(() => readdir(sourcePath))) {
       const nextRelative = path.join(relative, entry);
       if (shouldCopy(nextRelative)) {
         await copyFiltered(source, destination, nextRelative);
@@ -640,7 +661,7 @@ const copyFiltered = async (source, destination, relative = "") => {
 
   if (metadata.isFile() && shouldCopy(relative)) {
     await mkdir(path.dirname(destinationPath), { recursive: true });
-    await cp(sourcePath, destinationPath, { force: true });
+    await retryTransientFs(() => cp(sourcePath, destinationPath, { force: true }));
   }
 };
 
@@ -682,11 +703,11 @@ export const prepareDist = async (config = null) => {
 
 export const listFiles = async (basePath, relative = "") => {
   const current = path.join(basePath, relative);
-  const metadata = await stat(current);
+  const metadata = await retryTransientFs(() => stat(current));
 
   if (metadata.isDirectory()) {
     const files = [];
-    for (const entry of await readdir(current)) {
+    for (const entry of await retryTransientFs(() => readdir(current))) {
       files.push(...(await listFiles(basePath, path.join(relative, entry))));
     }
     return files;

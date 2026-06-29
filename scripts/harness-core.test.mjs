@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { exists, parseHarnessToml, reportsRoot, rootDir, verifyBundleArtifacts } from "./harness-core.mjs";
+import { exists, parseHarnessToml, reportsRoot, retryTransientFs, rootDir, verifyBundleArtifacts } from "./harness-core.mjs";
 import { validateClinicalDataPack } from "./clinical-data-pack-validator.mjs";
 import { buildReleaseSmokePlan, renderReleaseSmokeMarkdown } from "./release-smoke-plan.mjs";
 import { verifyReleaseArtifacts } from "./release-verifier.mjs";
@@ -115,6 +115,43 @@ header_probes = ["index.html", "shinylive/webr/R.wasm",]
     "hash # inside",
     'escaped "quote"',
   ]);
+});
+
+test("retryTransientFs retries transient prepare-dist filesystem races", async () => {
+  let attempts = 0;
+  const result = await retryTransientFs(
+    async () => {
+      attempts += 1;
+      if (attempts < 3) {
+        const error = new Error("temporary missing webR asset");
+        error.code = "ENOENT";
+        throw error;
+      }
+      return "copied";
+    },
+    { attempts: 4, delayMs: 1 },
+  );
+
+  assert.equal(result, "copied");
+  assert.equal(attempts, 3);
+});
+
+test("retryTransientFs does not mask non-transient filesystem failures", async () => {
+  let attempts = 0;
+  await assert.rejects(
+    retryTransientFs(
+      async () => {
+        attempts += 1;
+        const error = new Error("permission model violation");
+        error.code = "EACCES";
+        throw error;
+      },
+      { attempts: 4, delayMs: 1 },
+    ),
+    /permission model violation/,
+  );
+
+  assert.equal(attempts, 1);
 });
 
 test("local JSON Schema subset validator catches supported keyword failures", async () => {
