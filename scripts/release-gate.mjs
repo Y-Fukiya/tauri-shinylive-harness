@@ -55,8 +55,16 @@ export const buildSteps = ({ platform, internal }) => {
         args: ["run", internal ? "tauri:build:app:no-sign" : "tauri:build:app"],
       };
   const packageStep = platform === "windows"
-    ? { name: "phase3:package:windows", command: "npm", args: ["run", "phase3:package:windows"] }
-    : { name: "phase3:package:macos", command: "npm", args: ["run", "phase3:package:macos"] };
+    ? {
+        name: "phase3:package:windows",
+        command: "node",
+        args: ["scripts/phase3-package.mjs", "--platform", "windows", ...(internal ? ["--internal"] : [])],
+      }
+    : {
+        name: "phase3:package:macos",
+        command: "node",
+        args: ["scripts/phase3-package.mjs", "--platform", "macos", ...(internal ? ["--internal"] : [])],
+      };
   const localAuditStep = platform === "windows"
     ? {
         name: internal ? "local:audit:windows" : "local:audit:windows:strict",

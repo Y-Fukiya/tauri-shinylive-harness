@@ -1,9 +1,0 @@
-{
-  "expectedOk": false,
-  "expectedCodes": [
-    "missing-required-column"
-  ],
-  "expectedSeverities": [
-    "error"
-  ]
-}

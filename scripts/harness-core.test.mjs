@@ -20,6 +20,7 @@ import { verifyOfflineBundle } from "./offline-verify.mjs";
 import { validateJsonSchema } from "./lib/schema-validation.mjs";
 import { cleanTauriBundles } from "./clean-tauri-bundles.mjs";
 import { buildSteps } from "./release-gate.mjs";
+import { selectCandidateReleaseAssets } from "./github-release-draft.mjs";
 
 const invalidClinicalFixtureIds = [
   "missing-required-column",
@@ -451,6 +452,36 @@ test("release gate orders final verification after Tauri build and before releas
   }
   assert.equal(packageIndex < releaseVerifyIndex, true);
   assert.equal(releaseVerifyIndex < auditIndex, true);
+});
+
+test("internal release gate passes internal flag to phase3 package step", () => {
+  const packageStep = buildSteps({ platform: "macos", internal: true }).find((step) => step.name === "phase3:package:macos");
+
+  assert.equal(packageStep.command, "node");
+  assert.deepEqual(packageStep.args, ["scripts/phase3-package.mjs", "--platform", "macos", "--internal"]);
+});
+
+test("GitHub release draft excludes diagnostic reports from downloaded artifacts", () => {
+  const tempReleaseRoot = path.join(os.tmpdir(), "release");
+  const selected = selectCandidateReleaseAssets(
+    [
+      "macos-release-candidate/release/demo.dmg",
+      "macos-release-candidate/release/release-summary.json",
+      "macos-release-candidate/release/RELEASE_NOTES.md",
+      "macos-release-candidate/reports/release-gate.json",
+      "macos-release-candidate/docs/generated/local-release-audit.md",
+      "windows-release-candidate/release/demo-setup.exe",
+      "windows-release-candidate/release/validation-pack/evidence/release-summary.json",
+    ],
+    tempReleaseRoot,
+  ).map((asset) => path.relative(tempReleaseRoot, asset).split(path.sep).join("/"));
+
+  assert.deepEqual(selected, [
+    "macos-release-candidate/release/demo.dmg",
+    "macos-release-candidate/release/release-summary.json",
+    "macos-release-candidate/release/RELEASE_NOTES.md",
+    "windows-release-candidate/release/demo-setup.exe",
+  ]);
 });
 
 test("verifyReleaseArtifacts validates checksums and required validation-pack evidence", async () => {

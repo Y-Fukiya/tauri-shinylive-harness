@@ -198,6 +198,15 @@ const config = await readConfig();
 const files = await releaseFiles();
 const checksumReport = await verifyReleaseChecksums();
 const releaseNotes = await readTextIfExists(path.join(releaseRoot, "RELEASE_NOTES.md"));
+const releaseSummaryText = await readTextIfExists(path.join(releaseRoot, "release-summary.json"));
+let releaseSummary = null;
+try {
+  releaseSummary = releaseSummaryText ? JSON.parse(releaseSummaryText) : null;
+} catch {
+  releaseSummary = null;
+}
+const releaseType = releaseSummary?.releaseType ?? "unknown";
+const internalRelease = releaseType === "unsigned-internal-candidate";
 const validationSummary = await readTextIfExists(path.join(releaseRoot, "validation-pack", "validation-summary.md"));
 const portalSource = await readTextIfExists(path.join(rootDir, "src", "App.tsx"));
 const clinicalUseLimitation = {
@@ -248,14 +257,17 @@ if (platform === "windows") {
   }
 } else if (platform === "macos") {
   hostCompatible = process.platform === "darwin";
-  artifacts = [
-    artifactStatus(files, (file) => /macos-app\.zip$/i.test(file), "macOS app zip"),
-    artifactStatus(files, (file) => /\.dmg$/i.test(file), "macOS DMG"),
-    artifactStatus(files, (file) => /\.pkg$/i.test(file), "macOS pkg"),
-    releaseNotesArtifact,
-    validationPackArtifact,
-    checksumsArtifact,
-  ];
+  const macArtifacts = [];
+  if (config.distribution.macBundles.includes("app")) {
+    macArtifacts.push(artifactStatus(files, (file) => /macos-app\.zip$/i.test(file), "macOS app zip"));
+  }
+  if (config.distribution.macBundles.includes("dmg")) {
+    macArtifacts.push(artifactStatus(files, (file) => /\.dmg$/i.test(file), "macOS DMG"));
+  }
+  if (config.distribution.macBundles.includes("pkg") && !internalRelease) {
+    macArtifacts.push(artifactStatus(files, (file) => /\.pkg$/i.test(file), "macOS pkg"));
+  }
+  artifacts = [...macArtifacts, releaseNotesArtifact, validationPackArtifact, checksumsArtifact];
 
   if (hostCompatible) {
     const appBundle = await findMacAppBundle();
@@ -363,6 +375,7 @@ const report = {
   },
   project: config.project,
   distribution: config.distribution,
+  releaseType,
   clinicalUseLimitation,
   artifacts,
   checksums: checksumReport,

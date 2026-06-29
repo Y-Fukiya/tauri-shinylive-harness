@@ -55,6 +55,8 @@ const targetPlatform =
   options.platform ??
   process.env.HARNESS_TARGET_PLATFORM ??
   (process.platform === "win32" ? "windows" : process.platform === "darwin" ? "macos" : process.platform);
+const internalRelease = options.internal === true || process.env.HARNESS_INTERNAL_RELEASE === "true";
+const releaseType = internalRelease ? "unsigned-internal-candidate" : "signed-release-candidate";
 
 const findFirst = async (directory, predicate) => {
   if (!(await exists(directory))) {
@@ -147,6 +149,7 @@ const writeReleaseNotes = async (config, assets, platform = "macos") => {
     "",
     `Platform: ${platform}`,
     `Channel: ${config.distribution.releaseChannel}`,
+    `Release type: ${releaseType}`,
     "",
     "## Clinical Use Limitation",
     "",
@@ -170,6 +173,12 @@ const writeReleaseNotes = async (config, assets, platform = "macos") => {
     "",
     "## Phase 3 Notes",
     "",
+    ...(internalRelease
+      ? [
+          "Unsigned internal candidate: this package is intended only for controlled internal evaluation. It is not a signed or notarized public release candidate.",
+          "",
+        ]
+      : []),
     platform === "windows"
       ? "Windows code signing requires a code-signing certificate and signing command or certificate thumbprint. If this release was built without those credentials, treat it as an internal unsigned release candidate."
       : "Developer ID signing and notarization require Apple credentials. If this release was built without those credentials, treat it as an internal unsigned release candidate.",
@@ -302,6 +311,7 @@ const createValidationPack = async (config, assets, platform = "macos") => {
     cargo: await commandText("cargo", ["--version"]),
     tauriCli: await commandText("tauri", ["--version"]),
     dataClassification: "synthetic",
+    releaseType,
     regulatedUse: false,
     submissionReady: false,
     artifactSha256: assets.map((asset) => ({ path: asset.name, sha256: asset.sha256 })),
@@ -572,6 +582,7 @@ const packageWindows = async (config) => {
   const { finalFiles, checksumLines } = await refreshReleaseSummaryWithFinalChecksums();
   await appendAudit("phase3-package", "ok", {
     platform: "windows",
+    releaseType,
     releaseRoot,
     releaseFingerprint: sha256Text(checksumLines.join("\n")),
     assetCount: finalFiles.length,
@@ -594,10 +605,12 @@ if (!appBundle) {
   throw new Error("No macOS .app bundle found. Run npm run build:harness first.");
 }
 
-const appZip = path.join(releaseRoot, `${config.distribution.artifactName}-${config.project.version}-macos-app.zip`);
-await runCommand("ditto", ["-c", "-k", "--norsrc", "--keepParent", appBundle, appZip], {
-  env: { ...process.env, COPYFILE_DISABLE: "1" },
-});
+if (config.distribution.macBundles.includes("app")) {
+  const appZip = path.join(releaseRoot, `${config.distribution.artifactName}-${config.project.version}-macos-app.zip`);
+  await runCommand("ditto", ["-c", "-k", "--norsrc", "--keepParent", appBundle, appZip], {
+    env: { ...process.env, COPYFILE_DISABLE: "1" },
+  });
+}
 
 const pkgPath = path.join(releaseRoot, `${config.distribution.artifactName}-${config.project.version}.pkg`);
 const pkgArgs = [
@@ -606,20 +619,22 @@ const pkgArgs = [
   "--install-location",
   "/Applications",
 ];
-if (config.distribution.macBundles.includes("pkg") && config.phase3.signingRequired && !process.env.APPLE_INSTALLER_SIGNING_IDENTITY) {
-  throw new Error("APPLE_INSTALLER_SIGNING_IDENTITY is required to build signed pkg artifacts.");
-}
-if (process.env.APPLE_INSTALLER_SIGNING_IDENTITY) {
-  pkgArgs.push("--sign", process.env.APPLE_INSTALLER_SIGNING_IDENTITY);
-}
-pkgArgs.push(pkgPath);
-await runCommand("pkgbuild", pkgArgs);
-if (config.distribution.macBundles.includes("pkg")) {
+if (config.distribution.macBundles.includes("pkg") && !internalRelease) {
+  if (config.phase3.signingRequired && !process.env.APPLE_INSTALLER_SIGNING_IDENTITY) {
+    throw new Error("APPLE_INSTALLER_SIGNING_IDENTITY is required to build signed pkg artifacts.");
+  }
+  if (process.env.APPLE_INSTALLER_SIGNING_IDENTITY) {
+    pkgArgs.push("--sign", process.env.APPLE_INSTALLER_SIGNING_IDENTITY);
+  }
+  pkgArgs.push(pkgPath);
+  await runCommand("pkgbuild", pkgArgs);
   await notarizeIfConfigured(pkgPath);
 }
 
-const releaseDmg = path.join(releaseRoot, `${config.distribution.artifactName}-${config.project.version}.dmg`);
-await createDmgFromAppBundle(config, appBundle, releaseDmg);
+if (config.distribution.macBundles.includes("dmg")) {
+  const releaseDmg = path.join(releaseRoot, `${config.distribution.artifactName}-${config.project.version}.dmg`);
+  await createDmgFromAppBundle(config, appBundle, releaseDmg);
+}
 
 await copyIfExists(path.join(distRoot, "harness-bundle-manifest.json"), path.join(releaseRoot, "harness-bundle-manifest.json"));
 await copyIfExists(path.join(distRoot, "checksums", "SHA256SUMS"), path.join(releaseRoot, "dist-SHA256SUMS"));
@@ -660,6 +675,7 @@ const { finalFiles, checksumLines } = await refreshReleaseSummaryWithFinalChecks
 
 await appendAudit("phase3-package", "ok", {
   platform: "macos",
+  releaseType,
   releaseRoot,
   releaseFingerprint: sha256Text(checksumLines.join("\n")),
   assetCount: finalFiles.length,
