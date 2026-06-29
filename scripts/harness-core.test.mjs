@@ -726,6 +726,26 @@ test("package scripts expose explicit phase3 preflight aliases", async () => {
   const packageJson = JSON.parse(await readFile(path.join(rootDir, "package.json"), "utf8"));
 
   assert.equal(
+    packageJson.scripts["phase3:preflight"],
+    "node scripts/phase3-preflight.mjs --allow-missing-credentials",
+  );
+  assert.equal(
+    packageJson.scripts["phase3:preflight:info"],
+    "node scripts/phase3-preflight.mjs --allow-missing-credentials",
+  );
+  assert.equal(
+    packageJson.scripts["phase3:preflight:info:macos"],
+    "node scripts/phase3-preflight.mjs --platform macos --allow-missing-credentials",
+  );
+  assert.equal(
+    packageJson.scripts["phase3:preflight:info:windows"],
+    "node scripts/phase3-preflight.mjs --platform windows --allow-missing-credentials",
+  );
+  assert.equal(
+    packageJson.scripts["phase3:preflight:strict"],
+    "node scripts/phase3-preflight.mjs",
+  );
+  assert.equal(
     packageJson.scripts["phase3:preflight:strict:macos"],
     "node scripts/phase3-preflight.mjs --platform macos",
   );

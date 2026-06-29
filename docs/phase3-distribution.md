@@ -91,9 +91,13 @@ npm run local:audit:windows
 
 ```sh
 npm run phase3:preflight
+npm run phase3:preflight:info
+npm run phase3:preflight:strict
 npm run tauri:build:app
 npm run phase3:package
 npm run phase3:preflight:windows
+npm run phase3:preflight:info:windows
+npm run phase3:preflight:strict:windows
 npm run tauri:build:windows
 npm run phase3:package:windows
 npm run local:audit:macos
@@ -101,7 +105,15 @@ npm run local:audit:windows
 npm run phase3:release-draft
 ```
 
-`phase3:preflight` writes `reports/phase3-preflight.json` and `docs/generated/phase3-readiness.md`. Without credentials, it reports the missing inputs while still allowing local unsigned packaging through `npm run build:release-local`.
+`phase3:preflight` writes `reports/phase3-preflight.json` and `docs/generated/phase3-readiness.md`. It is retained as a backward-compatible alias for `phase3:preflight:info`.
+
+Use these preflight modes deliberately:
+
+- `phase3:preflight:info`, plus `phase3:preflight:info:macos` and `phase3:preflight:info:windows`, reports readiness and missing credentials without failing solely because signing credentials are absent. Use it for local diagnostics and documentation.
+- `phase3:preflight:strict`, plus platform-specific strict aliases, is the signed release-candidate check. Missing Apple Developer ID, notarization, or Windows signing inputs are blocking failures.
+- `phase3:preflight:internal:macos` and `phase3:preflight:internal:windows` are for unsigned internal candidates. They still require platform packaging tools, but they do not require external distribution signing credentials.
+
+For unsigned internal candidates, prefer `npm run build:release-local` or `npm run build:release-windows-local`; those commands call the internal release gate and keep internal/external readiness evidence separate. For signed release candidates, use `npm run gate:release`; it runs strict preflight and is expected to fail when signing/notarization credentials are not configured.
 
 The stable macOS packaging path asks Tauri to create the `.app` bundle only. `phase3:package` then creates the DMG with `hdiutil`, creates the pkg with `pkgbuild`, signs the DMG when `APPLE_SIGNING_IDENTITY` is set, and submits/staples the DMG when notarization credentials are set.
 
@@ -134,7 +146,7 @@ The stable Windows packaging path asks Tauri to create NSIS installer artifacts.
 
 `npm run phase3:release-draft` creates a draft prerelease using `gh release create`. Set `RELEASE_TAG` to override the default `v<project.version>`.
 
-Do not publish `v1.0.0-rc.1` as signed/notarized unless `phase3:preflight` reports signing and notarization readiness and the resulting artifacts have been built with credentials.
+Do not publish `v1.0.0-rc.1` as signed/notarized unless `phase3:preflight:strict` reports signing and notarization readiness and the resulting artifacts have been built with credentials.
 
 The GitHub Actions release workflow uploads macOS and Windows `release/` directories plus the gate reports that explain how the candidate was produced:
 

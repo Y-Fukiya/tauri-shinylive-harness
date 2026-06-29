@@ -107,6 +107,12 @@ npm run gate:bundle
 
 ## Release Paths
 
+Phase 3 の preflight は3種類に分けています。
+
+- `phase3:preflight:info`: readiness と不足 credentials を表示する確認用です。署名資格情報が無いことだけでは失敗扱いにしません。`phase3:preflight` は後方互換のため、この info mode の alias として残しています。
+- `phase3:preflight:strict`: `gate:release` が使う signed release 用 preflight です。signing / notarization input の不足は blocking failure です。
+- `phase3:preflight:internal:*`: unsigned internal candidate 用です。ローカル packaging tooling は必要ですが、外部配布用の署名資格情報は要求しません。
+
 資格情報なしの unsigned internal candidate:
 
 ```sh
@@ -118,6 +124,7 @@ npm run verify:release
 資格情報ありの signed/notarized release candidate:
 
 ```sh
+npm run phase3:preflight:strict
 npm run gate:release
 ```
 
@@ -130,7 +137,7 @@ release checksum の authoritative source は `release/SHA256SUMS` です。`REL
 - `gate:bundle`: JS/TS、config、data、static、offline、PHI guard、Tauri security を見る軽量 gate
 - `verify`: export、Rust tests、Playwright E2E、runtime integrity、screenshot、外部 HTTP(S) request audit を含む統合 gate
 - `gate:internal-release`: unsigned internal candidate 用。internal/external readiness evidence を分離する
-- `gate:release`: 資格情報ありの最終 release gate
+- `gate:release`: 資格情報ありの最終 release gate。strict Phase 3 preflight を使うため、signing / notarization credentials が未設定なら期待通り失敗します
 
 ## Evidence Outputs
 

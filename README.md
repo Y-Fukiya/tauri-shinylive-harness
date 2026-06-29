@@ -107,6 +107,12 @@ npm run gate:bundle
 
 ## Release Paths
 
+Phase 3 has three preflight modes:
+
+- `phase3:preflight:info` reports readiness and missing credentials without failing solely because signing credentials are absent. `phase3:preflight` is kept as a backward-compatible alias for this informational mode.
+- `phase3:preflight:strict` is the signed release preflight used by `gate:release`; missing signing or notarization inputs are blocking failures.
+- `phase3:preflight:internal:*` is for unsigned internal candidates; it still requires local packaging tools, but does not require external signing credentials.
+
 Unsigned internal candidate:
 
 ```sh
@@ -118,6 +124,7 @@ npm run verify:release
 Signed/notarized release candidate:
 
 ```sh
+npm run phase3:preflight:strict
 npm run gate:release
 ```
 
@@ -130,7 +137,7 @@ Release checksums are authoritative in `release/SHA256SUMS`. Release notes shoul
 - `gate:bundle`: lightweight source/bundle gate for JS/TS, config, data, static, offline, PHI guard, and Tauri security checks.
 - `verify`: heavier integrated gate including export, Rust tests, Playwright E2E, runtime integrity, screenshots, and external HTTP(S) request audit.
 - `gate:internal-release`: unsigned internal candidate path with internal/external readiness evidence.
-- `gate:release`: credential-backed final release gate.
+- `gate:release`: credential-backed final release gate; it uses strict Phase 3 preflight and is expected to fail when signing/notarization credentials are not configured.
 
 ## Evidence Outputs
 

@@ -148,14 +148,28 @@ For Windows, use `docs/manual-clean-windows-checklist.md`.
 
 ## Phase 3 Release Candidate Verification
 
+Informational preflight can be used to document missing credentials without treating that alone as a hard failure:
+
 ```sh
-npm run phase3:preflight
+npm run phase3:preflight:info
+```
+
+Unsigned internal candidates should use the internal release gate:
+
+```sh
+npm run gate:internal-release
 npm run tauri:build:app:no-sign
 npm run phase3:package
-npm run phase3:preflight:windows
 npm run tauri:build:windows:no-sign
 npm run phase3:package:windows
 npm run verify:release
+```
+
+Signed release candidates should use strict preflight through `gate:release`; missing signing or notarization credentials are expected to fail the gate:
+
+```sh
+npm run phase3:preflight:strict
+npm run gate:release
 ```
 
 Expected:

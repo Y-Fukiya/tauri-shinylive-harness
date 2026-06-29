@@ -63,6 +63,10 @@ harness build
 
 ```text
 npm run phase3:preflight
+npm run phase3:preflight:info
+npm run phase3:preflight:strict
+npm run phase3:preflight:internal:macos
+npm run phase3:preflight:internal:windows
 npm run tauri:build:app:no-sign
 npm run tauri:build:app
 npm run tauri:build:windows:no-sign
@@ -75,6 +79,8 @@ npm run build:release-windows-local
 npm run local:audit:macos
 npm run local:audit:windows
 ```
+
+`phase3:preflight` is retained as a backward-compatible alias for `phase3:preflight:info`, which reports readiness and missing credentials for diagnostics. `phase3:preflight:strict` is the signed release-candidate check used by `gate:release`; missing Apple notarization or Windows signing inputs are blocking failures. `phase3:preflight:internal:*` is for unsigned internal candidates and checks packaging-tool readiness without requiring external signing credentials.
 
 `build:release-local` creates an unsigned internal macOS release candidate. `build:release-windows-local` creates an unsigned internal Windows release candidate on Windows. The stable macOS path builds the `.app` with Tauri, then lets `phase3:package` create the DMG/pkg, sign the DMG, and notarize/staple it when Apple credentials are configured. The stable Windows path builds the NSIS installer with Tauri, then lets `phase3:package:windows` collect installer artifacts and validation evidence.
 
