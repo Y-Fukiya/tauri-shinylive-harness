@@ -536,12 +536,12 @@ const createDataPackManifest = async (app) => {
   const files = [];
   for (const relativePath of app.dataPaths) {
     const targetPath = path.join(rootDir, relativePath);
-    const metadata = await stat(targetPath);
+    const metadata = await artifactFileMetadata(targetPath);
     files.push({
       path: toPosix(relativePath),
       logicalPath: logicalDataPackPath(app, relativePath),
       size: metadata.size,
-      sha256: await sha256File(targetPath),
+      sha256: await artifactFileSha256(targetPath),
     });
   }
 
@@ -733,10 +733,10 @@ export const sha256File = async (targetPath) => {
   return hash.digest("hex");
 };
 
-const bundleAssetMetadata = (targetPath) =>
+const artifactFileMetadata = (targetPath) =>
   retryTransientFs(() => stat(targetPath), { attempts: 8, delayMs: 80 });
 
-const bundleAssetSha256 = (targetPath) =>
+const artifactFileSha256 = (targetPath) =>
   retryTransientFs(() => sha256File(targetPath), { attempts: 8, delayMs: 80 });
 
 export const writeBundleArtifacts = async (config, manifest) => {
@@ -749,11 +749,11 @@ export const writeBundleArtifacts = async (config, manifest) => {
 
   for (const relativePath of files) {
     const targetPath = path.join(distRoot, relativePath);
-    const metadata = await bundleAssetMetadata(targetPath);
+    const metadata = await artifactFileMetadata(targetPath);
     assets.push({
       path: toPosix(relativePath),
       size: metadata.size,
-      sha256: await bundleAssetSha256(targetPath),
+      sha256: await artifactFileSha256(targetPath),
     });
   }
 
@@ -777,11 +777,11 @@ export const writeBundleArtifacts = async (config, manifest) => {
   const generatedArtifacts = [];
   for (const relativePath of ["reports/sbom.json", "reports/licenses.md"]) {
     const targetPath = path.join(distRoot, relativePath);
-    const metadata = await bundleAssetMetadata(targetPath);
+    const metadata = await artifactFileMetadata(targetPath);
     generatedArtifacts.push({
       path: relativePath,
       size: metadata.size,
-      sha256: await bundleAssetSha256(targetPath),
+      sha256: await artifactFileSha256(targetPath),
     });
   }
   bundleManifest.generatedArtifacts = generatedArtifacts;
@@ -1014,7 +1014,7 @@ export const verifyBundleArtifacts = async (config = null, { targetRoot = distRo
       issues.push(`Missing bundled asset: ${asset.path}`);
       continue;
     }
-    const nextHash = await sha256File(targetPath);
+    const nextHash = await artifactFileSha256(targetPath);
     if (nextHash !== asset.sha256) {
       issues.push(`Hash mismatch: ${asset.path}`);
     }
@@ -1030,14 +1030,14 @@ export const verifyBundleArtifacts = async (config = null, { targetRoot = distRo
       issues.push(`Missing required generated file: ${requiredGeneratedFile}`);
       continue;
     }
-    const metadata = await stat(targetPath);
+    const metadata = await artifactFileMetadata(targetPath);
     if (metadata.size === 0) {
       issues.push(`Generated file is empty: ${requiredGeneratedFile}`);
     }
     if (metadata.size !== artifact.size) {
       issues.push(`Generated artifact size mismatch: ${requiredGeneratedFile}`);
     }
-    const nextHash = await sha256File(targetPath);
+    const nextHash = await artifactFileSha256(targetPath);
     if (nextHash !== artifact.sha256) {
       issues.push(`Generated artifact hash mismatch: ${requiredGeneratedFile}`);
     }
