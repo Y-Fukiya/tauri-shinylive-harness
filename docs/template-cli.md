@@ -16,7 +16,7 @@ harness export-report-pdfs [--manifest reports/report-export-manifest.json]
 harness cdisc-preflight [--pinnacle21-cli path]
 harness review-signoff [--status pending-review] [--reviewer name] [--decision decision]
 harness evidence-index
-harness package-template [--output dist/starter-template] [--zip]
+harness package-template [--output artifacts/starter-template] [--zip]
 harness prepare
 harness verify-static
 harness verify [--app app-id]
@@ -190,8 +190,8 @@ npm run harness -- package-template --zip
 
 Outputs:
 
-- `dist/starter-template/<artifact-name>-starter/`
+- `artifacts/starter-template/<artifact-name>-starter/`
 - `reports/template-package-manifest.json`
-- optional `dist/starter-template/<artifact-name>-starter.zip`
+- optional `artifacts/starter-template/<artifact-name>-starter.zip`
 
 The starter is package-shaped and includes the `tauri-shinylive-harness` bin entry, but publishing to npm is intentionally separate because it requires package naming, ownership, release policy, and credentials.

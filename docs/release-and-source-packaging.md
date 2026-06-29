@@ -10,7 +10,8 @@ Use:
 npm run package:source-template
 ```
 
-This writes `reports/source-template-manifest.json`.
+This writes `reports/source-template-manifest.json` and uses
+`artifacts/source-template/` for optional reusable source-template outputs.
 
 The source template includes source, configuration, schemas, docs, scripts,
 synthetic data packs, and app sources.

@@ -19,7 +19,7 @@ if (length(missing) > 0) {
   if (dir.exists(asset_root)) {
     unlink(asset_root, recursive = TRUE, force = TRUE)
   }
-  shinylive::assets_ensure(version = assets_version, dir = assets_dir)
+  shinylive::assets_download(version = assets_version, dir = assets_dir)
 }
 
 required <- file.path(asset_root, required_relative)

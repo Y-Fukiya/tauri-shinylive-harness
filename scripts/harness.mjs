@@ -52,7 +52,7 @@ const usage = `Usage:
   node scripts/harness.mjs cdisc-preflight [--mode demo|handoff|regulated] [--mapping mappings/cdisc-demo-mapping.json] [--pinnacle21-cli path]
   node scripts/harness.mjs review-signoff [--status pending-review] [--reviewer name] [--decision decision] [--notes text]
   node scripts/harness.mjs evidence-index
-  node scripts/harness.mjs package-template [--output dist/starter-template] [--zip]
+  node scripts/harness.mjs package-template [--output artifacts/starter-template] [--zip]
   node scripts/harness.mjs prepare
   node scripts/harness.mjs audit-tauri-security [--report reports/tauri-security-audit.json]
   node scripts/harness.mjs reproducibility [--report reports/reproducibility.json] [--include-assets]

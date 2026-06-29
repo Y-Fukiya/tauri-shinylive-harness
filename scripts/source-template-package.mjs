@@ -7,7 +7,7 @@ import { promisify } from "node:util";
 import { listFiles, reportsRoot, rootDir, runCommand, sha256File, toPosix, writeJson } from "./harness-core.mjs";
 
 const execFileAsync = promisify(execFile);
-const outputRoot = path.join(rootDir, "dist", "source-template");
+const outputRoot = path.join(rootDir, "artifacts", "source-template");
 const manifestPath = path.join(reportsRoot, "source-template-manifest.json");
 const zipPath = path.join(outputRoot, "source-template.zip");
 

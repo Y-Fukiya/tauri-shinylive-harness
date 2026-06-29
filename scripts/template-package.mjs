@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-import { cp, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { cp, mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { appendAudit, distRoot, exists, listFiles, readConfig, rootDir, runCommand, sha256File, toPosix, writeJson } from "./harness-core.mjs";
+import { appendAudit, exists, listFiles, readConfig, rootDir, runCommand, sha256File, toPosix, writeJson } from "./harness-core.mjs";
 
-const defaultOutputRoot = path.join(distRoot, "starter-template");
+const defaultOutputRoot = path.join(rootDir, "artifacts", "starter-template");
 const defaultReportPath = path.join(rootDir, "reports", "template-package-manifest.json");
 
 const defaultIncludePaths = [
@@ -21,7 +21,13 @@ const defaultIncludePaths = [
   "vite.config.ts",
   "tsconfig.json",
   "src",
-  "src-tauri",
+  "src-tauri/Cargo.toml",
+  "src-tauri/Cargo.lock",
+  "src-tauri/tauri.conf.json",
+  "src-tauri/build.rs",
+  "src-tauri/src",
+  "src-tauri/capabilities",
+  "src-tauri/icons",
   "crates",
   "scripts",
   "schemas",
@@ -37,6 +43,7 @@ const excludedSegments = new Set([
   "node_modules",
   "target",
   "dist",
+  "artifacts",
   "apps",
   "reports",
   "release",
@@ -76,23 +83,32 @@ const shouldInclude = (relativePath) => {
 };
 
 const copySelected = async (includePaths, starterRoot) => {
-  for (const includePath of includePaths) {
-    if (!shouldInclude(includePath)) {
-      continue;
+  const copyIncludedPath = async (relativePath) => {
+    if (!shouldInclude(relativePath)) {
+      return;
     }
-    const source = path.join(rootDir, includePath);
+    const source = path.join(rootDir, relativePath);
     if (!(await exists(source))) {
-      continue;
+      return;
     }
-    const destination = path.join(starterRoot, includePath);
+    const metadata = await stat(source);
+    if (metadata.isDirectory()) {
+      const entries = await readdir(source);
+      for (const entry of entries) {
+        await copyIncludedPath(path.join(relativePath, entry));
+      }
+      return;
+    }
+    if (!metadata.isFile()) {
+      return;
+    }
+    const destination = path.join(starterRoot, relativePath);
     await mkdir(path.dirname(destination), { recursive: true });
-    await cp(source, destination, {
-      recursive: true,
-      filter: (sourcePath) => {
-        const relative = path.relative(rootDir, sourcePath);
-        return shouldInclude(relative);
-      },
-    });
+    await cp(source, destination);
+  };
+
+  for (const includePath of includePaths) {
+    await copyIncludedPath(includePath);
   }
 };
 

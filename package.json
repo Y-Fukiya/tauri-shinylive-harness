@@ -10,9 +10,10 @@
   "scripts": {
     "harness": "node scripts/harness.mjs",
     "dev": "vite --host 127.0.0.1 --port 1420",
+    "clean:dist": "node scripts/clean-dist.mjs",
     "build:portal": "vite build",
     "prepare:dist": "node scripts/prepare-dist.mjs",
-    "build:all": "npm run build:portal && npm run prepare:dist",
+    "build:all": "npm run clean:dist && npm run build:portal && npm run prepare:dist",
     "check": "tsc --noEmit",
     "gate:fast": "npm run check && npm run test:unit && npm run validate:config && npm run validate:data && npm run guard:phi",
     "gate:bundle": "npm run gate:fast && npm run build:all && npm run verify:static && npm run audit:tauri-security && npm run verify:offline",
