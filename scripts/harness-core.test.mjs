@@ -379,6 +379,45 @@ test("release smoke plan captures platform install, offline, and app smoke evide
   assert.match(markdown, /SUBJ-001 AE count: 3/);
 });
 
+test("release smoke plan omits macOS pkg for unsigned internal candidates", () => {
+  const config = {
+    project: { bundleName: "Demo Harness", version: "1.0.0" },
+    distribution: {
+      artifactName: "demo-harness",
+      releaseChannel: "internal",
+      macBundles: ["app", "dmg", "pkg"],
+      windowsBundles: ["nsis"],
+    },
+    apps: [],
+  };
+  const context = { releaseTag: "v1.0.0", gitCommit: "abc123", gitBranch: "main" };
+  const internalPlan = buildReleaseSmokePlan({
+    config,
+    context,
+    platform: "macos",
+    releaseType: "unsigned-internal-candidate",
+    internalRelease: true,
+  });
+  const signedPlan = buildReleaseSmokePlan({
+    config,
+    context,
+    platform: "macos",
+    releaseType: "signed-release-candidate",
+    internalRelease: false,
+  });
+
+  assert.deepEqual(internalPlan.expectedArtifacts, [
+    "demo-harness-1.0.0-macos-app.zip",
+    "demo-harness-1.0.0.dmg",
+  ]);
+  assert.deepEqual(signedPlan.expectedArtifacts, [
+    "demo-harness-1.0.0-macos-app.zip",
+    "demo-harness-1.0.0.dmg",
+    "demo-harness-1.0.0.pkg",
+  ]);
+  assert.match(renderReleaseSmokeMarkdown(internalPlan), /Internal unsigned candidates do not include a pkg installer/);
+});
+
 test("Shinylive asset anchors use the renv.lock pin instead of cache directory ordering", () => {
   const anchors = resolveShinyliveAssetAnchors({
     shinylive: {
@@ -456,7 +495,15 @@ test("release gate orders final verification after Tauri build and before releas
 
 test("internal release gate passes internal flag to phase3 package step", () => {
   const packageStep = buildSteps({ platform: "macos", internal: true }).find((step) => step.name === "phase3:package:macos");
+  const preflightStep = buildSteps({ platform: "macos", internal: true }).find((step) => step.name === "phase3:preflight:macos:internal");
 
+  assert.deepEqual(preflightStep.args, [
+    "scripts/phase3-preflight.mjs",
+    "--platform",
+    "macos",
+    "--internal",
+    "--allow-missing-credentials",
+  ]);
   assert.equal(packageStep.command, "node");
   assert.deepEqual(packageStep.args, ["scripts/phase3-package.mjs", "--platform", "macos", "--internal"]);
 });

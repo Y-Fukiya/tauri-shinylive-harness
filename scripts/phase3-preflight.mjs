@@ -89,6 +89,9 @@ const targetPlatform =
   process.env.HARNESS_TARGET_PLATFORM ??
   (process.platform === "win32" ? "windows" : process.platform === "darwin" ? "macos" : process.platform);
 const config = await readConfig();
+const internalRelease = options.internal === true || process.env.HARNESS_INTERNAL_RELEASE === "true";
+const allowedMissingCredentials = options["allow-missing-credentials"] === true;
+const releaseType = internalRelease ? "unsigned-internal-candidate" : "signed-release-candidate";
 
 if (targetPlatform === "windows") {
   const certificatePathExists = await envPathExists("WINDOWS_CERTIFICATE_PATH");
@@ -132,11 +135,22 @@ if (targetPlatform === "windows") {
   if (!toolingReady) {
     issues.push("Windows package tooling is incomplete. Check PowerShell availability.");
   }
+  const externalBlockingItems = [...issues];
+  const internalBlockingItems = [
+    ...(!toolingReady ? ["Windows package tooling is incomplete. Check PowerShell availability."] : []),
+  ];
+  const externalReady = externalBlockingItems.length === 0;
+  const internalReady = internalRelease && internalBlockingItems.length === 0;
+  const ok = internalRelease ? internalReady : externalReady;
 
   const report = {
     schemaVersion: 1,
     platform: "windows",
-    ok: issues.length === 0,
+    releaseType,
+    ok,
+    internalReady,
+    externalReady,
+    allowedMissingCredentials,
     checkedAt: new Date().toISOString(),
     project: config.project,
     distribution: config.distribution,
@@ -147,7 +161,8 @@ if (targetPlatform === "windows") {
     toolingReady,
     windowsEnvironment: windows,
     commands,
-    issues,
+    issues: internalRelease ? internalBlockingItems : issues,
+    externalBlockingItems,
   };
 
   await mkdir(reportsRoot, { recursive: true });
@@ -177,13 +192,16 @@ if (targetPlatform === "windows") {
   );
   await appendAudit("phase3-preflight", report.ok ? "ok" : "blocked", {
     platform: "windows",
+    releaseType,
+    internalReady,
+    externalReady,
     signingReady,
     githubReady,
     toolingReady,
-    issueCount: issues.length,
+    issueCount: report.issues.length,
   });
 
-  if (!report.ok && !options["allow-missing-credentials"]) {
+  if (!report.ok && !allowedMissingCredentials) {
     console.error(issues.join("\n"));
     process.exit(1);
   }
@@ -268,11 +286,22 @@ if (!githubReady) {
 if (!toolingReady) {
   issues.push("macOS signing/notarization/package tooling is incomplete. Check codesign, xcrun notarytool, xcrun stapler, and xcrun pkgbuild.");
 }
+const externalBlockingItems = [...issues];
+const internalBlockingItems = [
+  ...(!toolingReady ? ["macOS signing/notarization/package tooling is incomplete. Check codesign, xcrun notarytool, xcrun stapler, and xcrun pkgbuild."] : []),
+];
+const externalReady = externalBlockingItems.length === 0;
+const internalReady = internalRelease && internalBlockingItems.length === 0;
+const ok = internalRelease ? internalReady : externalReady;
 
 const report = {
   schemaVersion: 1,
   platform: "macos",
-  ok: issues.length === 0,
+  releaseType,
+  ok,
+  internalReady,
+  externalReady,
+  allowedMissingCredentials,
   checkedAt: new Date().toISOString(),
   project: config.project,
   distribution: config.distribution,
@@ -286,7 +315,8 @@ const report = {
   appleEnvironment: apple,
   detectedSigningIdentities: identities,
   commands,
-  issues,
+  issues: internalRelease ? internalBlockingItems : issues,
+  externalBlockingItems,
 };
 
 await mkdir(reportsRoot, { recursive: true });
@@ -319,15 +349,18 @@ await writeFile(
   ].join("\n"),
 );
 await appendAudit("phase3-preflight", report.ok ? "ok" : "blocked", {
+  releaseType,
+  internalReady,
+  externalReady,
   signingReady,
   installerSigningReady,
   notarizationReady,
   githubReady,
   toolingReady,
-  issueCount: issues.length,
+  issueCount: report.issues.length,
 });
 
-if (!report.ok && !options["allow-missing-credentials"]) {
+if (!report.ok && !allowedMissingCredentials) {
   console.error(issues.join("\n"));
   process.exit(1);
 }

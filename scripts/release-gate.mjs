@@ -36,7 +36,7 @@ export const buildSteps = ({ platform, internal }) => {
     ? {
         name: `phase3:preflight:${platform}:internal`,
         command: "node",
-        args: ["scripts/phase3-preflight.mjs", "--platform", platform, "--allow-missing-credentials"],
+        args: ["scripts/phase3-preflight.mjs", "--platform", platform, "--internal", "--allow-missing-credentials"],
       }
     : {
         name: `phase3:preflight:${platform}:strict`,

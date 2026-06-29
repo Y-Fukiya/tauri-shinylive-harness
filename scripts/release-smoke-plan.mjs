@@ -1,7 +1,7 @@
 const clinicalUseLimitation =
   "This harness and its bundled synthetic demo apps are for technical evaluation only. They are not validated medical devices and are not for clinical decision making unless an organization completes its own regulated validation and approval.";
 
-const platformInstallSteps = (platform, config) => {
+const platformInstallSteps = (platform, config, { internalRelease = false } = {}) => {
   if (platform === "windows") {
     const bundles = config.distribution.windowsBundles ?? [];
     const installerStep = bundles.includes("nsis")
@@ -17,13 +17,15 @@ const platformInstallSteps = (platform, config) => {
 
   return [
     "Verify release/SHA256SUMS before installation.",
-    "Install the pkg or open the dmg on a clean macOS account or VM.",
+    internalRelease
+      ? "Open the dmg or unzip the app bundle on a clean macOS account or VM. Internal unsigned candidates do not include a pkg installer."
+      : "Install the pkg or open the dmg on a clean macOS account or VM.",
     "Launch the app from Finder.",
     "Record Gatekeeper behavior for the release type.",
   ];
 };
 
-const artifactPatterns = (platform, artifactName, version, config) => {
+const artifactPatterns = (platform, artifactName, version, config, { internalRelease = false } = {}) => {
   if (platform === "windows") {
     const bundles = config.distribution.windowsBundles ?? [];
     const patterns = [];
@@ -37,17 +39,20 @@ const artifactPatterns = (platform, artifactName, version, config) => {
   }
 
   const bundles = config.distribution.macBundles ?? [];
-  const patterns = [`${artifactName}-${version}-macos-app.zip`];
+  const patterns = [];
+  if (bundles.includes("app")) {
+    patterns.push(`${artifactName}-${version}-macos-app.zip`);
+  }
   if (bundles.includes("dmg")) {
     patterns.push(`${artifactName}-${version}.dmg`);
   }
-  if (bundles.includes("pkg")) {
+  if (bundles.includes("pkg") && !internalRelease) {
     patterns.push(`${artifactName}-${version}.pkg`);
   }
   return patterns;
 };
 
-export const buildReleaseSmokePlan = ({ config, context, platform }) => {
+export const buildReleaseSmokePlan = ({ config, context, platform, releaseType, internalRelease = false }) => {
   const apps = config.apps.map((app) => ({
     id: app.id,
     title: app.title,
@@ -65,14 +70,18 @@ export const buildReleaseSmokePlan = ({ config, context, platform }) => {
       bundleName: config.project.bundleName,
       version: config.project.version,
     },
+    releaseType,
+    internalRelease,
     distribution: {
       artifactName: config.distribution.artifactName,
       releaseChannel: config.distribution.releaseChannel,
     },
     context,
     clinicalUseLimitation,
-    expectedArtifacts: artifactPatterns(platform, config.distribution.artifactName, config.project.version, config),
-    installSteps: platformInstallSteps(platform, config),
+    expectedArtifacts: artifactPatterns(platform, config.distribution.artifactName, config.project.version, config, {
+      internalRelease,
+    }),
+    installSteps: platformInstallSteps(platform, config, { internalRelease }),
     runtimeChecks: [
       "Portal opens on 127.0.0.1.",
       "/__harness/health reports ok: true.",
@@ -111,6 +120,7 @@ export const renderReleaseSmokeMarkdown = (plan) => [
   "",
   `Version: ${plan.project.version}`,
   `Platform: ${plan.platform}`,
+  `Release type: ${plan.releaseType ?? "not available"}`,
   `Release tag: ${plan.context.releaseTag ?? "not available"}`,
   `Git commit: ${plan.context.gitCommit ?? "not available"}`,
   `Git branch/ref: ${plan.context.gitBranch ?? "not available"}`,
