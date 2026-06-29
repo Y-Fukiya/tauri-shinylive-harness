@@ -143,8 +143,8 @@ const treeHashIfExists = async (relativeRoot, { kind = "directory-tree-hash", ma
 };
 
 export const resolveShinyliveAssetAnchors = (renvPackages = {}) => {
-  const pinnedVersion = renvPackages.shinylive?.pinned;
-  const version = pinnedVersion ? `shinylive-${pinnedVersion}` : "shinylive-<renv-lock-missing>";
+  const assetVersion = renvPackages.shinylive?.assetsVersion ?? renvPackages.shinylive?.pinned;
+  const version = assetVersion ? `shinylive-${assetVersion}` : "shinylive-<renv-lock-missing>";
   return [
     `.shinylive-cache/${version}/export_template/index.html`,
     `.shinylive-cache/${version}/shinylive/shinylive.js`,
@@ -166,6 +166,7 @@ const readRenvPackages = async () => {
         pinned: metadata.Version ?? null,
         source: metadata.Source ?? null,
         repository: metadata.Repository ?? null,
+        assetsVersion: metadata.HarnessAssetsVersion ?? metadata.AssetsVersion ?? null,
       },
     ]),
   );

@@ -373,16 +373,17 @@ test("Shinylive asset anchors use the renv.lock pin instead of cache directory o
   const anchors = resolveShinyliveAssetAnchors({
     shinylive: {
       pinned: "0.5.0",
+      assetsVersion: "0.10.12",
       source: "Repository",
       repository: "CRAN",
     },
   });
 
   assert.deepEqual(anchors, [
-    ".shinylive-cache/shinylive-0.5.0/export_template/index.html",
-    ".shinylive-cache/shinylive-0.5.0/shinylive/shinylive.js",
-    ".shinylive-cache/shinylive-0.5.0/shinylive/shinylive.css",
-    ".shinylive-cache/shinylive-0.5.0/shinylive/webr/R.wasm",
+    ".shinylive-cache/shinylive-0.10.12/export_template/index.html",
+    ".shinylive-cache/shinylive-0.10.12/shinylive/shinylive.js",
+    ".shinylive-cache/shinylive-0.10.12/shinylive/shinylive.css",
+    ".shinylive-cache/shinylive-0.10.12/shinylive/webr/R.wasm",
   ]);
 });
 
