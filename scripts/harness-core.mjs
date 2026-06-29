@@ -733,6 +733,12 @@ export const sha256File = async (targetPath) => {
   return hash.digest("hex");
 };
 
+const bundleAssetMetadata = (targetPath) =>
+  retryTransientFs(() => stat(targetPath), { attempts: 8, delayMs: 80 });
+
+const bundleAssetSha256 = (targetPath) =>
+  retryTransientFs(() => sha256File(targetPath), { attempts: 8, delayMs: 80 });
+
 export const writeBundleArtifacts = async (config, manifest) => {
   const files = (await listFiles(distRoot))
     .filter((file) => !file.startsWith(`reports${path.sep}`))
@@ -743,11 +749,11 @@ export const writeBundleArtifacts = async (config, manifest) => {
 
   for (const relativePath of files) {
     const targetPath = path.join(distRoot, relativePath);
-    const metadata = await stat(targetPath);
+    const metadata = await bundleAssetMetadata(targetPath);
     assets.push({
       path: toPosix(relativePath),
       size: metadata.size,
-      sha256: await sha256File(targetPath),
+      sha256: await bundleAssetSha256(targetPath),
     });
   }
 
@@ -771,11 +777,11 @@ export const writeBundleArtifacts = async (config, manifest) => {
   const generatedArtifacts = [];
   for (const relativePath of ["reports/sbom.json", "reports/licenses.md"]) {
     const targetPath = path.join(distRoot, relativePath);
-    const metadata = await stat(targetPath);
+    const metadata = await bundleAssetMetadata(targetPath);
     generatedArtifacts.push({
       path: relativePath,
       size: metadata.size,
-      sha256: await sha256File(targetPath),
+      sha256: await bundleAssetSha256(targetPath),
     });
   }
   bundleManifest.generatedArtifacts = generatedArtifacts;
